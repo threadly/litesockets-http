@@ -4,12 +4,15 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
-import org.threadly.litesockets.protocol.http.HTTPAddress;
-import org.threadly.litesockets.protocol.http.HTTPConstants;
-import org.threadly.litesockets.protocol.http.HTTPConstants.PROTOCOL;
-import org.threadly.litesockets.protocol.http.HTTPConstants.REQUEST_TYPE;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.PROTOCOL;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
 
+/**
+ * This is an immutable HTTPRequest object.  This is what is sent to the server when doing an
+ * HTTPRequest.  This object is created via {@link HTTPRequestBuilder}. 
+ */
 public class HTTPRequest {
   private final HTTPAddress httpAddress;
   private final HTTPRequestHeader request;
@@ -23,12 +26,14 @@ public class HTTPRequest {
     this.request = request;
     this.readTimeout = timeout;
     this.headers = headers;
-    this.body = ByteBuffer.wrap(lbody).asReadOnlyBuffer();
+    this.body = ByteBuffer.wrap(lbody);
     this.httpAddress = httpAddress;
     this.isChunked = isChunked;
     byte[] rba = request.toString().getBytes();
     byte[] hba = headers.toString().getBytes();
-    ByteBuffer bb = ByteBuffer.allocate(rba.length+hba.length+lbody.length+6);
+    //TODO: figure out a way to save memory here, but still keep all needed objects and data....
+    ByteBuffer bb = ByteBuffer.allocate(rba.length+hba.length+lbody.length+
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length()+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.length());
     bb.put(rba);
     bb.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     bb.put(hba);
@@ -59,7 +64,7 @@ public class HTTPRequest {
   }
   
   public ByteBuffer getBody() {
-    return body.duplicate();
+    return body.asReadOnlyBuffer();
   }
   
   public HTTPHeaders getHTTPHeaders() {
@@ -76,13 +81,30 @@ public class HTTPRequest {
   
   @Override
   public String toString() {
-    return this.request.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+this.headers.toString()+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR+"bodysize:"+body.remaining();
+    return this.request.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+
+        this.headers.toString()+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR+
+        "bodysize:"+body.remaining();
   }
   
   public ByteBuffer getRequestBuffer() {
     return cachedBuffer.duplicate();
   }
   
+  public HTTPRequestBuilder makeBuilder() {
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHTTPHeaders(headers).setHTTPRequestHeader(request);
+    hrb.setHTTPAddress(httpAddress);
+    hrb.setBody(body.array());
+    hrb.setReadTimeout(this.readTimeout);
+    if(this.isChunked) {
+      hrb.enableChunked();
+    }
+    return hrb;
+  }
+  
+  /**
+   * A builder object for HTTPRequests.  This helps construct different types of httpRequests. 
+   *
+   */
   public static class HTTPRequestBuilder {
     private HTTPRequestHeader request = HTTPUtils.DEFAULT_REQUEST_HEADER;
     private Map<String, String> headers = new HashMap<String, String>(HTTPConstants.DEFAULT_HEADERS_MAP);
@@ -94,7 +116,7 @@ public class HTTPRequest {
     private byte[] body = new byte[0];
     
     public HTTPRequestBuilder(){
-      addHeader(HTTPConstants.HTTP_KEY_HOST, host);
+      setHeader(HTTPConstants.HTTP_KEY_HOST, host);
     }
     
     public HTTPRequestBuilder(URL url) {
@@ -126,8 +148,42 @@ public class HTTPRequest {
       } else {
         request = new HTTPRequestHeader(request.getRequestType(), tmpPath, null, request.getHttpVersion());
       }
-      addHeader(HTTPConstants.HTTP_KEY_HOST, host);
+      setHeader(HTTPConstants.HTTP_KEY_HOST, host);
       return this;
+    }
+    
+    public HTTPRequestBuilder setHTTPRequestHeader(HTTPRequestHeader hrh) {
+      request = hrh;
+      return this;
+    }
+    
+    public HTTPRequestBuilder setHTTPHeaders(HTTPHeaders hh) {
+      this.headers.clear();
+      for(Entry<String, String> head: hh.headers.entrySet()) {
+        setHeader(head.getKey(), head.getValue());
+      }
+      return this;
+    }
+    
+    public HTTPRequestBuilder setHTTPAddress(HTTPAddress ha) {
+      this.host = ha.getHost();
+      this.port = ha.getPort();
+      this.doSSL = ha.getdoSSL();
+      return this;
+    }
+    
+    public HTTPRequestBuilder duplicate() {
+      HTTPRequestBuilder hrb = new HTTPRequestBuilder();
+      hrb.setReadTimeout(readTimeout).setHost(host).setPort(port);
+      hrb.request = request;
+      hrb.chunked = chunked;
+      hrb.doSSL = doSSL;
+      hrb.body = new byte[body.length];
+      for(Entry<String, String> entry: headers.entrySet()) {
+        hrb.setHeader(entry.getKey(), entry.getValue());
+      }
+      System.arraycopy(body, 0, hrb.body, 0, hrb.body.length);
+      return hrb;
     }
     
     public HTTPRequestBuilder enableSSL() {
@@ -147,15 +203,15 @@ public class HTTPRequest {
     
     public HTTPRequestBuilder setHost(String host) {
       this.host = host;
-      addHeader(HTTPConstants.HTTP_KEY_HOST, host);
+      setHeader(HTTPConstants.HTTP_KEY_HOST, host);
       return this;
     }
     
     public HTTPRequestBuilder enableChunked() {
-      addHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
+      setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
       removeHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
       chunked = true;
-      addBody(body);
+      setBody(body);
       return this;
     }
     
@@ -183,12 +239,12 @@ public class HTTPRequest {
       return this;
     }
     
-    public HTTPRequestBuilder addQueryString(String query) {
+    public HTTPRequestBuilder setQueryString(String query) {
       this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), HTTPUtils.parseQueryString(query), request.getHttpVersion());
       return this;
     }
     
-    public HTTPRequestBuilder addQuery(String key, String value) {
+    public HTTPRequestBuilder appedQuery(String key, String value) {
       HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
       map.put(key, value);
       this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), map, request.getHttpVersion());
@@ -202,7 +258,7 @@ public class HTTPRequest {
       return this;
     }
     
-    public HTTPRequestBuilder addHeader(String key, String value) {
+    public HTTPRequestBuilder setHeader(String key, String value) {
       headers.put(key, value);
       return this;
     }
@@ -219,14 +275,21 @@ public class HTTPRequest {
       return this;
     }
     
-    public HTTPRequestBuilder addBody(byte[] body) {
+    public HTTPRequestBuilder setBody(byte[] body) {
       return removeBody().appendBody(body);
     }
     
-    public HTTPRequestBuilder addBody(String body) {
-      return removeBody().addBody(body.getBytes());
+    public HTTPRequestBuilder setBody(String body) {
+      return removeBody().setBody(body.getBytes());
     }
     
+    /**
+     * This is mainly used when Chunked Encoding is enabled.  Every *appendBody* will add a new chunk
+     * as some http protocol depend on it for there protocol.
+     * 
+     * @param appendBody the bytearray to append to the current body.
+     * @return builder object.
+     */
     public HTTPRequestBuilder appendBody(byte[] appendBody) {
       if(chunked) {
         appendBody = HTTPUtils.wrapInChunk(appendBody);
@@ -240,7 +303,7 @@ public class HTTPRequest {
         this.body = appendBody;
       }
       if(!chunked) {
-        this.addHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(body.length));
+        this.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(body.length));
       }
       return this;
     }

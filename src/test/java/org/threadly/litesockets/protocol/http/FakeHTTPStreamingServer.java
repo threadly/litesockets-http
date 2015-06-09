@@ -13,6 +13,7 @@ import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.tcp.TCPClient;
 import org.threadly.litesockets.tcp.TCPServer;
 import org.threadly.litesockets.tcp.SSLServer;

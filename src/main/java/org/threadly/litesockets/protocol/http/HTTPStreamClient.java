@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
@@ -35,6 +36,7 @@ import org.threadly.litesockets.utils.TransactionalByteBuffers;
  *
  */
 public class HTTPStreamClient extends SSLClient {
+  private static final int HEX_OCT = 16;
   private final MergedByteBuffers localMbb = new MergedByteBuffers();
   private final TransactionalByteBuffers tbb = new TransactionalByteBuffers();
   private volatile HTTPResponseProcessor httpProcessor;
@@ -71,8 +73,11 @@ public class HTTPStreamClient extends SSLClient {
    * whenever you want to but obviously use only when you know you can sent a request, right after
    * opening a connection for example.</p>
    * 
-   * @param request the request to send.  This is generally done with HTTPRequestBuilders buildHeadersOnly() method.  You can send a full request if you expect the response (not the sending) to be a stream.
-   * @return returns a ListenableFuture with the HTTPResponse in it.  This might not callback right away, especially if you used buildHeadersOnly() as you still need to stream in your data till its complete.  Once complete this should be called.
+   * @param request the request to send.  This is generally done with HTTPRequestBuilders buildHeadersOnly() method.  
+   * You can send a full request if you expect the response (not the sending) to be a stream.
+   * @return returns a ListenableFuture with the HTTPResponse in it.  This might not callback right away, 
+   * especially if you used buildHeadersOnly() as you still need to stream in your data till its complete.  
+   * Once complete this should be called.
    */
   public ListenableFuture<HTTPResponse> writeRequest(HTTPRequest request) {
     if(slfResponse != null && !slfResponse.isDone()) {
@@ -144,7 +149,7 @@ public class HTTPStreamClient extends SSLClient {
         while((pos = tbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) >= 0) {
           tbb.begin();
           String tmp = tbb.getAsString(pos);
-          int size = Integer.parseInt(tmp, 16);
+          int size = Integer.parseInt(tmp, HEX_OCT);
           tbb.discard(2);
           if(tbb.remaining() >= size+2) {
             if(localReader != null  && size > 0) {
@@ -164,12 +169,13 @@ public class HTTPStreamClient extends SSLClient {
     }
   }
 
+  /**
+   * Runnable used to parse the readEvents from the client. 
+   */
   private class HTTPReader implements Reader {
     @Override
     public void onRead(Client client) {
       parseRead();
     }
-
   }
-
 }

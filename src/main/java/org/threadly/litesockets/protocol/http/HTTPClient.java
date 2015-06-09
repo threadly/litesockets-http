@@ -17,11 +17,12 @@ import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Closer;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
+import org.threadly.litesockets.protocol.http.structures.HTTPAddress;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
-import org.threadly.litesockets.tcp.TCPClient;
 import org.threadly.litesockets.tcp.SSLClient;
+import org.threadly.litesockets.tcp.TCPClient;
 import org.threadly.util.Clock;
 
 /**
@@ -29,8 +30,6 @@ import org.threadly.util.Clock;
  * can be done in parallel.  This is mainly used for doing many smaller Request and Response messages as the full Request/Response 
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
  * 
- * @author lwahlmeier
- *
  */
 public class HTTPClient implements Reader, Closer {
   public static final int DEFAULT_CONCURRENT = 2; 
@@ -38,7 +37,7 @@ public class HTTPClient implements Reader, Closer {
   
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
-  private final SimpleSchedulerInterface SSI;
+  private final SimpleSchedulerInterface ssi;
   private final NoThreadSocketExecuter ntse = new NoThreadSocketExecuter();
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   
@@ -66,11 +65,7 @@ public class HTTPClient implements Reader, Closer {
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize) {
     //We cant pass this on to next contructor because we need to know to shutdown the STS.
-    this.maxConcurrent = maxConcurrent;
-    this.maxResponseSize = maxResponseSize;
-    sts = new SingleThreadScheduler();
-    SSI = sts;
-    ntse.start();
+    this(maxConcurrent, maxResponseSize, new SingleThreadScheduler());
   }
   
   
@@ -80,10 +75,7 @@ public class HTTPClient implements Reader, Closer {
    * 
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize, ScheduledExecutorService ssi) {
-    this.maxConcurrent = maxConcurrent;
-    this.maxResponseSize = maxResponseSize;
-    SSI = new ScheduledExecutorServiceWrapper(ssi);
-    ntse.start();
+    this(maxConcurrent, maxResponseSize, new ScheduledExecutorServiceWrapper(ssi));
   }
   
   /**
@@ -94,7 +86,7 @@ public class HTTPClient implements Reader, Closer {
   public HTTPClient(int maxConcurrent, int maxResponseSize, SimpleSchedulerInterface ssi) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
-    SSI = ssi;
+    this.ssi = ssi;
     ntse.start();
   }
 
@@ -131,7 +123,7 @@ public class HTTPClient implements Reader, Closer {
     ntse.wakeup();
     
     if(isRunning.compareAndSet(false, true)) {
-      SSI.execute(new RunSocket());
+      ssi.execute(new RunSocket());
     }
     return lf;
   }
@@ -141,7 +133,7 @@ public class HTTPClient implements Reader, Closer {
     while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
       HTTPRequestWrapper hrw = queue.poll();
       inProcess.add(hrw);
-      SSI.execute(new RunClient(hrw));
+      ssi.execute(new RunClient(hrw));
     }
   }
   
@@ -216,6 +208,9 @@ public class HTTPClient implements Reader, Closer {
     ntse.wakeup();
   }
   
+  /**
+   * Used to run the NoThreadSocketExecuter.
+   */
   private class RunSocket implements Runnable {
     @Override
     public void run() {
@@ -224,13 +219,17 @@ public class HTTPClient implements Reader, Closer {
       }
       if(ntse.isRunning() && queue.size() + inProcess.size() > 0) {
         processQueue();
-        SSI.execute(this);
+        ssi.execute(this);
       } else {
         isRunning.set(false);
       }
     }
   }
   
+  /**
+   * Used when an HTTPClient is ready to start processing.
+   *
+   */
   private class RunClient implements Runnable {
     final HTTPRequestWrapper hrw;
     
@@ -240,13 +239,16 @@ public class HTTPClient implements Reader, Closer {
     
     @Override
     public void run() {
-      
       try {
         LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
         if(ll != null) {
           synchronized(ll) {
-            if(ll.size() > 0) {
-              hrw.client = ll.pop();
+            while(ll.size() > 0 && hrw.client == null) {
+              if(ll.peek().isClosed()) {
+                ll.pop();
+              } else {
+                hrw.client = ll.pop();
+              }
             }
           }
         }
@@ -255,7 +257,6 @@ public class HTTPClient implements Reader, Closer {
             SSLClient sc = new SSLClient(hrw.hr.getHost(), hrw.hr.getPort());
             hrw.client = sc;
             sc.doHandShake();
-            
           } else {
             hrw.client = new TCPClient(hrw.hr.getHost(), hrw.hr.getPort());
           }
@@ -268,9 +269,10 @@ public class HTTPClient implements Reader, Closer {
         //Request started here so we set the timeout to start now.
         hrw.updateReadTime();
         ntse.addClient(hrw.client);
-        SSI.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
+        ssi.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
+        //TODO: move to watchDog cache....
         if(! hrw.isExpired()) {
-          SSI.schedule(this, 1000);
+          ssi.schedule(this, 1000);
         } else {
           hrw.slf.setFailure(new TimeoutException());
         }
@@ -295,7 +297,7 @@ public class HTTPClient implements Reader, Closer {
       if(hrw.isExpired()) {
         hrw.slf.setResult(new HTTPResponse(new TimeoutException("Request timedout")));
       } else {
-        SSI.schedule(this, hrw.timeTillExpired()+1);
+        ssi.schedule(this, hrw.timeTillExpired()+1);
       }
     }
   }

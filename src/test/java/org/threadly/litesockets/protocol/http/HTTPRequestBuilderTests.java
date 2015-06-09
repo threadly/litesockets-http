@@ -7,8 +7,9 @@ import java.net.URL;
 import java.util.Arrays;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocol.http.HTTPConstants.REQUEST_TYPE;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
 
 public class HTTPRequestBuilderTests {
@@ -22,21 +23,21 @@ public class HTTPRequestBuilderTests {
     assertEquals("litesockets", hr.getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_USER_AGENT));
     hr = builder.setPath("/home/somepath").build();
     assertEquals("GET /home/somepath HTTP/1.1", hr.getHTTPRequestHeaders().toString());
-    hr = builder.addQuery("test", "test").build();
+    hr = builder.appedQuery("test", "test").build();
     assertEquals("GET /home/somepath?test=test HTTP/1.1", hr.getHTTPRequestHeaders().toString());
     
     hr = builder.removeQuery("test").build();
     assertEquals("GET /home/somepath HTTP/1.1", hr.getHTTPRequestHeaders().toString());
-    hr = builder.addQuery("blah1112", "").build();
+    hr = builder.appedQuery("blah1112", "").build();
     assertEquals("GET /home/somepath?blah1112 HTTP/1.1", hr.getHTTPRequestHeaders().toString());
 
-    hr = builder.addHeader("X-Something", "Value").build();
+    hr = builder.setHeader("X-Something", "Value").build();
     assertEquals("Value", hr.getHTTPHeaders().getHeader("X-Something"));
     
     hr = builder.removeHeader("X-Something").build();
     assertEquals(null, hr.getHTTPHeaders().getHeader("X-Something"));
     
-    hr = builder.addBody("X-Something").build();
+    hr = builder.setBody("X-Something").build();
     assertEquals(11, hr.getBody().remaining());
     byte[] ba = new byte[hr.getBody().remaining()];
     hr.getBody().get(ba);
@@ -107,7 +108,7 @@ public class HTTPRequestBuilderTests {
 
     
     
-    hr = builder.addQueryString("?test=2&i=p").removeQuery("i").build();
+    hr = builder.setQueryString("?test=2&i=p").removeQuery("i").build();
     assertEquals("GET /?test=2 HTTP/1.1", hr.getHTTPRequestHeaders().toString());
     
     hr = builder.appendBody("X-Something".getBytes()).appendBody("X-Something".getBytes()).build();

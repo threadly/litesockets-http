@@ -4,16 +4,16 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.threadly.litesockets.protocol.http.HTTPConstants;
-import org.threadly.litesockets.protocol.http.HTTPConstants.REQUEST_TYPE;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
 
 public class HTTPUtils {
-  public static HTTPHeaders DEFAULT_HEADERS= new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
-  public static HTTPRequestHeader DEFAULT_REQUEST_HEADER= new HTTPRequestHeader(REQUEST_TYPE.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
+  public static final HTTPHeaders DEFAULT_HEADERS= new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
+  public static final HTTPRequestHeader DEFAULT_REQUEST_HEADER= new HTTPRequestHeader(REQUEST_TYPE.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
   
   public static ByteBuffer wrapInChunk(ByteBuffer bb) {
     byte[] size = Integer.toHexString(bb.remaining()).getBytes();
-    ByteBuffer newBB = ByteBuffer.allocate(bb.remaining()+size.length+4);
+    ByteBuffer newBB = ByteBuffer.allocate(bb.remaining()+
+        size.length+HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
     newBB.put(size);
     newBB.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     newBB.put(bb);

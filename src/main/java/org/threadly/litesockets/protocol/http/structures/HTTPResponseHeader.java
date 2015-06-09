@@ -1,8 +1,11 @@
 package org.threadly.litesockets.protocol.http.structures;
 
-import org.threadly.litesockets.protocol.http.HTTPConstants;
 
+/**
+ * An Immutable object of the HTTP Response header.  Basically the first line in the Header of an HTTP response. 
+ */
 public class HTTPResponseHeader {
+  public static final int REQUIRED_RESPONSE_ITEMS = 3;
   public final String rawResponse;
   public final String responseValue;
   public final String responseText;
@@ -10,7 +13,10 @@ public class HTTPResponseHeader {
   
   public HTTPResponseHeader(String rawResponse) {
     this.rawResponse = rawResponse.trim().intern();
-    String[] tmp = this.rawResponse.split(" ", 3);
+    String[] tmp = this.rawResponse.split(" ");
+    if(tmp.length != REQUIRED_RESPONSE_ITEMS) {
+      throw new IllegalArgumentException("HTTPResponseHeader can only have 3 arguments! :"+rawResponse);
+    }
     httpVersion = tmp[0].trim().toUpperCase().intern();
     responseValue = tmp[1].trim().intern();
     responseText = HTTPConstants.RESPONSE_CODES.get(responseValue);
