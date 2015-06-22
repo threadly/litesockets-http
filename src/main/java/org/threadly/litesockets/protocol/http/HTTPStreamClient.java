@@ -95,7 +95,7 @@ public class HTTPStreamClient extends SSLClient {
 
   @Override
   public void writeForce(ByteBuffer bb) {
-    if(currentHttpRequest.isChunked()) {
+    if(currentHttpRequest!= null && currentHttpRequest.isChunked()) {
       super.writeForce(HTTPUtils.wrapInChunk(bb));
     } else {
       super.writeForce(bb);

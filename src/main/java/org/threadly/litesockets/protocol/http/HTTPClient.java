@@ -4,11 +4,9 @@ import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.threadly.concurrent.ScheduledExecutorServiceWrapper;
 import org.threadly.concurrent.SimpleSchedulerInterface;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
@@ -17,12 +15,14 @@ import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Closer;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
+import org.threadly.litesockets.SocketExecuterInterface;
 import org.threadly.litesockets.protocol.http.structures.HTTPAddress;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
 import org.threadly.litesockets.tcp.SSLClient;
 import org.threadly.litesockets.tcp.TCPClient;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.util.Clock;
 
 /**
@@ -38,14 +38,15 @@ public class HTTPClient implements Reader, Closer {
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
   private final SimpleSchedulerInterface ssi;
-  private final NoThreadSocketExecuter ntse = new NoThreadSocketExecuter();
+  private final SocketExecuterInterface sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> inProcess = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
   
   private final int maxConcurrent;
-  
+
+  private NoThreadSocketExecuter ntse = null;
   private SingleThreadScheduler sts = null;
 
   /**
@@ -64,30 +65,26 @@ public class HTTPClient implements Reader, Closer {
    * 
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize) {
-    //We cant pass this on to next contructor because we need to know to shutdown the STS.
-    this(maxConcurrent, maxResponseSize, new SingleThreadScheduler());
+    this.maxConcurrent = maxConcurrent;
+    this.maxResponseSize = maxResponseSize;
+    sts = new SingleThreadScheduler();
+    this.ssi = sts;
+    ntse = new NoThreadSocketExecuter();
+    sei = ntse;
+    ntse.start();
   }
   
-  
-  /**
-   * <p>This constructor will let you set the max Concurrent Requests and max Response Size
-   * as well as your own {@link ScheduledExecutorService} as the thread pool to use.</p> 
-   * 
-   */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, ScheduledExecutorService ssi) {
-    this(maxConcurrent, maxResponseSize, new ScheduledExecutorServiceWrapper(ssi));
-  }
   
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size
    * as well as your own {@link SimpleSchedulerInterface} as the thread pool to use.</p> 
    * 
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, SimpleSchedulerInterface ssi) {
+  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuterInterface sei) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
-    this.ssi = ssi;
-    ntse.start();
+    this.ssi = sei.getThreadScheduler();
+    this.sei = sei;
   }
 
   /**
@@ -116,14 +113,17 @@ public class HTTPClient implements Reader, Closer {
    * @return A ListenableFuture is returned here.  It will either have an error or the HTTPResponse.
    */
   public ListenableFuture<HTTPResponse> requestAsync(final HTTPRequest request) {
-    
+    System.out.println("New Request:"+request);
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
     final ListenableFuture<HTTPResponse> lf = hrw.slf;
     queue.add(hrw);
-    ntse.wakeup();
-    
-    if(isRunning.compareAndSet(false, true)) {
-      ssi.execute(new RunSocket());
+    if(ntse != null) {
+      ntse.wakeup();
+      if(isRunning.compareAndSet(false, true)) {
+        ssi.execute(new RunSocket());
+      }
+    } else {
+      processQueue();
     }
     return lf;
   }
@@ -132,8 +132,12 @@ public class HTTPClient implements Reader, Closer {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
     while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
       HTTPRequestWrapper hrw = queue.poll();
-      inProcess.add(hrw);
-      ssi.execute(new RunClient(hrw));
+      //This runs concurrently if using a threaded SocketExecuter, so we have to null check before we add.
+      if(hrw != null) {
+        inProcess.add(hrw);
+        ssi.execute(new RunClient(hrw));
+      }
+      
     }
   }
   
@@ -172,7 +176,9 @@ public class HTTPClient implements Reader, Closer {
     }
     if(hrw != null && !hrw.hrp.isDone() && !hrw.hrp.isError()) {
       hrw.updateReadTime();
-      hrw.hrp.process(client.getRead());
+      MergedByteBuffers mbb = client.getRead();
+      System.out.println("GOT READ:"+mbb.remaining());
+      hrw.hrp.process(mbb);
       if(hrw.hrp.isDone() && !hrw.hrp.isError()) {
         hrw.slf.setResult(hrw.hrp.getResponse());
         LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
@@ -182,14 +188,17 @@ public class HTTPClient implements Reader, Closer {
           }
         }
         inProcess.remove(hrw);
+        processQueue();
       } else if (hrw.hrp.isError()) {
         hrw.slf.setResult(new HTTPResponse(new Exception("Error while parsing HTTP: "+hrw.hrp.getErrorText())));
         tc.close();
         inProcess.remove(hrw);
+        processQueue();
       } else if (hrw.hrp.getBodyLength() > maxResponseSize) {
         hrw.slf.setResult(new HTTPResponse(new Exception("HTTPResponse was to large!! content-length was set to :"+hrw.hrp.getBodyLength())));
         tc.close();
         inProcess.remove(hrw);
+        processQueue();
       }
     }
   }
@@ -199,13 +208,15 @@ public class HTTPClient implements Reader, Closer {
    * and HTTPClient looses all references it will be GCed correctly. 
    */
   public void stop() {
-    if(sts != null) {
+    if(ntse != null) {
       ntse.stopIfRunning();
-      sts.shutdownNow();
-    } else {
-      ntse.stopIfRunning();
+      ntse.wakeup();
+      ntse.wakeup();
     }
-    ntse.wakeup();
+    if(sts != null) {
+      sts.shutdownNow();
+    }
+
   }
   
   /**
@@ -268,12 +279,10 @@ public class HTTPClient implements Reader, Closer {
         hrw.client.writeForce(hrw.hr.getRequestBuffer());
         //Request started here so we set the timeout to start now.
         hrw.updateReadTime();
-        ntse.addClient(hrw.client);
+        sei.addClient(hrw.client);
         ssi.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
         //TODO: move to watchDog cache....
-        if(! hrw.isExpired()) {
-          ssi.schedule(this, 1000);
-        } else {
+        if(hrw.isExpired()) {
           hrw.slf.setFailure(new TimeoutException());
         }
       } catch(Exception e) {
