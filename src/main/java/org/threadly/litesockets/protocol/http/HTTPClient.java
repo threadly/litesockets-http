@@ -113,7 +113,6 @@ public class HTTPClient implements Reader, Closer {
    * @return A ListenableFuture is returned here.  It will either have an error or the HTTPResponse.
    */
   public ListenableFuture<HTTPResponse> requestAsync(final HTTPRequest request) {
-    System.out.println("New Request:"+request);
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
     final ListenableFuture<HTTPResponse> lf = hrw.slf;
     queue.add(hrw);
@@ -177,7 +176,6 @@ public class HTTPClient implements Reader, Closer {
     if(hrw != null && !hrw.hrp.isDone() && !hrw.hrp.isError()) {
       hrw.updateReadTime();
       MergedByteBuffers mbb = client.getRead();
-      System.out.println("GOT READ:"+mbb.remaining());
       hrw.hrp.process(mbb);
       if(hrw.hrp.isDone() && !hrw.hrp.isError()) {
         hrw.slf.setResult(hrw.hrp.getResponse());
