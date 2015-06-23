@@ -4,10 +4,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.threadly.litesockets.protocol.http.HTTPConstants;
-import org.threadly.litesockets.protocol.http.HTTPConstants.REQUEST_TYPE;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
 
+
+/**
+ * This is an immutable HTTP Request Header.  Basically the first line of the http request.  
+ */
 public class HTTPRequestHeader {
+  public static final int REQUIRED_REQUEST_ITEMS = 3;
   public final String rawRequest;
   public final String requestType;
   public final String requestPath;
@@ -17,7 +21,7 @@ public class HTTPRequestHeader {
   public HTTPRequestHeader(String rawRequest) {
     this.rawRequest = rawRequest.intern();
     String[] tmp = rawRequest.split(" ");
-    if(tmp.length < 3 || tmp.length > 3) {
+    if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+rawRequest);
     }
     requestType = tmp[0].trim().toUpperCase();

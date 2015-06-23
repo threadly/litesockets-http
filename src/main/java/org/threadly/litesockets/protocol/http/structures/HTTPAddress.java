@@ -1,5 +1,10 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.protocol.http.structures;
 
+/**
+ * Simple Immutable class that is used for http Connections.  Its mainly used
+ * to know if 2 address will connect to the exact same place or not. 
+ *
+ */
 public class HTTPAddress {
   private final String host;
   private final int port;
@@ -12,12 +17,15 @@ public class HTTPAddress {
     this.doSSL = doSSL;
     finalString = "HTTPAddress:"+host+":"+port+":SSL:"+doSSL; 
   }
+  
   public String getHost() {
     return host;
   }
+  
   public int getPort() {
     return port;
   }
+  
   public boolean getdoSSL() {
     return doSSL;
   }

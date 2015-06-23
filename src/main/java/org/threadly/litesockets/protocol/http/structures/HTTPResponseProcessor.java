@@ -3,10 +3,15 @@ package org.threadly.litesockets.protocol.http.structures;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
-import org.threadly.litesockets.protocol.http.HTTPConstants;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 
+
+/**
+ * This is a simple HTTP Response parser.  It takes in Bytes and builds up an {@link HTTPResponse} object. 
+ */
 public class HTTPResponseProcessor {
+  public static final int MAX_RESPONSE_HEADER_SIZE = 500;
+  public static final int MAX_HEADER_SIZE = 50000;
   private final MergedByteBuffers buffers = new MergedByteBuffers();
   private final ArrayDeque<ByteBuffer> chunkedBuffers = new ArrayDeque<ByteBuffer>(); 
   protected HTTPResponseHeader rHeader;
@@ -16,7 +21,6 @@ public class HTTPResponseProcessor {
   private boolean chunked = false;
   private boolean parseChunks = true;
   private byte[] body = new byte[0];
-  
 
   private boolean errors = false;
   private String errorText = null;
@@ -36,7 +40,7 @@ public class HTTPResponseProcessor {
         errorText = "Could not parse Response Header! "+e.getMessage();
       }
       buffers.discard(2);
-    } else if(rHeader == null && buffers.remaining() > 500) {
+    } else if(rHeader == null && buffers.remaining() > MAX_RESPONSE_HEADER_SIZE) {
       errors = true;
       errorText = "Could not parse Headers!";
     } else if(rHeader == null){
@@ -48,8 +52,8 @@ public class HTTPResponseProcessor {
       headers = new HTTPHeaders(buffers.getAsString(eoh));
       bodyLength = headers.getContentLength();
       chunked = headers.isChunked();
-      buffers.discard(4);
-    } else if(headers == null && buffers.remaining() > 50000) {
+      buffers.discard(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.length());
+    } else if(headers == null && buffers.remaining() > MAX_HEADER_SIZE) {
       errors = true;
       errorText = "Could not parse Headers!";
     } else if (headers == null) {

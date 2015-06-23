@@ -5,8 +5,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.threadly.litesockets.protocol.http.HTTPConstants;
-
+/**
+ * This is an immutable object of http headers.  These are the key/value pairs
+ * separated by a colon. 
+ */
 public class HTTPHeaders {
   public final String rawHeaders;
   public final Map<String, String> headers;

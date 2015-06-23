@@ -19,6 +19,7 @@ import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuterInterface;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.test.concurrent.TestCondition;

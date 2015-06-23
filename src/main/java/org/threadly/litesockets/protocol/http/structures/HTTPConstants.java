@@ -1,13 +1,23 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.protocol.http.structures;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * This is a bunch of constants used by the HTTP protocol.
+ */
 public class HTTPConstants {
+  /**
+   * These are the different protocol types, currently only http and https.
+   */
   public static enum PROTOCOL {
     HTTP, HTTPS
   }
+  
+  /**
+   * Enum of the normal HTTP Request Types.
+   */
   public static enum REQUEST_TYPE {
     OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, CONNECT
   }

@@ -122,10 +122,11 @@ public class HTTPClientTests {
   public void manyRequestsConcurrentJavaExecutor() throws IOException {
     final int number = 500;
     int port = TestUtils.findTCPPort();
-    ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(5);
+    final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
+    TSE.start();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
-    final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, stpe);
+    final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     final AtomicInteger count = new AtomicInteger(0);
 
     PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
@@ -170,6 +171,7 @@ public class HTTPClientTests {
         }
       }.blockTillTrue(10000);
       httpClient.stop();
+      TSE.stop();
   }
 
 
@@ -179,7 +181,9 @@ public class HTTPClientTests {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
-    final HTTPClient httpClient = new HTTPClient(20, HTTPClient.MAX_HTTP_RESPONSE, PS);
+    final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
+    TSE.start();
+    final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     final AtomicInteger count = new AtomicInteger(0);
 
     PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
@@ -225,6 +229,7 @@ public class HTTPClientTests {
         }
       }.blockTillTrue(10000);
       httpClient.stop();
+      TSE.stop();
   }
 
   @Test

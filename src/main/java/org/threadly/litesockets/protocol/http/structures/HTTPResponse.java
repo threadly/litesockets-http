@@ -3,6 +3,12 @@ package org.threadly.litesockets.protocol.http.structures;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+
+/**
+ *  An Immutable HTTPResponse object.  This contains all information from an HTTP Response.
+ *  
+ *   NOTE: builder needed.
+ */
 public class HTTPResponse {
   private final HTTPResponseHeader rHeader;
   private final HTTPHeaders headers;

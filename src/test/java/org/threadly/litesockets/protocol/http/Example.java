@@ -10,6 +10,7 @@ import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
 import org.threadly.litesockets.utils.MergedByteBuffers;

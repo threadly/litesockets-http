@@ -4,11 +4,9 @@ import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.threadly.concurrent.ScheduledExecutorServiceWrapper;
 import org.threadly.concurrent.SimpleSchedulerInterface;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
@@ -17,11 +15,14 @@ import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Closer;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
+import org.threadly.litesockets.SocketExecuterInterface;
+import org.threadly.litesockets.protocol.http.structures.HTTPAddress;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
-import org.threadly.litesockets.tcp.TCPClient;
 import org.threadly.litesockets.tcp.SSLClient;
+import org.threadly.litesockets.tcp.TCPClient;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.util.Clock;
 
 /**
@@ -29,8 +30,6 @@ import org.threadly.util.Clock;
  * can be done in parallel.  This is mainly used for doing many smaller Request and Response messages as the full Request/Response 
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
  * 
- * @author lwahlmeier
- *
  */
 public class HTTPClient implements Reader, Closer {
   public static final int DEFAULT_CONCURRENT = 2; 
@@ -38,15 +37,16 @@ public class HTTPClient implements Reader, Closer {
   
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
-  private final SimpleSchedulerInterface SSI;
-  private final NoThreadSocketExecuter ntse = new NoThreadSocketExecuter();
+  private final SimpleSchedulerInterface ssi;
+  private final SocketExecuterInterface sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> inProcess = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
   
   private final int maxConcurrent;
-  
+
+  private NoThreadSocketExecuter ntse = null;
   private SingleThreadScheduler sts = null;
 
   /**
@@ -65,37 +65,26 @@ public class HTTPClient implements Reader, Closer {
    * 
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize) {
-    //We cant pass this on to next contructor because we need to know to shutdown the STS.
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
     sts = new SingleThreadScheduler();
-    SSI = sts;
+    this.ssi = sts;
+    ntse = new NoThreadSocketExecuter();
+    sei = ntse;
     ntse.start();
   }
   
-  
-  /**
-   * <p>This constructor will let you set the max Concurrent Requests and max Response Size
-   * as well as your own {@link ScheduledExecutorService} as the thread pool to use.</p> 
-   * 
-   */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, ScheduledExecutorService ssi) {
-    this.maxConcurrent = maxConcurrent;
-    this.maxResponseSize = maxResponseSize;
-    SSI = new ScheduledExecutorServiceWrapper(ssi);
-    ntse.start();
-  }
   
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size
    * as well as your own {@link SimpleSchedulerInterface} as the thread pool to use.</p> 
    * 
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, SimpleSchedulerInterface ssi) {
+  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuterInterface sei) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
-    SSI = ssi;
-    ntse.start();
+    this.ssi = sei.getThreadScheduler();
+    this.sei = sei;
   }
 
   /**
@@ -124,14 +113,16 @@ public class HTTPClient implements Reader, Closer {
    * @return A ListenableFuture is returned here.  It will either have an error or the HTTPResponse.
    */
   public ListenableFuture<HTTPResponse> requestAsync(final HTTPRequest request) {
-    
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
     final ListenableFuture<HTTPResponse> lf = hrw.slf;
     queue.add(hrw);
-    ntse.wakeup();
-    
-    if(isRunning.compareAndSet(false, true)) {
-      SSI.execute(new RunSocket());
+    if(ntse != null) {
+      ntse.wakeup();
+      if(isRunning.compareAndSet(false, true)) {
+        ssi.execute(new RunSocket());
+      }
+    } else {
+      processQueue();
     }
     return lf;
   }
@@ -140,8 +131,12 @@ public class HTTPClient implements Reader, Closer {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
     while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
       HTTPRequestWrapper hrw = queue.poll();
-      inProcess.add(hrw);
-      SSI.execute(new RunClient(hrw));
+      //This runs concurrently if using a threaded SocketExecuter, so we have to null check before we add.
+      if(hrw != null) {
+        inProcess.add(hrw);
+        ssi.execute(new RunClient(hrw));
+      }
+      
     }
   }
   
@@ -180,7 +175,8 @@ public class HTTPClient implements Reader, Closer {
     }
     if(hrw != null && !hrw.hrp.isDone() && !hrw.hrp.isError()) {
       hrw.updateReadTime();
-      hrw.hrp.process(client.getRead());
+      MergedByteBuffers mbb = client.getRead();
+      hrw.hrp.process(mbb);
       if(hrw.hrp.isDone() && !hrw.hrp.isError()) {
         hrw.slf.setResult(hrw.hrp.getResponse());
         LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
@@ -190,14 +186,17 @@ public class HTTPClient implements Reader, Closer {
           }
         }
         inProcess.remove(hrw);
+        processQueue();
       } else if (hrw.hrp.isError()) {
         hrw.slf.setResult(new HTTPResponse(new Exception("Error while parsing HTTP: "+hrw.hrp.getErrorText())));
         tc.close();
         inProcess.remove(hrw);
+        processQueue();
       } else if (hrw.hrp.getBodyLength() > maxResponseSize) {
         hrw.slf.setResult(new HTTPResponse(new Exception("HTTPResponse was to large!! content-length was set to :"+hrw.hrp.getBodyLength())));
         tc.close();
         inProcess.remove(hrw);
+        processQueue();
       }
     }
   }
@@ -207,15 +206,20 @@ public class HTTPClient implements Reader, Closer {
    * and HTTPClient looses all references it will be GCed correctly. 
    */
   public void stop() {
-    if(sts != null) {
+    if(ntse != null) {
       ntse.stopIfRunning();
-      sts.shutdownNow();
-    } else {
-      ntse.stopIfRunning();
+      ntse.wakeup();
+      ntse.wakeup();
     }
-    ntse.wakeup();
+    if(sts != null) {
+      sts.shutdownNow();
+    }
+
   }
   
+  /**
+   * Used to run the NoThreadSocketExecuter.
+   */
   private class RunSocket implements Runnable {
     @Override
     public void run() {
@@ -224,13 +228,17 @@ public class HTTPClient implements Reader, Closer {
       }
       if(ntse.isRunning() && queue.size() + inProcess.size() > 0) {
         processQueue();
-        SSI.execute(this);
+        ssi.execute(this);
       } else {
         isRunning.set(false);
       }
     }
   }
   
+  /**
+   * Used when an HTTPClient is ready to start processing.
+   *
+   */
   private class RunClient implements Runnable {
     final HTTPRequestWrapper hrw;
     
@@ -240,13 +248,16 @@ public class HTTPClient implements Reader, Closer {
     
     @Override
     public void run() {
-      
       try {
         LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
         if(ll != null) {
           synchronized(ll) {
-            if(ll.size() > 0) {
-              hrw.client = ll.pop();
+            while(ll.size() > 0 && hrw.client == null) {
+              if(ll.peek().isClosed()) {
+                ll.pop();
+              } else {
+                hrw.client = ll.pop();
+              }
             }
           }
         }
@@ -255,7 +266,6 @@ public class HTTPClient implements Reader, Closer {
             SSLClient sc = new SSLClient(hrw.hr.getHost(), hrw.hr.getPort());
             hrw.client = sc;
             sc.doHandShake();
-            
           } else {
             hrw.client = new TCPClient(hrw.hr.getHost(), hrw.hr.getPort());
           }
@@ -267,11 +277,10 @@ public class HTTPClient implements Reader, Closer {
         hrw.client.writeForce(hrw.hr.getRequestBuffer());
         //Request started here so we set the timeout to start now.
         hrw.updateReadTime();
-        ntse.addClient(hrw.client);
-        SSI.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
-        if(! hrw.isExpired()) {
-          SSI.schedule(this, 1000);
-        } else {
+        sei.addClient(hrw.client);
+        ssi.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
+        //TODO: move to watchDog cache....
+        if(hrw.isExpired()) {
           hrw.slf.setFailure(new TimeoutException());
         }
       } catch(Exception e) {
@@ -295,7 +304,7 @@ public class HTTPClient implements Reader, Closer {
       if(hrw.isExpired()) {
         hrw.slf.setResult(new HTTPResponse(new TimeoutException("Request timedout")));
       } else {
-        SSI.schedule(this, hrw.timeTillExpired()+1);
+        ssi.schedule(this, hrw.timeTillExpired()+1);
       }
     }
   }

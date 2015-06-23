@@ -3,7 +3,11 @@ apply plugin: 'checkstyle'
 
 repositories {
   mavenCentral()
+  maven {
+    url "http://oss.sonatype.org/content/groups/public/"
+  }
 }
+
 
 project.archivesBaseName='litesockets-http'
 

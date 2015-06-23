@@ -9,10 +9,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocol.http.HTTPConstants.REQUEST_TYPE;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPUtils;
 import org.threadly.litesockets.protocol.http.structures.HTTPHeaders;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequestHeader;
+import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
 
 public class HTTPUtilsTests {
   
