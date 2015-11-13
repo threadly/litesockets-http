@@ -293,26 +293,6 @@ public class HTTPClient implements Reader, CloseListener {
     }
   }
   
-  private class CheckTimeout implements Runnable {
-    private final HTTPRequestWrapper hrw;
-    
-    public CheckTimeout(HTTPRequestWrapper hrw) {
-      this.hrw = hrw;
-    }
-
-    @Override
-    public void run() {
-      if(hrw.slf.isDone()) {
-        return;
-      }
-      if(hrw.isExpired()) {
-        hrw.slf.setResult(new HTTPResponse(new TimeoutException("Request timedout")));
-      } else {
-        ssi.schedule(this, hrw.timeTillExpired()+1);
-      }
-    }
-  }
-  
   private static class HTTPRequestWrapper {
     final HTTPRequest hr;
     final SettableListenableFuture<HTTPResponse> slf = new SettableListenableFuture<HTTPResponse>();

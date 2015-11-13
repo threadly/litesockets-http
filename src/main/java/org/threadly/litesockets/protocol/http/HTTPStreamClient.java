@@ -3,7 +3,6 @@ package org.threadly.litesockets.protocol.http;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.Executor;
@@ -12,15 +11,15 @@ import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.SocketExecuter;
+import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.WireProtocol;
 import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
 import org.threadly.litesockets.protocol.http.structures.HTTPUtils;
-import org.threadly.litesockets.utils.SSLUtils;
-import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
 /**
@@ -114,6 +113,18 @@ public class HTTPStreamClient extends Client {
   }
   
   @Override
+  public ListenableFuture<?> write(ByteBuffer bb) {
+    if(bb.remaining() == 0) {
+      new Exception().printStackTrace();
+    }
+    if(currentHttpRequest!= null && currentHttpRequest.isChunked()) {
+      return client.write(HTTPUtils.wrapInChunk(bb));
+    } else {
+      return client.write(bb);
+    }
+  }
+  
+  @Override
   public MergedByteBuffers getRead() {
     return localMbb.duplicateAndClean();
   }
@@ -156,7 +167,7 @@ public class HTTPStreamClient extends Client {
           tbb.begin();
           String tmp = tbb.getAsString(pos);
           int size = Integer.parseInt(tmp, HEX_OCT);
-          System.out.println(size+":"+tbb.remaining());
+          //System.out.println(size+":"+tbb.remaining());
           if(size == 0) {
             doClose = true;
             tbb.rollback();
@@ -188,6 +199,7 @@ public class HTTPStreamClient extends Client {
   
   @Override
   public Executor getClientsThreadExecutor() {
+    //We use the clients executer to keep things single threaded between both clients
     return client.getClientsThreadExecutor();
   }
 
@@ -247,11 +259,6 @@ public class HTTPStreamClient extends Client {
   @Override
   public int getWriteBufferSize() {
     return client.getWriteBufferSize();
-  }
-
-  @Override
-  public ListenableFuture<?> write(ByteBuffer bb) {
-    return client.write(bb);
   }
 
   @Override

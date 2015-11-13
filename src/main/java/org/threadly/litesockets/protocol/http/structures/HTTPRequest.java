@@ -38,7 +38,9 @@ public class HTTPRequest {
     bb.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     bb.put(hba);
     bb.put(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.getBytes());
-    bb.put(lbody);
+    if(isChunked && lbody!= null && lbody.length > 0) {
+      bb.put(lbody);
+    }
     bb.flip();
     cachedBuffer = bb.asReadOnlyBuffer();
   }
@@ -211,7 +213,9 @@ public class HTTPRequest {
       setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
       removeHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
       chunked = true;
-      setBody(body);
+      if(body.length > 0 ) {
+        setBody(body);
+      }
       return this;
     }
     
@@ -276,6 +280,7 @@ public class HTTPRequest {
     }
     
     public HTTPRequestBuilder setBody(byte[] body) {
+      new Exception().printStackTrace();
       return removeBody().appendBody(body);
     }
     
