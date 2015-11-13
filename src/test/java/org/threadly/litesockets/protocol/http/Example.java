@@ -23,7 +23,7 @@ public class Example {
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
     TSE.start();
     HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("hosttopost.none").setPort(80).enableChunked().setRequestType(HTTPConstants.REQUEST_TYPE.POST);
-    HTTPStreamClient client = new HTTPStreamClient("hosttopost.none", 80, 10000);
+    HTTPStreamClient client = new HTTPStreamClient(TSE, "hosttopost.none", 80, 10000);
     client.setReader(new Reader() {
       MergedByteBuffers mbb = new MergedByteBuffers();
       @Override
@@ -31,7 +31,7 @@ public class Example {
         mbb.add(client.getRead());
         System.out.println(mbb.getAsString(mbb.remaining()));
       }});
-    TSE.addClient(client);
+    client.connect();
     System.out.println(hrb.buildHeadersOnly().getHTTPRequestHeaders().toString());
     System.out.println(hrb.buildHeadersOnly().getHTTPHeaders().toString());
     ListenableFuture<HTTPResponse> lfr = client.writeRequest(hrb.buildHeadersOnly());
@@ -50,18 +50,18 @@ public class Example {
         t.printStackTrace();
       }});
     
-    client.writeBlocking(ByteBuffer.wrap("EACH".getBytes()));
-    client.writeBlocking(ByteBuffer.wrap("WRITE".getBytes()));
-    client.writeBlocking(ByteBuffer.wrap("IS".getBytes()));
-    client.writeBlocking(ByteBuffer.wrap("A".getBytes()));
-    client.writeBlocking(ByteBuffer.wrap("CHUNK".getBytes()));
+    client.write(ByteBuffer.wrap("EACH".getBytes()));
+    client.write(ByteBuffer.wrap("WRITE".getBytes()));
+    client.write(ByteBuffer.wrap("IS".getBytes()));
+    client.write(ByteBuffer.wrap("A".getBytes()));
+    client.write(ByteBuffer.wrap("CHUNK".getBytes()));
     //Ends the chunks.
-    client.writeBlocking(ByteBuffer.wrap(new byte[0]));
+    client.write(ByteBuffer.wrap(new byte[0]));
     //make sure they responded.
     lfr.get();
     lfr = client.writeRequest(hrb.buildHeadersOnly());
-    client.writeBlocking(ByteBuffer.wrap("NOW WE POST AGAIN".getBytes()));
-    client.writeBlocking(ByteBuffer.wrap(new byte[0]));
+    client.write(ByteBuffer.wrap("NOW WE POST AGAIN".getBytes()));
+    client.write(ByteBuffer.wrap(new byte[0]));
     lfr.get();
   }
   
@@ -70,7 +70,7 @@ public class Example {
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
     TSE.start();
     HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("www.google.com").setPort(80);
-    HTTPStreamClient client = new HTTPStreamClient("www.google.com", 80, 10000);
+    HTTPStreamClient client = new HTTPStreamClient(TSE, "www.google.com", 80, 10000);
     client.setReader(new Reader() {
       MergedByteBuffers mbb = new MergedByteBuffers();
       @Override
@@ -78,7 +78,7 @@ public class Example {
         mbb.add(client.getRead());
         System.out.println(mbb.getAsString(mbb.remaining()));
       }});
-    TSE.addClient(client);
+    client.connect();
     System.out.println(hrb.buildHeadersOnly().getHTTPRequestHeaders().toString());
     System.out.println(hrb.buildHeadersOnly().getHTTPHeaders().toString());
     ListenableFuture<HTTPResponse> lfr = client.writeRequest(hrb.buildHeadersOnly());

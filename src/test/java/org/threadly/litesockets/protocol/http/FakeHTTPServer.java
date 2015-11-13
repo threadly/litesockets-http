@@ -13,11 +13,9 @@ import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.tcp.TCPClient;
-import org.threadly.litesockets.tcp.TCPServer;
-import org.threadly.litesockets.tcp.SSLClient;
-import org.threadly.litesockets.tcp.SSLServer;
-import org.threadly.litesockets.tcp.SSLUtils.FullTrustManager;
+import org.threadly.litesockets.TCPClient;
+import org.threadly.litesockets.TCPServer;
+import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
@@ -42,14 +40,14 @@ public class FakeHTTPServer implements ClientAcceptor, Client.Reader{
     PS = new PriorityScheduler(5);
     SEB = new ThreadedSocketExecuter(PS);
     SEB.start();
+    server = SEB.createTCPServer("localhost", port);
     if(doSSL) {
       doSSLCrap();
-      server = new SSLServer("localhost", port, sslCtx, true);
-    } else {
-      server = new TCPServer("localhost", port);
-    }
+      server.setSSLContext(sslCtx);
+      server.setDoHandshake(true);
+    } 
     server.setClientAcceptor(this);
-    SEB.addServer(server);
+    server.start();
     this.sendBack.add(ByteBuffer.wrap(sendBack.getBytes()));
     this.closeOnSend = closeOnSend;
   }
@@ -72,13 +70,8 @@ public class FakeHTTPServer implements ClientAcceptor, Client.Reader{
 
   @Override
   public void accept(Client c) {
-    if(c instanceof SSLClient && doSSL) {
-      SSLClient sslc = (SSLClient) c;
-      sslc.doHandShake();
-    }
     TCPClient tc = (TCPClient)c;
     tc.setReader(this);
-    SEB.addClient(tc);
   }
 
   @Override
@@ -89,7 +82,7 @@ public class FakeHTTPServer implements ClientAcceptor, Client.Reader{
       //System.out.println(mbb.getAsString(mbb.remaining()));
       sendBack.begin();
       while(sendBack.remaining() > 0) {
-        client.writeForce(sendBack.pull(Math.min(500, sendBack.remaining())));
+        client.write(sendBack.pull(Math.min(500, sendBack.remaining())));
       }
       sendBack.rollback();
       if(closeOnSend) {

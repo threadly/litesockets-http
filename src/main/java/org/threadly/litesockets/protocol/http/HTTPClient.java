@@ -1,28 +1,31 @@
 package org.threadly.litesockets.protocol.http;
 
 import java.util.LinkedList;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.threadly.concurrent.SimpleSchedulerInterface;
+import javax.net.ssl.SSLEngine;
+
+import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Client.Closer;
+import org.threadly.litesockets.Client.CloseListener;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
-import org.threadly.litesockets.SocketExecuterInterface;
+import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.protocol.http.structures.HTTPAddress;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
-import org.threadly.litesockets.tcp.SSLClient;
-import org.threadly.litesockets.tcp.TCPClient;
+import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.Clock;
 
 /**
@@ -31,14 +34,14 @@ import org.threadly.util.Clock;
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
  * 
  */
-public class HTTPClient implements Reader, Closer {
+public class HTTPClient implements Reader, CloseListener {
   public static final int DEFAULT_CONCURRENT = 2; 
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
   
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
-  private final SimpleSchedulerInterface ssi;
-  private final SocketExecuterInterface sei;
+  private final SubmitterScheduler ssi;
+  private final SocketExecuter sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> inProcess = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
@@ -80,7 +83,7 @@ public class HTTPClient implements Reader, Closer {
    * as well as your own {@link SimpleSchedulerInterface} as the thread pool to use.</p> 
    * 
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuterInterface sei) {
+  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
     this.ssi = sei.getThreadScheduler();
@@ -102,6 +105,8 @@ public class HTTPClient implements Reader, Closer {
       Thread.currentThread().interrupt();
     } catch (ExecutionException e) {
       hr = new HTTPResponse(e.getCause());
+    } catch (CancellationException e) {
+      hr = new HTTPResponse(e);
     } 
     return hr;
   }
@@ -262,24 +267,23 @@ public class HTTPClient implements Reader, Closer {
           }
         }
         if(hrw.client == null || hrw.client.isClosed()) {
+          hrw.client = sei.createTCPClient(hrw.hr.getHost(), hrw.hr.getPort());
           if(hrw.hr.doSSL()) {
-            SSLClient sc = new SSLClient(hrw.hr.getHost(), hrw.hr.getPort());
-            hrw.client = sc;
-            sc.doHandShake();
-          } else {
-            hrw.client = new TCPClient(hrw.hr.getHost(), hrw.hr.getPort());
+            SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(hrw.hr.getHost(), hrw.hr.getPort());
+            sse.setUseClientMode(true);
+            hrw.client.setSSLEngine(sse);
+            hrw.client.startSSL();
           }
+          hrw.client.setReader(HTTPClient.this);
+          hrw.client.addCloseListener(HTTPClient.this);
           sockets.putIfAbsent(hrw.hr.getHTTPAddress(), new LinkedList<TCPClient>());
         }
+        hrw.client.connect();
+        hrw.client.write(hrw.hr.getRequestBuffer());
         
-        hrw.client.setCloser(HTTPClient.this);
-        hrw.client.setReader(HTTPClient.this);
-        hrw.client.writeForce(hrw.hr.getRequestBuffer());
         //Request started here so we set the timeout to start now.
         hrw.updateReadTime();
-        sei.addClient(hrw.client);
-        ssi.schedule(new CheckTimeout(hrw), hrw.timeTillExpired()+1);
-        //TODO: move to watchDog cache....
+        sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
         if(hrw.isExpired()) {
           hrw.slf.setFailure(new TimeoutException());
         }

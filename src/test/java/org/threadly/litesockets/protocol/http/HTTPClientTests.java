@@ -18,7 +18,7 @@ import org.junit.Test;
 import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
-import org.threadly.litesockets.SocketExecuterInterface;
+import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
@@ -45,7 +45,7 @@ public class HTTPClientTests {
     RESPONSE_HUGE_NOCL = RESPONSE_TEMPLATE.replace("Content-Length: {LENGTH}\r\n", "").replace("{BODY}", sb.toString());
   }
 
-  SocketExecuterInterface SEI;
+  SocketExecuter SEI;
   PriorityScheduler PS;
   FakeHTTPServer fakeServer;
 
@@ -285,14 +285,13 @@ public class HTTPClientTests {
     HTTPResponse hrs = httpClient.request(hrb.build());
     assertTrue((Clock.accurateForwardProgressingMillis() - start) > 300);
     assertTrue(hrs.hasError());
-    assertTrue(hrs.getError().getMessage().startsWith("Request timedout"));
   }
 
   @Test
   public void sslRequest() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, true, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port)).setReadTimeout(10000);
     final HTTPClient httpClient = new HTTPClient();
     assertEquals("TEST123", httpClient.request(hrb.build()).getBodyAsString());
   }

@@ -1,19 +1,25 @@
 package org.threadly.litesockets.protocol.http;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.util.concurrent.Executor;
 
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
+import org.threadly.litesockets.SocketExecuter;
+import org.threadly.litesockets.WireProtocol;
 import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
 import org.threadly.litesockets.protocol.http.structures.HTTPUtils;
-import org.threadly.litesockets.tcp.SSLClient;
-import org.threadly.litesockets.tcp.SSLUtils;
-import org.threadly.litesockets.tcp.TCPClient;
+import org.threadly.litesockets.utils.SSLUtils;
+import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
@@ -35,22 +41,31 @@ import org.threadly.litesockets.utils.TransactionalByteBuffers;
  * @author lwahlmeier
  *
  */
-public class HTTPStreamClient extends SSLClient {
+public class HTTPStreamClient extends Client {
   private static final int HEX_OCT = 16;
   private final MergedByteBuffers localMbb = new MergedByteBuffers();
   private final TransactionalByteBuffers tbb = new TransactionalByteBuffers();
+  private final Reader classReader = new HTTPReader();
+  private final CloseListener classCloser = new HTTPCloser();
+  private final TCPClient client;
+  
   private volatile HTTPResponseProcessor httpProcessor;
-  private volatile Reader localReader = null;
   private volatile HTTPRequest currentHttpRequest;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
-  private final Reader classReader = new HTTPReader();
 
-  public HTTPStreamClient(String host, int port) throws IOException {
-    this(host, port, TCPClient.DEFAULT_SOCKET_TIMEOUT, false);
+  public HTTPStreamClient(TCPClient client) {
+    super(client.getClientsSocketExecuter());
+    this.client = client;
+    client.setReader(classReader);
+    client.addCloseListener(classCloser);
   }
 
-  public HTTPStreamClient(String host, int port, int timeout) throws IOException {
-    this(host, port, timeout, false);
+  public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout) throws IOException {
+    super(se);
+    client = se.createTCPClient(host, port);
+    client.setConnectionTimeout(timeout);
+    client.setReader(classReader);
+    client.addCloseListener(classCloser);
   }
 
   /**
@@ -63,9 +78,14 @@ public class HTTPStreamClient extends SSLClient {
    * @param timeout how long to wait for the connection to be made
    * @throws IOException this will happen if we have problems connecting for some reason.
    */
-  public HTTPStreamClient(String host, int port, int timeout, boolean doSSL) throws IOException {
-    super(host, port, SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port), timeout, doSSL);
-    super.setReader(classReader);
+  public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout, boolean doSSL) throws IOException {
+    super(se);
+    client = se.createTCPClient(host, port);
+    client.setConnectionTimeout(timeout);
+    client.setSSLEngine(SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port));
+    client.startSSL();
+    client.setReader(classReader);
+    client.addCloseListener(classCloser);
   }
 
   /**
@@ -89,33 +109,17 @@ public class HTTPStreamClient extends SSLClient {
     httpProcessor.disableChunkParser();
     localMbb.discard(localMbb.remaining());
     tbb.discard(tbb.remaining());
-    super.writeForce(request.getRequestBuffer());
+    client.write(request.getRequestBuffer());
     return slfResponse;
   }
-
-  @Override
-  public void writeForce(ByteBuffer bb) {
-    if(currentHttpRequest!= null && currentHttpRequest.isChunked()) {
-      super.writeForce(HTTPUtils.wrapInChunk(bb));
-    } else {
-      super.writeForce(bb);
-    }
-  }
-
-  @Override
-  public void setReader(Reader reader) {
-    localReader = reader;
-  }
-
+  
   @Override
   public MergedByteBuffers getRead() {
-    MergedByteBuffers mbb = new MergedByteBuffers();
-    mbb.add(localMbb);
-    return mbb;
+    return localMbb.duplicateAndClean();
   }
 
   private void parseRead() {
-    MergedByteBuffers mbb = super.getRead();
+    MergedByteBuffers mbb = client.getRead();
     if(!httpProcessor.headersDone()) {
       httpProcessor.process(mbb);
       mbb.discard(mbb.remaining());
@@ -139,34 +143,52 @@ public class HTTPStreamClient extends SSLClient {
       }
       
       if(!httpProcessor.isChunked()) {
-        if(mbb.remaining() > 0 && localReader != null) {
+        if(mbb.remaining() > 0) {
           localMbb.add(mbb);
-          localReader.onRead(this);
+          callReader();
         }
       } else {
         tbb.add(mbb);
         int pos ;
+        boolean didWrite = false;
+        boolean doClose = false;
         while((pos = tbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) >= 0) {
           tbb.begin();
           String tmp = tbb.getAsString(pos);
           int size = Integer.parseInt(tmp, HEX_OCT);
+          System.out.println(size+":"+tbb.remaining());
+          if(size == 0) {
+            doClose = true;
+            tbb.rollback();
+            break;
+          }
           tbb.discard(2);
           if(tbb.remaining() >= size+2) {
-            if(localReader != null  && size > 0) {
+            if(size > 0) {
               localMbb.add(tbb.pull(size));
-              localReader.onRead(this);
-            } else {
-              tbb.discard(size);
+              didWrite = true;
             }
             tbb.discard(Math.min(2, tbb.remaining()));
             tbb.commit();
           } else {
+            System.out.println("rollback");
             tbb.rollback();
             break;
           }
         }
+        if(didWrite) {
+          callReader();
+        }
+        if(doClose) {
+          callClosers();
+        }
       }
     }
+  }
+  
+  @Override
+  public Executor getClientsThreadExecutor() {
+    return client.getClientsThreadExecutor();
   }
 
   /**
@@ -176,6 +198,99 @@ public class HTTPStreamClient extends SSLClient {
     @Override
     public void onRead(Client client) {
       parseRead();
+      callReader();
     }
+  }
+  
+  private class HTTPCloser implements CloseListener {
+    @Override
+    public void onClose(Client client) {
+      callClosers();
+    }
+  }
+
+  @Override
+  public boolean canWrite() {
+    return client.canWrite();
+  }
+
+  @Override
+  public boolean hasConnectionTimedOut() {
+    return client.hasConnectionTimedOut();
+  }
+
+  @Override
+  public boolean setSocketOption(SocketOption so, int value) {
+    return client.setSocketOption(so, value);
+  }
+
+  @Override
+  public ListenableFuture<Boolean> connect() {
+    return client.connect();
+  }
+
+  @Override
+  protected void setConnectionStatus(Throwable t) {
+
+  }
+
+  @Override
+  public void setConnectionTimeout(int timeout) {
+    client.setConnectionTimeout(timeout);
+  }
+
+  @Override
+  public int getTimeout() {
+    return client.getTimeout();
+  }
+
+  @Override
+  public int getWriteBufferSize() {
+    return client.getWriteBufferSize();
+  }
+
+  @Override
+  public ListenableFuture<?> write(ByteBuffer bb) {
+    return client.write(bb);
+  }
+
+  @Override
+  protected ByteBuffer getWriteBuffer() {
+    return null;
+  }
+
+  @Override
+  protected void reduceWrite(int size) {
+    
+  }
+
+  @Override
+  protected SocketChannel getChannel() {
+    return null;
+  }
+
+  @Override
+  public WireProtocol getProtocol() {
+    return client.getProtocol();
+  }
+
+  @Override
+  protected Socket getSocket() {
+    return null;
+  }
+
+  @Override
+  public void close() {
+    client.close();
+  }
+
+  @Override
+  public InetSocketAddress getRemoteSocketAddress() {
+    return client.getRemoteSocketAddress();
+  }
+
+  @Override
+  public InetSocketAddress getLocalSocketAddress() {
+    return client.getLocalSocketAddress();
   }
 }

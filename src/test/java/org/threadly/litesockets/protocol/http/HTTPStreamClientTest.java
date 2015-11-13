@@ -16,7 +16,7 @@ import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Reader;
-import org.threadly.litesockets.SocketExecuterInterface;
+import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
 import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
@@ -27,7 +27,7 @@ import org.threadly.test.concurrent.TestCondition;
 public class HTTPStreamClientTest {
   static String CHUNK_RESPONSE_TEMPLATE = "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\nContent-Type: text/html\r\n\r\n";
   
-  SocketExecuterInterface SEI;
+  SocketExecuter SEI;
   PriorityScheduler PS;
   FakeHTTPStreamingServer fakeServer;
 
@@ -53,7 +53,7 @@ public class HTTPStreamClientTest {
     final int number = 300;
     fakeServer = new FakeHTTPStreamingServer(port, CHUNK_RESPONSE_TEMPLATE, number, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
-    final HTTPStreamClient hsc = new HTTPStreamClient("localhost", port, 10000);
+    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port, 10000);
     final AtomicBoolean set = new AtomicBoolean(false);
     final MergedByteBuffers mbb = new MergedByteBuffers();
     hsc.setReader(new Reader() {
@@ -62,7 +62,8 @@ public class HTTPStreamClientTest {
         MergedByteBuffers bb = client.getRead();
         mbb.add(bb);
       }});
-    SEI.addClient(hsc);
+    hsc.connect();
+
     final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.build());
     lf.addCallback(new FutureCallback<HTTPResponse>() {
 
@@ -83,7 +84,7 @@ public class HTTPStreamClientTest {
         System.out.println(mbb.remaining()+":"+(number*1024));
         return mbb.remaining() == (number*1024) && set.get();
       }
-    }.blockTillTrue(5000, 1000);
+    }.blockTillTrue(5000);
     
     assertEquals("chunked", lf.get().getHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING));
     hsc.close();
@@ -95,7 +96,7 @@ public class HTTPStreamClientTest {
     final int number = 300;
     fakeServer = new FakeHTTPStreamingServer(port, HTTPClientTests.RESPONSE_HUGE, 0, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
-    final HTTPStreamClient hsc = new HTTPStreamClient("localhost", port, 10000);
+    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port, 10000);
     final AtomicBoolean set = new AtomicBoolean(false);
     final AtomicInteger count = new AtomicInteger(0);
     final MergedByteBuffers mbb = new MergedByteBuffers();
@@ -103,9 +104,10 @@ public class HTTPStreamClientTest {
       @Override
       public void onRead(Client client) {
         MergedByteBuffers bb = client.getRead();
+        //System.out.println(bb.copy().getAsString(bb.remaining()));
         mbb.add(bb);
       }});
-    SEI.addClient(hsc);
+    hsc.connect();
     
     final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.build());
     
@@ -127,10 +129,10 @@ public class HTTPStreamClientTest {
     new TestCondition(){
       @Override
       public boolean get() {
-        //System.out.println(mbb.remaining()+":"+(count.get()));
+        System.out.println(mbb.remaining()+":"+(count.get()));
         return mbb.remaining() == count.get() && set.get();
       }
-    }.blockTillTrue(5000, 100);
+    }.blockTillTrue(5000);
     
     //assertEquals(count.get(), lf.get().getHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH));
     hsc.close();

@@ -14,10 +14,9 @@ import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.tcp.TCPClient;
-import org.threadly.litesockets.tcp.TCPServer;
-import org.threadly.litesockets.tcp.SSLServer;
-import org.threadly.litesockets.tcp.SSLUtils.FullTrustManager;
+import org.threadly.litesockets.TCPClient;
+import org.threadly.litesockets.TCPServer;
+import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
@@ -44,14 +43,15 @@ public class FakeHTTPStreamingServer implements ClientAcceptor, Client.Reader {
     PS = new PriorityScheduler(5);
     SEB = new ThreadedSocketExecuter(PS);
     SEB.start();
+    server = SEB.createTCPServer("localhost", port);
     if(doSSL) {
       doSSLCrap();
-      server = new SSLServer("localhost", port, sslCtx, true);
-    } else {
-      server = new TCPServer("localhost", port);
-    }
+      server.setSSLContext(sslCtx);
+      server.setDoHandshake(true);
+    } 
+    
     server.setClientAcceptor(this);
-    SEB.addServer(server);
+    server.start();
     this.sendBack.add(ByteBuffer.wrap(sendBack.getBytes()));
   }
 
@@ -75,7 +75,6 @@ public class FakeHTTPStreamingServer implements ClientAcceptor, Client.Reader {
   public void accept(Client c) {
     TCPClient tc = (TCPClient)c;
     tc.setReader(this);
-    SEB.addClient(tc);
   }
 
   @Override
@@ -85,22 +84,18 @@ public class FakeHTTPStreamingServer implements ClientAcceptor, Client.Reader {
     if(mbb.indexOf("\r\n\r\n") >= 0) {
       sendBack.begin();
       while(sendBack.remaining() > 0) {
-        client.writeForce(sendBack.pull(Math.min(500, sendBack.remaining())));
+        client.write(sendBack.pull(Math.min(500, sendBack.remaining())));
         for(int i=0; i<this.kToSend; i++) {
-          try {
-            if(chunked) {
-              client.writeBlocking(ByteBuffer.wrap((Integer.toHexString(1024)+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
-            }
-            client.writeBlocking(ByteBuffer.wrap(SEND_DATA));
-            if(chunked) {
-              client.writeBlocking(ByteBuffer.wrap((HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
-            }
-          } catch (InterruptedException e) {
-            e.printStackTrace();
+          if(chunked) {
+            client.write(ByteBuffer.wrap((Integer.toHexString(1024)+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
+          }
+          client.write(ByteBuffer.wrap(SEND_DATA));
+          if(chunked) {
+            client.write(ByteBuffer.wrap((HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
           }
         }
         if(chunked) {
-          client.writeForce(ByteBuffer.wrap((Integer.toHexString(0)+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
+          client.write(ByteBuffer.wrap((Integer.toHexString(0)+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).getBytes()));
         }
       }
       sendBack.rollback();
