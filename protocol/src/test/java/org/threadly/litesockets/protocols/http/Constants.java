@@ -1,4 +1,4 @@
-package org.threadly.protocols.http;
+package org.threadly.litesockets.protocols.http;
 
 public class Constants {
 

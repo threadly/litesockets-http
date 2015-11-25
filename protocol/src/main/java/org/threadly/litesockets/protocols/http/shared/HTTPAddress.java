@@ -1,4 +1,4 @@
-package org.threadly.protocols.http.shared;
+package org.threadly.litesockets.protocols.http.shared;
 
 /**
  * Simple Immutable class that is used for http Connections.  Its mainly used

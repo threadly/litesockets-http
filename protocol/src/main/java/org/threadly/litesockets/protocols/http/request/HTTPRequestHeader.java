@@ -1,13 +1,13 @@
-package org.threadly.protocols.http.request;
+package org.threadly.litesockets.protocols.http.request;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.threadly.protocols.http.shared.HTTPConstants;
-import org.threadly.protocols.http.shared.RequestType;
-import org.threadly.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
 
 /**
@@ -22,8 +22,8 @@ public class HTTPRequestHeader {
   public final String httpVersion;
   
   public HTTPRequestHeader(final String requestHeader) {
-    this.rawRequest = requestHeader.getBytes();
-    String[] tmp = requestHeader.split(" ");
+    this.rawRequest = requestHeader.trim().getBytes();
+    String[] tmp = requestHeader.trim().split(" ");
     if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+requestHeader);
     }

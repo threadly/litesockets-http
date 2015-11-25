@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.client.http;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -8,7 +8,7 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,9 +20,10 @@ import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.protocols.http.request.HTTPRequest;
-import org.threadly.protocols.http.request.HTTPRequest.HTTPRequestBuilder;
-import org.threadly.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
+import org.threadly.litesockets.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
 
@@ -68,19 +69,19 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrent() throws IOException {
     final int number = 500;
-    int port = TestUtils.findTCPPort();
+    final int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     final AtomicInteger count = new AtomicInteger(0);
 
-    PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
+    PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
       public void run() {
         HTTPRequest hr = hrb.build();
         //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(hr);
+        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
         lf.addCallback(new FutureCallback<HTTPResponse>() {
           @Override
           public void handleResult(HTTPResponse result) {
@@ -121,11 +122,11 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrentJavaExecutor() throws IOException {
     final int number = 500;
-    int port = TestUtils.findTCPPort();
+    final int port = TestUtils.findTCPPort();
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     final AtomicInteger count = new AtomicInteger(0);
 
@@ -135,7 +136,7 @@ public class HTTPClientTests {
       public void run() {
         HTTPRequest hr = hrb.build();
         //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(hr);
+        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
         lf.addCallback(new FutureCallback<HTTPResponse>() {
           @Override
           public void handleResult(HTTPResponse result) {
@@ -178,9 +179,9 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrentOnPool() throws IOException {
     final int number = 500;
-    int port = TestUtils.findTCPPort();
+    final int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
@@ -193,7 +194,7 @@ public class HTTPClientTests {
         HTTPRequest hr = hrb.build();
         //final long start = Clock.accurateForwardProgressingMillis();
 
-        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(hr);
+        final ListenableFuture<HTTPResponse>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
         lf.addCallback(new FutureCallback<HTTPResponse>() {
           @Override
           public void handleResult(HTTPResponse result) {
@@ -236,18 +237,18 @@ public class HTTPClientTests {
   public void blockingRequest() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, false, true);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    assertEquals("TEST123", httpClient.request(hrb.build()).getBodyAsString());
+    assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, false), hrb.build()).getBodyAsString());
   }
 
   @Test
   public void noContentLengthNoBody() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_NOCL_NOBODY, false, true);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    HTTPResponse hrs = httpClient.request(hrb.build());
+    HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     assertEquals("", hrs.getBodyAsString());
   }
 
@@ -255,9 +256,9 @@ public class HTTPClientTests {
   public void noContentLengthWithBody() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_NOCL_WITH, false, true);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    HTTPResponse hrs = httpClient.request(hrb.build());
+    HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     assertEquals("TEST123", hrs.getBodyAsString());
   }
 
@@ -265,9 +266,9 @@ public class HTTPClientTests {
   public void closeBeforeLength() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_PARTIAL, false, true);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    HTTPResponse hrs = httpClient.request(hrb.build());
+    HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     assertTrue(hrs.hasError());
     assertTrue(hrs.getError().getMessage().startsWith("Error Closed before Response was Done!"));
     //System.out.println(hrs.getBodyAsString());
@@ -279,10 +280,10 @@ public class HTTPClientTests {
   public void expireRequest() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, "", false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(300);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     long start = Clock.accurateForwardProgressingMillis();
-    HTTPResponse hrs = httpClient.request(hrb.build());
+    HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 300);
     assertTrue((Clock.accurateForwardProgressingMillis() - start) > 300);
     assertTrue(hrs.hasError());
   }
@@ -291,18 +292,18 @@ public class HTTPClientTests {
   public void sslRequest() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE1, true, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port)).setReadTimeout(10000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    assertEquals("TEST123", httpClient.request(hrb.build()).getBodyAsString());
+    assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, true), hrb.build()).getBodyAsString());
   }
 
   @Test
   public void toLargeRequest() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_HUGE, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    final HTTPResponse hrs = httpClient.request(hrb.build());
+    final HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     //System.out.println(hrs.getBodyAsString());
     assertTrue(hrs.hasError());
     assertTrue(hrs.getError().getMessage().startsWith("HTTPResponse was to large"));
@@ -312,9 +313,9 @@ public class HTTPClientTests {
   public void toLargeRequestNoContentLength() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_HUGE, false, true);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    final HTTPResponse hrs = httpClient.request(hrb.build());
+    final HTTPResponse hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     //System.out.println(hrs.getBodyAsString());
     assertTrue(hrs.hasError());
     assertTrue(hrs.getError().getMessage().startsWith("HTTPResponse was to large"));
@@ -324,9 +325,9 @@ public class HTTPClientTests {
   public void blockingRequestERROR() throws IOException {
     int port = TestUtils.findTCPPort();
     fakeServer = new FakeHTTPServer(port, RESPONSE_ERROR_1, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port)).setReadTimeout(8000);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
-    final ListenableFuture<HTTPResponse> lf = httpClient.requestAsync(hrb.build());
+    final ListenableFuture<HTTPResponse> lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hrb.build());
     final AtomicBoolean failed = new AtomicBoolean(false);
     lf.addCallback(new FutureCallback<HTTPResponse>() {
 

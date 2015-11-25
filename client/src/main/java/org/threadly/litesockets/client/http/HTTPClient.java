@@ -1,17 +1,19 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.client.http;
 
+import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLEngine;
 
-import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.SingleThreadScheduler;
+import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
@@ -20,12 +22,13 @@ import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
+import org.threadly.litesockets.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
-import org.threadly.protocols.http.request.HTTPRequest;
-import org.threadly.protocols.http.response.HTTPResponse;
-import org.threadly.protocols.http.response.HTTPResponseProcessor;
-import org.threadly.protocols.http.shared.HTTPAddress;
 import org.threadly.util.Clock;
 
 /**
@@ -35,7 +38,9 @@ import org.threadly.util.Clock;
  * 
  */
 public class HTTPClient implements Reader, CloseListener {
-  public static final int DEFAULT_CONCURRENT = 2; 
+  public static final int DEFAULT_CONCURRENT = 2;
+  public static final int DEFAULT_TIMEOUT = 15000;
+  public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
   
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -43,7 +48,6 @@ public class HTTPClient implements Reader, CloseListener {
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
-  
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> inProcess = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
   
@@ -89,36 +93,65 @@ public class HTTPClient implements Reader, CloseListener {
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
   }
-
-  /**
-   * This does a blocking request returning the result.  The thread this is done on does not do any of the processing.
-   * This ends up just calling requestAsync and doing a .get on the future.
-   * 
-   * @param request This is the request you want to make.  This is generally provided from calling .build on an HTTPRequestBuilder. 
-   * @return Returns an HTTPResponse.  This is the response to your request with either the response message and body or the error that was recived.
-   */
-  public HTTPResponse request(HTTPRequest request) {
+  
+  public HTTPResponse request(URL url) {
+    boolean ssl = false;
+    int port = 80;
+    String host = url.getHost();
+    if(url.getProtocol().equalsIgnoreCase("https")) {
+      port = 443;
+      ssl = true;
+    }
+    if(url.getPort() != -1) {
+      port = url.getPort();
+    }
+    return request(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
+  }
+  
+  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request) {
+    return request(ha, request, EMPTY_BUFFER);
+  }
+  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
+    return request(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
+  }
+  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
     HTTPResponse hr = null;
     try {
-      hr = requestAsync(request).get();
+      hr = requestAsync(ha, request, body, tu, time).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (ExecutionException e) {
       hr = new HTTPResponse(e.getCause());
     } catch (CancellationException e) {
       hr = new HTTPResponse(e);
-    } 
+    }
     return hr;
   }
 
-  /**
-   * This does an Asynchronous HTTPRequest.  
-   * 
-   * @param request The request to make Asynchronously.
-   * @return A ListenableFuture is returned here.  It will either have an error or the HTTPResponse.
-   */
-  public ListenableFuture<HTTPResponse> requestAsync(final HTTPRequest request) {
-    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
+  public ListenableFuture<HTTPResponse> requestAsync(URL url) {
+    boolean ssl = false;
+    int port = 80;
+    String host = url.getHost();
+    if(url.getProtocol().equalsIgnoreCase("https")) {
+      port = 443;
+      ssl = true;
+    }
+    if(url.getPort() != -1) {
+      port = url.getPort();
+    }
+    return requestAsync(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
+  }
+  
+  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
+    return requestAsync(ha, request, EMPTY_BUFFER);
+  }
+  
+  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
+    return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
+  }
+  
+  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
+    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, tu.toMillis(time));
     final ListenableFuture<HTTPResponse> lf = hrw.slf;
     queue.add(hrw);
     if(ntse != null) {
@@ -184,7 +217,7 @@ public class HTTPClient implements Reader, CloseListener {
       hrw.hrp.process(mbb);
       if(hrw.hrp.isDone() && !hrw.hrp.isError()) {
         hrw.slf.setResult(hrw.hrp.getResponse());
-        LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
+        LinkedList<TCPClient> ll = sockets.get(hrw.ha);
         synchronized(ll) {
           if(!ll.contains(hrw.client)) {
             ll.add(hrw.client);
@@ -254,7 +287,7 @@ public class HTTPClient implements Reader, CloseListener {
     @Override
     public void run() {
       try {
-        LinkedList<TCPClient> ll = sockets.get(hrw.hr.getHTTPAddress());
+        LinkedList<TCPClient> ll = sockets.get(hrw.ha);
         if(ll != null) {
           synchronized(ll) {
             while(ll.size() > 0 && hrw.client == null) {
@@ -267,73 +300,53 @@ public class HTTPClient implements Reader, CloseListener {
           }
         }
         if(hrw.client == null || hrw.client.isClosed()) {
-          hrw.client = sei.createTCPClient(hrw.hr.getHost(), hrw.hr.getPort());
-          if(hrw.hr.doSSL()) {
-            SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(hrw.hr.getHost(), hrw.hr.getPort());
+          hrw.client = sei.createTCPClient(hrw.ha.getHost(), hrw.ha.getPort());
+          hrw.client.setConnectionTimeout((int)hrw.timeout);
+          if(hrw.ha.getdoSSL()) {
+            SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(hrw.ha.getHost(), hrw.ha.getPort());
             sse.setUseClientMode(true);
             hrw.client.setSSLEngine(sse);
             hrw.client.startSSL();
           }
           hrw.client.setReader(HTTPClient.this);
           hrw.client.addCloseListener(HTTPClient.this);
-          sockets.putIfAbsent(hrw.hr.getHTTPAddress(), new LinkedList<TCPClient>());
+          sockets.putIfAbsent(hrw.ha, new LinkedList<TCPClient>());
         }
         hrw.client.connect();
-        hrw.client.write(hrw.hr.getRequestBuffer());
-        
+        hrw.client.write(hrw.hr.getCombinedBuffers());
+        hrw.client.write(hrw.body.duplicate());
         //Request started here so we set the timeout to start now.
         hrw.updateReadTime();
         sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
-        if(hrw.isExpired()) {
-          hrw.slf.setFailure(new TimeoutException());
-        }
       } catch(Exception e) {
         e.printStackTrace();
       }
     }
   }
   
-  private class CheckTimeout implements Runnable {
-    private final HTTPRequestWrapper hrw;
-    
-    public CheckTimeout(HTTPRequestWrapper hrw) {
-      this.hrw = hrw;
-    }
-
-    @Override
-    public void run() {
-      if(hrw.slf.isDone()) {
-        return;
-      }
-      if(hrw.isExpired()) {
-        hrw.slf.setResult(new HTTPResponse(new TimeoutException("Request timedout")));
-      } else {
-        ssi.schedule(this, hrw.timeTillExpired()+1);
-      }
-    }
-  }
-  
   private static class HTTPRequestWrapper {
     final HTTPRequest hr;
+    final HTTPAddress ha;
+    final ByteBuffer body;
     final SettableListenableFuture<HTTPResponse> slf = new SettableListenableFuture<HTTPResponse>();
     final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
     volatile TCPClient client;
     volatile long lastRead = Clock.lastKnownForwardProgressingMillis();
+    final long timeout;
     
-    public HTTPRequestWrapper(HTTPRequest hr) {
+    public HTTPRequestWrapper(HTTPRequest hr, HTTPAddress ha, ByteBuffer body, long timeout) {
       this.hr = hr;
+      this.ha = ha;
+      this.body = body;
+      this.timeout = timeout;
     }
     
     public void updateReadTime() {
       lastRead = Clock.lastKnownForwardProgressingMillis();
     }
     
-    public int timeTillExpired() {
-      return hr.getTimeout() - (int) (Clock.lastKnownForwardProgressingMillis() - lastRead);
-    }
-    
-    public boolean isExpired() {
-      return hr.getTimeout() <= (int) (Clock.lastKnownForwardProgressingMillis() - lastRead);
+    public long timeTillExpired() {
+      return timeout - (Clock.lastKnownForwardProgressingMillis() - lastRead);
     }
   }
 

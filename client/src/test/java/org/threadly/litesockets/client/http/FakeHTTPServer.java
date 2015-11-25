@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.client.http;
 
 import java.io.FileInputStream;
 import java.io.IOException;

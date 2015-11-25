@@ -1,6 +1,6 @@
-package org.threadly.protocols.http.response;
+package org.threadly.litesockets.protocols.http.response;
 
-import org.threadly.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 
 
 

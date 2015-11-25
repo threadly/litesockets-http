@@ -1,4 +1,4 @@
-package org.threadly.protocols.http.shared;
+package org.threadly.litesockets.protocols.http.shared;
 
 import java.util.Collections;
 import java.util.Map;
@@ -20,11 +20,10 @@ public class HTTPHeaders {
     } else if(!headerString.endsWith(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) { 
       this.rawHeaders = (headerString+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).intern();
     } else {
-      this.rawHeaders = headerString.intern();
+      this.rawHeaders = headerString.trim().intern();
     }
     String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
-      System.out.println(h);
       String[] kv = h.split(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
       String key = kv[0].trim().intern();
       String value = kv[1].trim().intern();
@@ -44,9 +43,10 @@ public class HTTPHeaders {
       sb.append(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
       sb.append(HTTPConstants.SPACE);
       sb.append(kv.getValue());
-      if(count < headerMap.size()) {
+      if(count<headerMap.size()) {
         sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
       }
+
     }
     rawHeaders = sb.toString().intern();
     this.headers = Collections.unmodifiableMap(lheaders);

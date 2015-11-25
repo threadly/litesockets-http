@@ -1,4 +1,4 @@
-package org.threadly.protocols.http.shared;
+package org.threadly.litesockets.protocols.http.shared;
 
 import java.util.Collections;
 import java.util.HashMap;

@@ -1,4 +1,4 @@
-package org.threadly.protocols.http.request;
+package org.threadly.litesockets.protocols.http.request;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -6,11 +6,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import org.threadly.protocols.http.shared.HTTPAddress;
-import org.threadly.protocols.http.shared.HTTPConstants;
-import org.threadly.protocols.http.shared.HTTPHeaders;
-import org.threadly.protocols.http.shared.HTTPUtils;
-import org.threadly.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
 
 /**
  * A builder object for HTTPRequests.  This helps construct different types of httpRequests. 
@@ -20,8 +20,7 @@ public class HTTPRequestBuilder {
   private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
   private HTTPRequestHeader request = HTTPUtils.DEFAULT_REQUEST_HEADER;
   private String host = "localhost";
-  private int port = 1;
-  private int readTimeout = HTTPConstants.DEFAULT_READ_TIMEOUT; 
+  private int port = 80;
   
   public HTTPRequestBuilder(){
     headers.putAll(HTTPConstants.DEFAULT_HEADERS_MAP);
@@ -76,17 +75,11 @@ public class HTTPRequestBuilder {
   
   public HTTPRequestBuilder duplicate() {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder();
-    hrb.setReadTimeout(readTimeout).setHost(host).setPort(port);
     hrb.request = request;
     for(Entry<String, String> entry: headers.entrySet()) {
       hrb.setHeader(entry.getKey(), entry.getValue());
     }
     return hrb;
-  }
-  
-  public HTTPRequestBuilder setReadTimeout(int timeout) {
-    this.readTimeout = timeout;
-    return this;
   }
   
   public HTTPRequestBuilder setHost(String host) {
@@ -137,20 +130,17 @@ public class HTTPRequestBuilder {
     return this;
   }
   
+  public HTTPRequestBuilder setRequestType(String rt) {
+    this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
+    return this;
+  }
+  
   public HTTPRequestBuilder setRequestType(RequestType rt) {
     this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
     return this;
   }
   
   public HTTPRequest build() {
-    return doBuild(true);
-  }
-  
-  public HTTPRequest buildHeadersOnly() {
-    return doBuild(false);
-  }
-  
-  private HTTPRequest doBuild(boolean addBody) {
     return new HTTPRequest(request, new HTTPHeaders(headers));
   }
 }

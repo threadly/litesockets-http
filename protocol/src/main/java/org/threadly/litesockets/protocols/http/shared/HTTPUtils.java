@@ -1,4 +1,4 @@
-package org.threadly.protocols.http.shared;
+package org.threadly.litesockets.protocols.http.shared;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -6,13 +6,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.utils.MergedByteBuffers;
-import org.threadly.protocols.http.request.HTTPRequestHeader;
-import org.threadly.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestHeader;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
 
 public class HTTPUtils {
   public static final HTTPHeaders DEFAULT_HEADERS = new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
   public static final HTTPRequestHeader DEFAULT_REQUEST_HEADER= new HTTPRequestHeader(RequestType.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
   
+  public static String bbToString(ByteBuffer bb) {
+    byte[] ba = new byte[bb.remaining()];
+    bb.get(ba);
+    return new String(ba);
+  }
   
   public static int getNextChunkLength(final ByteBuffer bb) {
     MergedByteBuffers mbb = new MergedByteBuffers();

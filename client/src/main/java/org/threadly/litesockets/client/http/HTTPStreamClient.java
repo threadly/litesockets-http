@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.client.http;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,11 +17,11 @@ import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
-import org.threadly.protocols.http.request.HTTPRequest;
-import org.threadly.protocols.http.response.HTTPResponse;
-import org.threadly.protocols.http.response.HTTPResponseProcessor;
-import org.threadly.protocols.http.shared.HTTPConstants;
-import org.threadly.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
 /**
  * <p>HTTPStreamClient is designed to work with larger HTTPStreams of data.  This can mean sending them
@@ -109,7 +109,7 @@ public class HTTPStreamClient extends Client {
     httpProcessor.disableChunkParser();
     localMbb.discard(localMbb.remaining());
     tbb.discard(tbb.remaining());
-    client.write(request.getRequestBuffer());
+    client.write(request.getCombinedBuffers());
     return slfResponse;
   }
   

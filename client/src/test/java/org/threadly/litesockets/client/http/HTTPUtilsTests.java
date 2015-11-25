@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http;
+package org.threadly.litesockets.client.http;
 
 import static org.junit.Assert.*;
 
@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.junit.Test;
-import org.threadly.protocols.http.request.HTTPRequestHeader;
-import org.threadly.protocols.http.shared.HTTPConstants;
-import org.threadly.protocols.http.shared.HTTPHeaders;
-import org.threadly.protocols.http.shared.HTTPUtils;
-import org.threadly.protocols.http.shared.HTTPConstants.RequestType;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestHeader;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
 
 public class HTTPUtilsTests {
   
@@ -41,6 +41,7 @@ public class HTTPUtilsTests {
   public void queryTest3() {
     String query1 = "";
     Map<String, String> map = HTTPUtils.queryToMap(query1);
+    map = new HashMap<String, String>(map);
     map.put("blah", null);
     String tmp = HTTPUtils.queryToString(map);
     Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
