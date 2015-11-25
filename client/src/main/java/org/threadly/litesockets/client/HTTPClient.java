@@ -19,13 +19,13 @@ import org.threadly.litesockets.Client.CloseListener;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
 import org.threadly.litesockets.SocketExecuter;
-import org.threadly.litesockets.protocol.http.structures.HTTPAddress;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
+import org.threadly.protocols.http.request.HTTPRequest;
+import org.threadly.protocols.http.response.HTTPResponse;
+import org.threadly.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.protocols.http.shared.HTTPAddress;
 import org.threadly.util.Clock;
 
 /**

@@ -20,9 +20,9 @@ import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
+import org.threadly.protocols.http.request.HTTPRequest;
+import org.threadly.protocols.http.request.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.protocols.http.response.HTTPResponse;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
 

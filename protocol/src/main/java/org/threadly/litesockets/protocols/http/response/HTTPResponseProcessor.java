@@ -1,9 +1,11 @@
-package org.threadly.litesockets.protocol.http.structures;
+package org.threadly.protocols.http.response;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
 import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.protocols.http.shared.HTTPConstants;
+import org.threadly.protocols.http.shared.HTTPHeaders;
 
 
 /**

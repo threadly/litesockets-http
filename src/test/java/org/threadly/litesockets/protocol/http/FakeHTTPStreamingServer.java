@@ -13,12 +13,12 @@ import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
+import org.threadly.protocols.http.shared.HTTPConstants;
 
 public class FakeHTTPStreamingServer implements ClientAcceptor, Client.Reader {
   public static byte[] SEND_DATA = new byte[1024];

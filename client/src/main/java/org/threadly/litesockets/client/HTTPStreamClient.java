@@ -13,15 +13,15 @@ import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.WireProtocol;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponseProcessor;
-import org.threadly.litesockets.protocol.http.structures.HTTPUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
+import org.threadly.protocols.http.request.HTTPRequest;
+import org.threadly.protocols.http.response.HTTPResponse;
+import org.threadly.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.protocols.http.shared.HTTPConstants;
+import org.threadly.protocols.http.shared.HTTPUtils;
 
 /**
  * <p>HTTPStreamClient is designed to work with larger HTTPStreams of data.  This can mean sending them

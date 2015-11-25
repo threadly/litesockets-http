@@ -7,10 +7,10 @@ import java.net.URL;
 import java.util.Arrays;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.protocols.http.request.HTTPRequest;
+import org.threadly.protocols.http.request.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.protocols.http.shared.HTTPConstants;
+import org.threadly.protocols.http.shared.HTTPConstants.RequestType;
 
 public class HTTPRequestBuilderTests {
 
@@ -118,10 +118,10 @@ public class HTTPRequestBuilderTests {
     assertTrue(Arrays.equals("X-SomethingX-Something".getBytes(), ba));
     
     
-    hr = builder.setRequestType(REQUEST_TYPE.POST).removeQuery("i").build();
+    hr = builder.setRequestType(RequestType.POST).removeQuery("i").build();
     assertEquals("POST /?test=2 HTTP/1.1", hr.getHTTPRequestHeaders().toString());
     
-    hr = builder.setRequestType(REQUEST_TYPE.HEAD).removeQuery("i").build();
+    hr = builder.setRequestType(RequestType.HEAD).removeQuery("i").build();
     assertEquals("HEAD /?test=2 HTTP/1.1", hr.getHTTPRequestHeaders().toString());
     
     hr = builder.buildHeadersOnly();

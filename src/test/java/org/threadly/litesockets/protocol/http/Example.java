@@ -10,10 +10,10 @@ import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
 import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.protocols.http.request.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.protocols.http.response.HTTPResponse;
+import org.threadly.protocols.http.shared.HTTPConstants;
 
 public class Example {
 
@@ -22,7 +22,7 @@ public class Example {
   public void testSimpleStream2() throws IOException, InterruptedException, ExecutionException {
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
     TSE.start();
-    HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("hosttopost.none").setPort(80).enableChunked().setRequestType(HTTPConstants.REQUEST_TYPE.POST);
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("hosttopost.none").setPort(80).enableChunked().setRequestType(HTTPConstants.RequestType.POST);
     HTTPStreamClient client = new HTTPStreamClient(TSE, "hosttopost.none", 80, 10000);
     client.setReader(new Reader() {
       MergedByteBuffers mbb = new MergedByteBuffers();

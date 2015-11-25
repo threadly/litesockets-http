@@ -9,20 +9,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.protocol.http.structures.HTTPUtils;
-import org.threadly.litesockets.protocol.http.structures.HTTPHeaders;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequestHeader;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants.REQUEST_TYPE;
+import org.threadly.protocols.http.request.HTTPRequestHeader;
+import org.threadly.protocols.http.shared.HTTPConstants;
+import org.threadly.protocols.http.shared.HTTPHeaders;
+import org.threadly.protocols.http.shared.HTTPUtils;
+import org.threadly.protocols.http.shared.HTTPConstants.RequestType;
 
 public class HTTPUtilsTests {
   
   @Test
   public void queryTest1() {
     String query1 = "?test=test1&343=334&q&5&4&blah=wewew";
-    Map<String, String> map = HTTPUtils.parseQueryString(query1);
+    Map<String, String> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.parseQueryString(tmp);
+    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
     assertEquals(map, map2);
   }
@@ -30,9 +30,9 @@ public class HTTPUtilsTests {
   @Test
   public void queryTest2() {
     String query1 = "test=test1&343=334&q&5&4&blah=wewew";
-    Map<String, String> map = HTTPUtils.parseQueryString(query1);
+    Map<String, String> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.parseQueryString(tmp);
+    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
     assertEquals(map, map2);
   }
@@ -40,12 +40,12 @@ public class HTTPUtilsTests {
   @Test
   public void queryTest3() {
     String query1 = "";
-    Map<String, String> map = HTTPUtils.parseQueryString(query1);
+    Map<String, String> map = HTTPUtils.queryToMap(query1);
     map.put("blah", null);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.parseQueryString(tmp);
+    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
-    Map<String, String> map3 =  HTTPUtils.parseQueryString(tmp2);
+    Map<String, String> map3 =  HTTPUtils.queryToMap(tmp2);
     
     System.out.println(tmp2);
     System.out.println(map+":"+map.size());
@@ -56,11 +56,11 @@ public class HTTPUtilsTests {
   @Test
   public void queryTest4() {
     String query1 = "";
-    Map<String, String> map = HTTPUtils.parseQueryString(query1);
+    Map<String, String> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.parseQueryString(tmp);
+    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
-    Map<String, String> map3 =  HTTPUtils.parseQueryString(tmp2);
+    Map<String, String> map3 =  HTTPUtils.queryToMap(tmp2);
     
     
     assertEquals(tmp, tmp2);
@@ -153,7 +153,7 @@ public class HTTPUtilsTests {
     HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
     HTTPRequestHeader hrh2 = new HTTPRequestHeader(hrh1.toString());
     HTTPRequestHeader hrh3 = new HTTPRequestHeader(req2);
-    assertEquals(REQUEST_TYPE.GET.toString(), hrh1.getRequestType());
+    assertEquals(RequestType.GET.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/", hrh1.getRequestPath());
     assertEquals(req, hrh1.toString());
@@ -169,7 +169,7 @@ public class HTTPUtilsTests {
     String req = "POST / HTTP/1.0";
     HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
     assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh1.getHttpVersion());
-    assertEquals(REQUEST_TYPE.POST.toString(), hrh1.getRequestType());
+    assertEquals(RequestType.POST.toString(), hrh1.getRequestType());
   }
   
   @Test(expected=IllegalStateException.class)
@@ -192,8 +192,8 @@ public class HTTPUtilsTests {
   
   @Test
   public void HTTPRequestHeaderTest3() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(REQUEST_TYPE.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), HTTPConstants.HTTP_VERSION_1_1);
-    assertEquals(REQUEST_TYPE.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), HTTPConstants.HTTP_VERSION_1_1);
+    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/ HTTP/1.1", hrh1.toString());
@@ -202,8 +202,8 @@ public class HTTPUtilsTests {
   
   @Test
   public void HTTPRequestHeaderTest4() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(REQUEST_TYPE.DELETE, "/ds/sds/ds/", null, HTTPConstants.HTTP_VERSION_1_1);
-    assertEquals(REQUEST_TYPE.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", null, HTTPConstants.HTTP_VERSION_1_1);
+    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/ HTTP/1.1", hrh1.toString());
@@ -213,8 +213,8 @@ public class HTTPUtilsTests {
   public void HTTPRequestHeaderTest5() {
     HashMap<String, String> map = new HashMap<String, String>();
     map.put("test", "te");
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(REQUEST_TYPE.DELETE, "/ds/sds/ds/", map, HTTPConstants.HTTP_VERSION_1_0);
-    assertEquals(REQUEST_TYPE.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", map, HTTPConstants.HTTP_VERSION_1_0);
+    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/?test=te HTTP/1.0", hrh1.toString());
@@ -223,6 +223,6 @@ public class HTTPUtilsTests {
   
   @Test(expected=IllegalStateException.class)
   public void HTTPRequestHeaderTest6() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(REQUEST_TYPE.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
   }
 }

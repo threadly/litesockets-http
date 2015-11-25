@@ -18,10 +18,10 @@ import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.protocol.http.structures.HTTPRequest.HTTPRequestBuilder;
-import org.threadly.litesockets.protocol.http.structures.HTTPConstants;
-import org.threadly.litesockets.protocol.http.structures.HTTPResponse;
 import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.protocols.http.request.HTTPRequest.HTTPRequestBuilder;
+import org.threadly.protocols.http.response.HTTPResponse;
+import org.threadly.protocols.http.shared.HTTPConstants;
 import org.threadly.test.concurrent.TestCondition;
 
 public class HTTPStreamClientTest {

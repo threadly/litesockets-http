@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http.structures;
+package org.threadly.protocols.http.shared;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,26 +15,20 @@ public class HTTPConstants {
     HTTP, HTTPS
   }
   
-  /**
-   * Enum of the normal HTTP Request Types.
-   */
-  public static enum REQUEST_TYPE {
-    OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, CONNECT
-  }
-  
   public static final String HTTP_DOUBLE_NEWLINE_DELIMINATOR = "\r\n\r\n";
   public static final String HTTP_NEWLINE_DELIMINATOR = "\r\n";
   public static final String HTTP_HEADER_VALUE_DELIMINATOR = ":";
   public static final String SPACE = " ";
   
-  public static final String HTTP_KEY_CONNECTION = "connection";
-  public static final String HTTP_KEY_CONTENT_TYPE = "content-type";
-  public static final String HTTP_KEY_CONTENT_LENGTH = "content-length";
-  public static final String HTTP_KEY_TRANSFER_ENCODING  = "transfer-encoding";
-  public static final String HTTP_KEY_AUTHORIZATION = "authorization";
-  public static final String HTTP_KEY_USER_AGENT = "user-agent";
-  public static final String HTTP_KEY_ACCEPT = "accept";
-  public static final String HTTP_KEY_HOST = "host";
+  public static final String HTTP_KEY_CONNECTION = "Connection";
+  public static final String HTTP_KEY_CONTENT_TYPE = "Content-Type";
+  public static final String HTTP_KEY_CONTENT_LENGTH = "Content-Length";
+  public static final String HTTP_KEY_TRANSFER_ENCODING  = "Transfer-Encoding";
+  public static final String HTTP_KEY_AUTHORIZATION = "Authorization";
+  public static final String HTTP_KEY_USER_AGENT = "User-Agent";
+  public static final String HTTP_KEY_KEEP_ALIVE = "Keep-Alive";
+  public static final String HTTP_KEY_ACCEPT = "Accept";
+  public static final String HTTP_KEY_HOST = "Host";
   public static final String HTTP_VERSION_1_1 = "HTTP/1.1";
   public static final String HTTP_VERSION_1_0 = "HTTP/1.0";
   

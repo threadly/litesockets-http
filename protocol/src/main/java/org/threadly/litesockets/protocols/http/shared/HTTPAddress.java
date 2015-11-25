@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocol.http.structures;
+package org.threadly.protocols.http.shared;
 
 /**
  * Simple Immutable class that is used for http Connections.  Its mainly used
@@ -12,10 +12,10 @@ public class HTTPAddress {
   private final String finalString;
   
   public HTTPAddress(String host, int port, boolean doSSL) {
-    this.host = host;
+    this.host = host.intern();
     this.port = port;
     this.doSSL = doSSL;
-    finalString = "HTTPAddress:"+host+":"+port+":SSL:"+doSSL; 
+    finalString = ("HTTPAddress:"+host+":"+port+":SSL:"+doSSL).intern(); 
   }
   
   public String getHost() {
