@@ -37,15 +37,6 @@ public class HTTPResponse {
     error = null;
   }
   
-  public HTTPResponse(Throwable t) {
-    rHeader = null;
-    this.headers = null;
-    this.bodyLength = 0;
-    this.body = new byte[0];
-    bodybb = null;
-    error = t;
-  }
-  
   public String getResponseCode() {
     if(rHeader != null) {
       return rHeader.getResponseCode();

@@ -9,8 +9,14 @@ import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 
 public class HTTPRequestProcessor {
+  public final static int MAX_HEADER_LENGTH = 1024*128;
+  public final static int MAX_HEADER_ROW_LENGTH = 1024*8;
+  
+  
   private final MergedByteBuffers pendingBuffers = new MergedByteBuffers();
   private final ListenerHelper<HTTPRequestCallback> listeners = ListenerHelper.build(HTTPRequestCallback.class);
+  private int maxHeaderLength = MAX_HEADER_LENGTH;
+  private int maxRowLength = MAX_HEADER_ROW_LENGTH;
   private HTTPRequest request;
   private int currentBodySize = 0;
   private int bodySize = 0;
@@ -53,12 +59,21 @@ public class HTTPRequestProcessor {
     while(pendingBuffers.remaining() > 0) {
       if(request == null) {
         int pos = pendingBuffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR);
+        if(pos > maxHeaderLength || (pos == -1 && pendingBuffers.remaining() > maxHeaderLength)) {
+          reset(new HTTPParsingException("Headers are to big!"));
+          return;
+        }
         if(pos > -1) {
           MergedByteBuffers tmp = new MergedByteBuffers();
           tmp.add(pendingBuffers.pull(pos+2));
           pendingBuffers.discard(2);
           try{
-            HTTPRequestHeader hrh = new HTTPRequestHeader(tmp.getAsString(tmp.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)));
+            String reqh = tmp.getAsString(tmp.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR));
+            if(reqh.length() > this.maxRowLength) {
+              reset(new HTTPParsingException("Request Header is to big!"));
+              return;    
+            }
+            HTTPRequestHeader hrh = new HTTPRequestHeader(reqh);
             HTTPHeaders hh = new HTTPHeaders(tmp.getAsString(tmp.remaining()));
             request = new HTTPRequest(hrh, hh);
             bodySize = hh.getContentLength();
@@ -81,41 +96,42 @@ public class HTTPRequestProcessor {
           break;
         }
       } else {
-        processBody();
+        if(!processBody()) {
+          return;
+        }
       }
     }
   }
 
-  private void processBody() {
-    while(pendingBuffers.remaining() > 0 && pendingBuffers.remaining() >= bodySize) {
-      if(isChunked) {
-        parseChunkData();
-      } else {
-        parseStreamBody();
-      }
+  private boolean processBody() {
+    if(isChunked) {
+      return parseChunkData();
+    } else {
+      return parseStreamBody();
     }
   }
   
-  public void parseStreamBody() {
+  private boolean parseStreamBody() {
     if(bodySize == -1) {
       sendDuplicateBBtoListeners(pendingBuffers.pull(pendingBuffers.remaining()));
+      return false;
     } else {
       if(currentBodySize < bodySize) {
         ByteBuffer bb = pendingBuffers.pull(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
         currentBodySize+=bb.remaining();
         sendDuplicateBBtoListeners(bb);
-        if(currentBodySize == bodySize && !isChunked) {
+        if(currentBodySize == bodySize) {
           reset();
-          if(pendingBuffers.remaining() > 0) {
-            runProcessData();
-          }
+          return true;
         }
+        return true;
+      } else {
+        return false;
       }
     }
   }
   
-  public void parseChunkData() {
-    while(bodySize > 0 || pendingBuffers.remaining() > 0) {
+  private boolean parseChunkData() {
       if(bodySize < 0) {
         int pos = pendingBuffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
         try {
@@ -123,16 +139,19 @@ public class HTTPRequestProcessor {
             bodySize = Integer.parseInt(pendingBuffers.getAsString(pos), 16);
             pendingBuffers.discard(2);
             if(bodySize == 0) {
+              pendingBuffers.discard(2);
               reset();
-              return;
+              return false;
             } else {
               chunkedBB = ByteBuffer.allocate(bodySize);
+              return true;
             }
           } else {
-            return;
+            return false;
           }
         } catch(Exception e) {
           listeners.call().hasError(new HTTPParsingException("Problem reading chunk size!", e));
+          return false;
         }
       } else {
         if(currentBodySize == bodySize && pendingBuffers.remaining() >=2) {
@@ -142,13 +161,15 @@ public class HTTPRequestProcessor {
           pendingBuffers.discard(2);
           bodySize = -1;
           currentBodySize = 0;
+        } else if(currentBodySize == bodySize && pendingBuffers.remaining() < 2) {
+          return false;
         } else {
           ByteBuffer bb = pendingBuffers.pull(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
           currentBodySize+=bb.remaining();
           chunkedBB.put(bb);
         }
+        return true;
       }
-    }
   }
   
   private void sendDuplicateBBtoListeners(ByteBuffer bb) {

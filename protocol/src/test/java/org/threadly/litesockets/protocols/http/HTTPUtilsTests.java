@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.http;
+package org.threadly.litesockets.protocols.http;
 
 import static org.junit.Assert.*;
 
@@ -23,7 +23,6 @@ public class HTTPUtilsTests {
     Map<String, String> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
     Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
-    String tmp2 = HTTPUtils.queryToString(map2);
     assertEquals(map, map2);
   }
   
@@ -33,7 +32,6 @@ public class HTTPUtilsTests {
     Map<String, String> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
     Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
-    String tmp2 = HTTPUtils.queryToString(map2);
     assertEquals(map, map2);
   }
 
@@ -47,9 +45,6 @@ public class HTTPUtilsTests {
     Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
     Map<String, String> map3 =  HTTPUtils.queryToMap(tmp2);
-    
-    System.out.println(tmp2);
-    System.out.println(map+":"+map.size());
     assertEquals(tmp, tmp2);
     assertEquals(map3, map2);
   }
@@ -72,9 +67,6 @@ public class HTTPUtilsTests {
   public void HTTPHeadersTest1() {
     HTTPHeaders hh1 = new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
     HTTPHeaders hh2 = new HTTPHeaders(hh1.toString());
-    System.out.println(hh1);
-    System.out.println(hh2);
-    //System.out.println(hh2.equals(hh1));
     assertEquals(hh1, hh2);
   }
   
@@ -84,9 +76,6 @@ public class HTTPUtilsTests {
     map.put("X-Blah", "value");
     HTTPHeaders hh1 = new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
     HTTPHeaders hh2 = new HTTPHeaders(map);
-    System.out.println(hh1);
-    System.out.println(hh2);
-    //System.out.println(hh2.equals(hh1));
     assertFalse(hh1.equals(hh2));
     assertFalse(hh2.equals(hh1));
   }
@@ -98,9 +87,6 @@ public class HTTPUtilsTests {
     map.remove("accept");
     HTTPHeaders hh1 = new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
     HTTPHeaders hh2 = new HTTPHeaders(map);
-    System.out.println(hh1);
-    System.out.println(hh2);
-    //System.out.println(hh2.equals(hh1));
     assertFalse(hh1.equals(hh2));
     assertFalse(hh2.equals(hh1));
     assertTrue(hh2.equals(hh2));
@@ -176,19 +162,19 @@ public class HTTPUtilsTests {
   @Test(expected=IllegalStateException.class)
   public void HTTPRequestHeaderBad1() {
     String req = "GET / HTTP/1.4";
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
+    new HTTPRequestHeader(req);
   }
   
   @Test(expected=IllegalArgumentException.class)
   public void HTTPRequestHeaderBad2() {
     String req = "GET / HTTP/1.4 NLDS DSAD SD Aa";
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
+    new HTTPRequestHeader(req);
   }
   
   @Test(expected=IllegalArgumentException.class)
   public void HTTPRequestHeaderBad3() {
     String req = "GET ";
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
+    new HTTPRequestHeader(req);
   }
   
   @Test
@@ -224,6 +210,6 @@ public class HTTPUtilsTests {
   
   @Test(expected=IllegalStateException.class)
   public void HTTPRequestHeaderTest6() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
+    new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
   }
 }

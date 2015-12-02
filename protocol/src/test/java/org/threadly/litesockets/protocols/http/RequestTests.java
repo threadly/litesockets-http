@@ -15,6 +15,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.http.shared.RequestType;
 
@@ -144,6 +145,69 @@ public class RequestTests {
     assertTrue(cb.finished);
     assertEquals(hr.toString(), cb.request.toString());
   }
+
+  
+  @Test
+  public void basicParsingRequestHeaderToLarge() throws MalformedURLException {
+    hrb.setURL(new URL("https://test.com/test12334?query=1"));
+    hrp.addHTTPRequestCallback(cb);
+    StringBuilder sb = new StringBuilder();
+    for(int i=0; i<HTTPRequestProcessor.MAX_HEADER_ROW_LENGTH; i++) {
+      sb.append("A");
+    }
+    sb.append("A");
+    hrb.appedQuery("X-CUSTOM", sb.toString());
+    HTTPRequest hr = hrb.build();
+    hrp.processData(hr.getCombinedBuffers());
+    assertTrue(cb.error != null);
+    assertTrue(cb.error instanceof HTTPParsingException);
+  }
+
+  
+  @Test
+  public void basicParsingHeadersToLarge() throws MalformedURLException {
+    hrb.setURL(new URL("https://test.com/test12334?query=1"));
+    hrp.addHTTPRequestCallback(cb);
+    StringBuilder sb = new StringBuilder();
+    for(int i=0; i<HTTPRequestProcessor.MAX_HEADER_LENGTH; i++) {
+      sb.append("A");
+    }
+    sb.append("A");
+    hrb.setHeader("X-CUSTOM", sb.toString());
+    HTTPRequest hr = hrb.build();
+    hrp.processData(hr.getCombinedBuffers());
+    assertTrue(cb.error != null);
+    assertTrue(cb.error instanceof HTTPParsingException);
+  }
+  
+  @Test
+  public void basicParsingChunkedBadChunkSize() throws MalformedURLException {
+    hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
+    hrp.addHTTPRequestCallback(cb);
+    HTTPRequest hr = hrb.build();
+    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData("TRE\r\n".getBytes());
+    assertTrue(cb.error != null);
+    assertTrue(cb.error instanceof HTTPParsingException);
+  }
+  
+  @Test
+  public void basicParsingChunkedManyReads() throws MalformedURLException {
+    hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
+    hrp.addHTTPRequestCallback(cb);
+    HTTPRequest hr = hrb.build();
+    hrp.processData(hr.getCombinedBuffers());
+    assertEquals(hr, cb.request);
+    assertEquals(hr.toString(), cb.request.toString());
+    byte[] ba = HTTPUtils.wrapInChunk(DATA_BA);
+    for(int i = 0; i<ba.length; i++) {
+      byte[] nba = new byte[1];
+      nba[0] = ba[i];
+      hrp.processData(nba);
+    }
+    hrp.processData(HTTPUtils.wrapInChunk(ByteBuffer.allocate(0)));
+    assertTrue(cb.finished);
+  }
   
   @Test
   public void basicBuildAndParsingChunked() throws MalformedURLException {
@@ -168,7 +232,8 @@ public class RequestTests {
     assertFalse(cb.finished);
     assertEquals(2, cb.bbs.size());
     assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(1).duplicate()));
-    hrp.connectionClosed();
+    hrp.processData(HTTPUtils.wrapInChunk(ByteBuffer.allocate(0)));
+    
     assertTrue(cb.finished);
     assertEquals(hr.toString(), cb.request.toString());
   }
