@@ -23,7 +23,6 @@ public class HTTPRequestProcessor {
   private ByteBuffer chunkedBB;
   private boolean isChunked = false;
 
-
   public HTTPRequestProcessor() {
 
   }

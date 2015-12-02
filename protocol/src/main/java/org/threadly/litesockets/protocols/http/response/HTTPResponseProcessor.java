@@ -1,11 +1,12 @@
 package org.threadly.litesockets.protocols.http.response;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
 
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.concurrent.event.ListenerHelper;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 
 
 /**
@@ -15,172 +16,142 @@ public class HTTPResponseProcessor {
   public static final int MAX_RESPONSE_HEADER_SIZE = 500;
   public static final int MAX_HEADER_SIZE = 50000;
   private final MergedByteBuffers buffers = new MergedByteBuffers();
-  private final ArrayDeque<ByteBuffer> chunkedBuffers = new ArrayDeque<ByteBuffer>(); 
-  protected HTTPResponseHeader rHeader;
-  private HTTPHeaders headers;
-  private int bodyLength = -1;
-  private int nextChunk = -1;
-  private boolean chunked = false;
-  private boolean parseChunks = true;
-  private byte[] body = new byte[0];
+  private final ListenerHelper<HTTPResponseCallback> listeners = ListenerHelper.build(HTTPResponseCallback.class);
+  private HTTPResponse response;
+  private int nextChunkSize = -1;
+  private int currentBodySize = 0;
+  
+  public HTTPResponseProcessor() {}
+  
+  public void addHTTPRequestCallback(HTTPResponseCallback hrc) {
+    listeners.addListener(hrc);
+  }
 
-  private boolean errors = false;
-  private String errorText = null;
-  private boolean isDone = false;
-
-  public boolean process(MergedByteBuffers bb) {
-    if(isDone) {
-      throw new IllegalArgumentException("Response is complete can not process any more buffers!");
-    }
+  public void removeHTTPRequestCallback(HTTPResponseCallback hrc) {
+    listeners.removeListener(hrc);
+  }
+  
+  public void processData(byte[] ba) {
+    processData(ByteBuffer.wrap(ba));
+  }
+  
+  public void processData(ByteBuffer bb) {
+    MergedByteBuffers mbb = new MergedByteBuffers();
+    mbb.add(bb);
+    processData(mbb);
+  }
+  
+  public void processData(MergedByteBuffers bb) {
     buffers.add(bb);
-    int eor = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-    if(rHeader == null && eor >= 0) {
-      try {        
-        rHeader = new HTTPResponseHeader(buffers.getAsString(eor));
-      } catch(Exception e) {
-        errors = true;
-        errorText = "Could not parse Response Header! "+e.getMessage();
-      }
+    if(response == null && buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR) > -1) {
+      HTTPResponseHeader hrh = new HTTPResponseHeader(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)));
       buffers.discard(2);
-    } else if(rHeader == null && buffers.remaining() > MAX_RESPONSE_HEADER_SIZE) {
-      errors = true;
-      errorText = "Could not parse Headers!";
-    } else if(rHeader == null){
-      return false;
+      HTTPHeaders hh = new HTTPHeaders(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)));
+      response = new HTTPResponse(hrh, hh);
+      listeners.call().headersFinished(response);
     }
     
-    int eoh = buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR);
-    if(headers == null && eoh > 0) {
-      headers = new HTTPHeaders(buffers.getAsString(eoh));
-      bodyLength = headers.getContentLength();
-      chunked = headers.isChunked();
-      buffers.discard(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.length());
-    } else if(headers == null && buffers.remaining() > MAX_HEADER_SIZE) {
-      errors = true;
-      errorText = "Could not parse Headers!";
-    } else if (headers == null) {
-      return false;
+    if(response != null && buffers.remaining() > 0) {
+      processBody();
     }
-    
-    if(headers != null) {
-      checkBody();
+  }
+  
+  private void processBody() {
+    if(response.getHeaders().isChunked()) {
+      processChunks();
+    } else {
+      if(response.getHeaders().getContentLength() != -1 && currentBodySize < response.getHeaders().getContentLength()) {
+        int pull = Math.min(response.getHeaders().getContentLength(), buffers.remaining());
+        sendDuplicateBBtoListeners(buffers.pull(pull));
+        currentBodySize+=pull;
+        if(currentBodySize >= response.getHeaders().getContentLength()) {
+          reset(null);
+        }
+      } else if (response.getHeaders().getContentLength() == -1) {
+        sendDuplicateBBtoListeners(buffers.pull(buffers.remaining()));
+      }
     }
-    return isDone;
   }
   
-  public boolean hasBodyLength() {
-    return this.bodyLength > 0;
-  }
-  
-  public void disableChunkParser() {
-    this.parseChunks = false;
-  }
-  
-  public boolean isDone() {
-    return isDone;
-  }
-  
-  public boolean headersDone() {
-    return headers != null;
-  }
-  
-  public boolean isError() {
-    return errors;
-  }
-  
-  public String getErrorText() {
-    return errorText;
-  }
-  
-  public ByteBuffer remainingBuffer() {
-    if(!isDone || !errors) {
-      throw new IllegalStateException("Can not get remaining Buffers unless Processor is Done!");
+  private void processChunks() {
+    while(buffers.remaining() > 0) {
+      if(nextChunkSize == -1) {
+        int pos = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
+        try {
+          if(pos > 0) {
+            nextChunkSize = Integer.parseInt(buffers.getAsString(pos), 16);
+            buffers.discard(2);
+            if(nextChunkSize == 0) {
+              buffers.discard(2);
+              reset(null);
+              return;
+            } 
+          } else {
+            return;
+          }
+        } catch(Exception e) {
+          listeners.call().hasError(new HTTPParsingException("Problem reading chunk size!", e));
+          return;
+        }
+      } else {
+        if(buffers.remaining() >= nextChunkSize+2) {
+          ByteBuffer bb = buffers.pull(nextChunkSize);
+          buffers.discard(2);
+          sendDuplicateBBtoListeners(bb);  
+        } else {
+          return;
+        }
+      }
     }
-    return buffers.pull(buffers.remaining());
   }
   
-  public int getBodyLength() {
-    return bodyLength;
+  public void resetAllState() {
+    listeners.clearListeners();
+    buffers.discard(buffers.remaining());
+    reset(null);
   }
   
-  public void doClose() {
-    if(!isDone && bodyLength == -1 && buffers.remaining() > 0) {
-      bodyLength = buffers.remaining();
-      body = new byte[bodyLength];
-      buffers.get(body);
-      isDone = true;
+  private void reset(Throwable t) {
+    response = null;
+    currentBodySize = 0;
+    nextChunkSize = -1;
+    if(t == null) {
+      listeners.call().finished();
+    } else {
+      listeners.call().hasError(t);
     }
+  }
+  
+  public void connectionClosed() {
+    if(response != null) {
+      if(response.getHeaders().isChunked()) {
+        if (this.nextChunkSize == -1 || this.nextChunkSize == 0) {
+          reset(null);
+        } else {
+          reset(new HTTPParsingException("Did not complete chunked encoding!"));
+        }
+      } else {
+        if(response.getHeaders().getContentLength() > 0 && response.getHeaders().getContentLength() != this.currentBodySize) {
+          reset(new HTTPParsingException("Did not get complete body!"));
+        } else {
+          reset(null);
+        }
+      }
+    }
+    buffers.discard(buffers.remaining());
   }
 
-  private void checkBody() {
-
-    if(! chunked) {
-      if(headers.getContentLength() >= 0) {
-        if(buffers.remaining() >= bodyLength) {
-          body = new byte[bodyLength];
-          buffers.get(body);
-        }
-      }
-      if(body != null && body.length == bodyLength) {
-        isDone = true;
-      }
-      if(isDone && buffers.remaining() > 0) {
-        errors = true;
-      }
-    } else if(parseChunks){
-      int eor = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-      while((nextChunk > 0 && nextChunk <= buffers.remaining()) || (nextChunk < 0 && eor >= 0)) {
-        if(nextChunk > 0 && nextChunk <= buffers.remaining()) {
-          ByteBuffer newBody = ByteBuffer.allocate(nextChunk+body.length);
-          newBody.put(body);
-          ByteBuffer bb = buffers.pull(nextChunk);
-          newBody.put(bb);
-          body = newBody.array();
-          nextChunk = -1;
-          eor = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-        }
-        if(nextChunk < 0 && eor > 0) {
-          String tmp = buffers.getAsString(eor);
-          buffers.discard(2);
-          nextChunk = Integer.parseInt(tmp, 16);
-        } else if(eor == 0 && nextChunk < 0) {
-          buffers.discard(2);
-          eor = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-        }
-      }
-      if(nextChunk == 0) {
-        bodyLength = body.length;
-        isDone = true;
-      }
+  
+  private void sendDuplicateBBtoListeners(ByteBuffer bb) {
+    for(HTTPResponseCallback hrc: listeners.getSubscribedListeners()) {
+      hrc.bodyData(bb.duplicate());
     }
   }
   
-  public ByteBuffer pullBody() {
-    ByteBuffer bb = ByteBuffer.wrap(body);
-    body = new byte[0];
-    bodyLength = -1;
-    return bb;
-  }
-  
-  public ByteBuffer getExtraBuffers() {
-    return buffers.pull(buffers.remaining());
-  }
-  
-  public boolean isChunked() {
-    return chunked;
-  }
-  
-  public HTTPResponse getResponse() {
-    if(!isError()  && isDone) {
-      return new HTTPResponse(rHeader, headers, body);
-    }
-    throw new IllegalStateException("Can not make response from incomplete or Errored data");
-  }
-  
-  public HTTPResponse getResponseHeadersOnly() {
-    if(headersDone() && ! isError()) {
-      return new HTTPResponse(rHeader, headers, new byte[0]);
-    }
-    throw new IllegalStateException("Can not make response from incomplete or Errored data");
+  public static interface HTTPResponseCallback {
+    public void headersFinished(HTTPResponse hr);
+    public void bodyData(ByteBuffer bb);
+    public void finished();
+    public void hasError(Throwable t);
   }
 }

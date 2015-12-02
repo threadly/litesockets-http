@@ -1,8 +1,10 @@
 package org.threadly.litesockets.protocols.http.response;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 
 
@@ -14,27 +16,15 @@ import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 public class HTTPResponse {
   private final HTTPResponseHeader rHeader;
   private final HTTPHeaders headers;
-  private final int bodyLength;
-  private final byte[] body;
-  private final ByteBuffer bodybb;
-  private final Throwable error;
   
-  public HTTPResponse(HTTPResponseHeader rHeader, HTTPHeaders headers, byte[] body) {
+  public HTTPResponse(HTTPResponseHeader rHeader, HTTPHeaders headers) {
     this.rHeader = rHeader;
     this.headers = headers;
-    this.bodyLength = body.length;
-    this.body = body;
-    bodybb = ByteBuffer.wrap(body).asReadOnlyBuffer();
-    error = null;
   }
 
-  public HTTPResponse(String rCode, String httpVersion, Map<String, String> headers, byte[] body) {
+  public HTTPResponse(String rCode, String httpVersion, Map<String, String> headers) {
     rHeader = new HTTPResponseHeader(rCode, httpVersion);
     this.headers = new HTTPHeaders(headers);
-    this.bodyLength = body.length;
-    this.body = body;
-    bodybb = ByteBuffer.wrap(body).asReadOnlyBuffer();
-    error = null;
   }
   
   public String getResponseCode() {
@@ -44,46 +34,28 @@ public class HTTPResponse {
     return "-1";
   }
   
-  public Map<String, String> getHeaders() {
-    return headers.headers;
+  public HTTPHeaders getHeaders() {
+    return headers;
   }
   
-  public String getHttpVersion() {
-    if(rHeader != null) {
-      return rHeader.getResponseCode();
+  @Override
+  public boolean equals(Object o) {
+    if(o instanceof HTTPRequest) {
+      HTTPResponse hr = (HTTPResponse)o;
+      if(hr.rHeader.equals(rHeader) && hr.headers.equals(headers)) {
+        return true;
+      }
     }
-    return "";
+    return false;
   }
   
-  public int getBodyLength() {
-    return bodyLength;
+  @Override
+  public String toString() {
+    return this.rHeader+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+headers+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR;
   }
   
-  public boolean hasError() {
-    if(error == null) {
-      return false;
-    }
-    return true;
-  }
-  
-  public Throwable getError() {
-    return error;
-  }
-  
-  public String getHeader(String header) {
-    return headers.getHeader(header.toLowerCase());
-  }
-  
-  public ByteBuffer getBody() {
-    return bodybb.duplicate();
-  }
-  
-  public String getBodyAsString() {
-    return new String(body);
-  }
-  
-  public String getHeadersAsString() {
-    return new String(body);
+  public HTTPResponseBuilder makeBuilder() {
+    return new HTTPResponseBuilder().setResponseHeader(rHeader).setHeaders(headers);
   }
 
 }
