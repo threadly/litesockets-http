@@ -10,6 +10,10 @@ public class HTTPParsingException extends Exception {
     super(s);
   }
   
+  public HTTPParsingException(Throwable t) {
+    super(t);
+  }
+  
   public HTTPParsingException(String s, Throwable t) {
     super(s, t);
   }

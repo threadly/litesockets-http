@@ -71,6 +71,7 @@ public class FakeHTTPServer implements ClientAcceptor, Client.Reader{
   @Override
   public void accept(Client c) {
     TCPClient tc = (TCPClient)c;
+    System.out.println(c);
     tc.setReader(this);
   }
 
@@ -81,7 +82,7 @@ public class FakeHTTPServer implements ClientAcceptor, Client.Reader{
     if(mbb.indexOf("\r\n\r\n") >= 0) {
       //System.out.println(mbb.getAsString(mbb.remaining()));
       sendBack.begin();
-      while(sendBack.remaining() > 0) {
+      while(sendBack.remaining() > 0 && !client.isClosed()) {
         client.write(sendBack.pull(Math.min(500, sendBack.remaining())));
       }
       sendBack.rollback();

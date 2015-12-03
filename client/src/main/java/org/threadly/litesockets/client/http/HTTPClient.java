@@ -1,12 +1,11 @@
 package org.threadly.litesockets.client.http;
 
+import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -26,7 +25,9 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
+import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.Clock;
@@ -37,7 +38,7 @@ import org.threadly.util.Clock;
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
  * 
  */
-public class HTTPClient implements Reader, CloseListener {
+public class HTTPClient {
   public static final int DEFAULT_CONCURRENT = 2;
   public static final int DEFAULT_TIMEOUT = 15000;
   public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
@@ -48,8 +49,9 @@ public class HTTPClient implements Reader, CloseListener {
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
-  private final ConcurrentLinkedQueue<HTTPRequestWrapper> inProcess = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
+  private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
+  private final MainClientProcessor mcp = new MainClientProcessor();
   
   private final int maxConcurrent;
 
@@ -94,41 +96,47 @@ public class HTTPClient implements Reader, CloseListener {
     this.sei = sei;
   }
   
-  public HTTPResponse request(URL url) {
-    boolean ssl = false;
-    int port = 80;
-    String host = url.getHost();
-    if(url.getProtocol().equalsIgnoreCase("https")) {
-      port = 443;
-      ssl = true;
+  public HTTPResponseData request(URL url) throws HTTPParsingException {
+    HTTPResponseData hr = null;
+    try {
+      hr = requestAsync(url).get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (Exception e) {
+      if(e.getCause() instanceof HTTPParsingException) {
+        throw (HTTPParsingException)e.getCause();
+      } else {
+        throw new HTTPParsingException(e.getCause());
+      }
     }
-    if(url.getPort() != -1) {
-      port = url.getPort();
-    }
-    return request(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
+    return hr;
   }
   
-  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request) {
+  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
     return request(ha, request, EMPTY_BUFFER);
   }
-  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
+  
+  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) throws HTTPParsingException {
     return request(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
   }
-  public HTTPResponse request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
-    HTTPResponse hr = null;
+  
+  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) throws HTTPParsingException {
+    HTTPResponseData hr = null;
     try {
       hr = requestAsync(ha, request, body, tu, time).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } catch (ExecutionException e) {
-      hr = new HTTPResponse(e.getCause());
-    } catch (CancellationException e) {
-      hr = new HTTPResponse(e);
+    } catch (Exception e) {
+      if(e.getCause() instanceof HTTPParsingException) {
+        throw (HTTPParsingException)e.getCause();
+      } else {
+        throw new HTTPParsingException(e.getCause());
+      }
     }
     return hr;
   }
 
-  public ListenableFuture<HTTPResponse> requestAsync(URL url) {
+  public ListenableFuture<HTTPResponseData> requestAsync(URL url) {
     boolean ssl = false;
     int port = 80;
     String host = url.getHost();
@@ -142,17 +150,17 @@ public class HTTPClient implements Reader, CloseListener {
     return requestAsync(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
   }
   
-  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
     return requestAsync(ha, request, EMPTY_BUFFER);
   }
   
-  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
     return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
   }
   
-  public ListenableFuture<HTTPResponse> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, tu.toMillis(time));
-    final ListenableFuture<HTTPResponse> lf = hrw.slf;
+    final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
     if(ntse != null) {
       ntse.wakeup();
@@ -171,70 +179,13 @@ public class HTTPClient implements Reader, CloseListener {
       HTTPRequestWrapper hrw = queue.poll();
       //This runs concurrently if using a threaded SocketExecuter, so we have to null check before we add.
       if(hrw != null) {
-        inProcess.add(hrw);
-        ssi.execute(new RunClient(hrw));
-      }
-      
-    }
-  }
-  
-  @Override
-  public void onClose(Client client) {
-    HTTPRequestWrapper hrw = null;
-    for(HTTPRequestWrapper tmp: inProcess) {
-      if(tmp.client == client) {
-        hrw = tmp;
-        break;
-      }
-    }
-    if(hrw != null) {
-      inProcess.remove(hrw);
-      if(!hrw.slf.isDone()) {
-        hrw.hrp.doClose();
-        if(hrw.hrp.isDone()) {
-          hrw.slf.setResult(hrw.hrp.getResponse());
-        }else {
-          hrw.slf.setResult(new HTTPResponse(new Exception("Error Closed before Response was Done!")));
+        try {
+          hrw.client = getTCPClient(hrw.ha);
+          inProcess.put(hrw.client, hrw);
+          this.startWrite(hrw);
+        } catch (IOException e) {
+          hrw.slf.setFailure(e);
         }
-      }
-    }
-  }
-
-  @Override
-  public void onRead(Client client) {
-    TCPClient tc = null;
-    HTTPRequestWrapper hrw = null;
-    for(HTTPRequestWrapper tmp: inProcess) {
-      if(tmp.client == client) {
-        tc = (TCPClient)client;
-        hrw = tmp;
-        break;
-      }
-    }
-    if(hrw != null && !hrw.hrp.isDone() && !hrw.hrp.isError()) {
-      hrw.updateReadTime();
-      MergedByteBuffers mbb = client.getRead();
-      hrw.hrp.process(mbb);
-      if(hrw.hrp.isDone() && !hrw.hrp.isError()) {
-        hrw.slf.setResult(hrw.hrp.getResponse());
-        LinkedList<TCPClient> ll = sockets.get(hrw.ha);
-        synchronized(ll) {
-          if(!ll.contains(hrw.client)) {
-            ll.add(hrw.client);
-          }
-        }
-        inProcess.remove(hrw);
-        processQueue();
-      } else if (hrw.hrp.isError()) {
-        hrw.slf.setResult(new HTTPResponse(new Exception("Error while parsing HTTP: "+hrw.hrp.getErrorText())));
-        tc.close();
-        inProcess.remove(hrw);
-        processQueue();
-      } else if (hrw.hrp.getBodyLength() > maxResponseSize) {
-        hrw.slf.setResult(new HTTPResponse(new Exception("HTTPResponse was to large!! content-length was set to :"+hrw.hrp.getBodyLength())));
-        tc.close();
-        inProcess.remove(hrw);
-        processQueue();
       }
     }
   }
@@ -252,7 +203,59 @@ public class HTTPClient implements Reader, CloseListener {
     if(sts != null) {
       sts.shutdownNow();
     }
-
+  }
+  
+  private TCPClient getTCPClient(final HTTPAddress ha) throws IOException {
+    LinkedList<TCPClient> ll = sockets.get(ha);
+    TCPClient tc = null;
+    if(ll != null) {
+      synchronized(ll) {
+        while(ll.size() > 0 && tc == null) {
+          if(ll.peek().isClosed()) {
+            ll.pop();
+          } else {
+            tc = ll.pop();
+          }
+        }
+        if(ll.size() == 0) {
+          sockets.remove(ha);
+        }
+      }
+    }
+    if(tc == null) {
+      tc = sei.createTCPClient(ha.getHost(), ha.getPort());
+      if(ha.getdoSSL()) {
+        SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(ha.getHost(), ha.getPort());
+        sse.setUseClientMode(true);
+        tc.setSSLEngine(sse);
+        tc.startSSL();
+      }
+      tc.setReader(mcp);
+      tc.addCloseListener(mcp);
+      tc.connect();
+    }
+    return tc;
+  }
+  
+  private void addBackTCPClient(final HTTPAddress ha, final TCPClient client) {
+    if(!client.isClosed()) {
+      LinkedList<TCPClient> ll = sockets.get(ha);  
+      if(ll == null) {
+        sockets.put(ha, new LinkedList<TCPClient>());
+        ll = sockets.get(ha);
+      }
+      synchronized(ll) {
+        ll.add(client);
+      }
+    }
+  }
+  
+  private void startWrite(HTTPRequestWrapper hrw) {
+    hrw.client.write(hrw.hr.getCombinedBuffers());
+    hrw.client.write(hrw.body.duplicate());
+    //Request started here so we set the timeout to start now.
+    hrw.updateReadTime();
+    sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
   }
   
   /**
@@ -273,68 +276,44 @@ public class HTTPClient implements Reader, CloseListener {
     }
   }
   
-  /**
-   * Used when an HTTPClient is ready to start processing.
-   *
-   */
-  private class RunClient implements Runnable {
-    final HTTPRequestWrapper hrw;
-    
-    public RunClient(HTTPRequestWrapper hrw) {
-      this.hrw = hrw;
-    }
-    
+  private class MainClientProcessor implements Reader, CloseListener {
+
     @Override
-    public void run() {
-      try {
-        LinkedList<TCPClient> ll = sockets.get(hrw.ha);
-        if(ll != null) {
-          synchronized(ll) {
-            while(ll.size() > 0 && hrw.client == null) {
-              if(ll.peek().isClosed()) {
-                ll.pop();
-              } else {
-                hrw.client = ll.pop();
-              }
-            }
-          }
-        }
-        if(hrw.client == null || hrw.client.isClosed()) {
-          hrw.client = sei.createTCPClient(hrw.ha.getHost(), hrw.ha.getPort());
-          hrw.client.setConnectionTimeout((int)hrw.timeout);
-          if(hrw.ha.getdoSSL()) {
-            SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(hrw.ha.getHost(), hrw.ha.getPort());
-            sse.setUseClientMode(true);
-            hrw.client.setSSLEngine(sse);
-            hrw.client.startSSL();
-          }
-          hrw.client.setReader(HTTPClient.this);
-          hrw.client.addCloseListener(HTTPClient.this);
-          sockets.putIfAbsent(hrw.ha, new LinkedList<TCPClient>());
-        }
-        hrw.client.connect();
-        hrw.client.write(hrw.hr.getCombinedBuffers());
-        hrw.client.write(hrw.body.duplicate());
-        //Request started here so we set the timeout to start now.
-        hrw.updateReadTime();
-        sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
-      } catch(Exception e) {
-        e.printStackTrace();
+    public void onClose(Client client) {
+      HTTPRequestWrapper hrw = inProcess.get(client);
+      if(hrw != null) {
+        hrw.hrp.connectionClosed();
+      }
+      client.close();
+      inProcess.remove(client);
+    }
+
+    @Override
+    public void onRead(Client client) {
+      HTTPRequestWrapper hrw = inProcess.get(client);
+      if(hrw != null) {
+        hrw.hrp.processData(client.getRead());
+      } else {
+        client.close();
       }
     }
+    
   }
   
-  private static class HTTPRequestWrapper {
-    final HTTPRequest hr;
-    final HTTPAddress ha;
-    final ByteBuffer body;
-    final SettableListenableFuture<HTTPResponse> slf = new SettableListenableFuture<HTTPResponse>();
-    final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
-    volatile TCPClient client;
-    volatile long lastRead = Clock.lastKnownForwardProgressingMillis();
-    final long timeout;
+  private class HTTPRequestWrapper implements HTTPResponseCallback {
+    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<HTTPResponseData>(false);
+    private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
+    private final HTTPRequest hr;
+    private final HTTPAddress ha;
+    private final long timeout;
+    private final ByteBuffer body;
+    private HTTPResponse response;
+    private MergedByteBuffers responseMBB = new MergedByteBuffers();
+    private TCPClient client;
+    private long lastRead = Clock.lastKnownForwardProgressingMillis();
     
     public HTTPRequestWrapper(HTTPRequest hr, HTTPAddress ha, ByteBuffer body, long timeout) {
+      hrp.addHTTPRequestCallback(this);
       this.hr = hr;
       this.ha = ha;
       this.body = body;
@@ -347,6 +326,56 @@ public class HTTPClient implements Reader, CloseListener {
     
     public long timeTillExpired() {
       return timeout - (Clock.lastKnownForwardProgressingMillis() - lastRead);
+    }
+
+    @Override
+    public void headersFinished(HTTPResponse hr) {
+      response = hr;
+    }
+
+    @Override
+    public void bodyData(ByteBuffer bb) {
+      responseMBB.add(bb);
+      if(responseMBB.remaining() > maxResponseSize) {
+        slf.setFailure(new HTTPParsingException("Response Body to large!"));
+        client.close();
+      }
+    }
+
+    @Override
+    public void finished() {
+      slf.setResult(new HTTPResponseData(response, responseMBB.duplicateAndClean()));
+      hrp.removeHTTPRequestCallback(this);
+      inProcess.remove(client);
+      addBackTCPClient(ha, client);
+      processQueue();
+    }
+
+    @Override
+    public void hasError(Throwable t) {
+      slf.setFailure(t);
+    }
+  }
+  
+  public static class HTTPResponseData {
+    private final HTTPResponse hr;
+    private final MergedByteBuffers body;
+    
+    public HTTPResponseData(HTTPResponse hr, MergedByteBuffers bb) {
+      this.hr = hr;
+      this.body = bb;
+    }
+    
+    public HTTPResponse getResponse() {
+      return hr;
+    }
+    
+    public MergedByteBuffers getBody() {
+      return body.copy();
+    }
+    
+    public String getBodyAsString() {
+      return body.copy().getAsString(body.remaining());
     }
   }
 

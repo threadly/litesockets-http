@@ -44,11 +44,16 @@ public class HTTPResponseProcessor {
   public void processData(MergedByteBuffers bb) {
     buffers.add(bb);
     if(response == null && buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR) > -1) {
-      HTTPResponseHeader hrh = new HTTPResponseHeader(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)));
-      buffers.discard(2);
-      HTTPHeaders hh = new HTTPHeaders(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)));
-      response = new HTTPResponse(hrh, hh);
-      listeners.call().headersFinished(response);
+      try{
+        HTTPResponseHeader hrh = new HTTPResponseHeader(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)));
+        buffers.discard(2);
+        HTTPHeaders hh = new HTTPHeaders(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)));
+        buffers.discard(4);
+        response = new HTTPResponse(hrh, hh);
+        listeners.call().headersFinished(response);
+      } catch(Exception e) {
+        reset(e);
+      }
     }
     
     if(response != null && buffers.remaining() > 0) {
@@ -137,6 +142,8 @@ public class HTTPResponseProcessor {
           reset(null);
         }
       }
+    } else {
+      reset(new HTTPParsingException("No Response Received!"));
     }
     buffers.discard(buffers.remaining());
   }

@@ -42,7 +42,7 @@ public class HTTPRequest {
   @Override
   public String toString() {
     return this.request.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+
-        this.headers.toString()+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR;
+        this.headers.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR;
   }
   
   @Override

@@ -3,9 +3,9 @@ package org.threadly.litesockets.protocols.http.response;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
-import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 
 
 /**
@@ -22,16 +22,13 @@ public class HTTPResponse {
     this.headers = headers;
   }
 
-  public HTTPResponse(String rCode, String httpVersion, Map<String, String> headers) {
+  public HTTPResponse(HTTPResponseCode rCode, String httpVersion, Map<String, String> headers) {
     rHeader = new HTTPResponseHeader(rCode, httpVersion);
     this.headers = new HTTPHeaders(headers);
   }
   
-  public String getResponseCode() {
-    if(rHeader != null) {
-      return rHeader.getResponseCode();
-    }
-    return "-1";
+  public HTTPResponseCode getResponseCode() {
+    return rHeader.hrc;
   }
   
   public HTTPHeaders getHeaders() {
@@ -51,7 +48,7 @@ public class HTTPResponse {
   
   @Override
   public String toString() {
-    return this.rHeader+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+headers+HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR;
+    return this.rHeader+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+headers+HTTPConstants.HTTP_NEWLINE_DELIMINATOR;
   }
   
   public HTTPResponseBuilder makeBuilder() {
