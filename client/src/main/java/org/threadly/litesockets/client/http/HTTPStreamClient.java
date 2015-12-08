@@ -18,8 +18,10 @@ import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
@@ -48,8 +50,9 @@ public class HTTPStreamClient extends Client {
   private final Reader classReader = new HTTPReader();
   private final CloseListener classCloser = new HTTPCloser();
   private final TCPClient client;
+  private final RequestCallback requestCB = new RequestCallback();
   
-  private volatile HTTPResponseProcessor httpProcessor;
+  private final HTTPResponseProcessor httpProcessor;
   private volatile HTTPRequest currentHttpRequest;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
 
@@ -58,6 +61,8 @@ public class HTTPStreamClient extends Client {
     this.client = client;
     client.setReader(classReader);
     client.addCloseListener(classCloser);
+    httpProcessor = new HTTPResponseProcessor();
+    httpProcessor.addHTTPRequestCallback(requestCB);
   }
 
   public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout) throws IOException {
@@ -66,6 +71,8 @@ public class HTTPStreamClient extends Client {
     client.setConnectionTimeout(timeout);
     client.setReader(classReader);
     client.addCloseListener(classCloser);
+    httpProcessor = new HTTPResponseProcessor();
+    httpProcessor.addHTTPRequestCallback(requestCB);
   }
 
   /**
@@ -86,6 +93,8 @@ public class HTTPStreamClient extends Client {
     client.startSSL();
     client.setReader(classReader);
     client.addCloseListener(classCloser);
+    httpProcessor = new HTTPResponseProcessor();
+    httpProcessor.addHTTPRequestCallback(requestCB);
   }
 
   /**
@@ -104,12 +113,11 @@ public class HTTPStreamClient extends Client {
       slfResponse.setFailure(new Exception("New request came in!"));
     }
     currentHttpRequest = request;
-    httpProcessor = new HTTPResponseProcessor();
+
     slfResponse = new SettableListenableFuture<HTTPResponse>();
-    httpProcessor.disableChunkParser();
     localMbb.discard(localMbb.remaining());
     tbb.discard(tbb.remaining());
-    client.write(request.getCombinedBuffers());
+    client.write(request.getByteBuffer());
     return slfResponse;
   }
   
@@ -118,73 +126,73 @@ public class HTTPStreamClient extends Client {
     return localMbb.duplicateAndClean();
   }
 
-  private void parseRead() {
-    MergedByteBuffers mbb = client.getRead();
-    if(!httpProcessor.headersDone()) {
-      httpProcessor.process(mbb);
-      mbb.discard(mbb.remaining());
-    }
-    if(httpProcessor.headersDone()) {
-      if(!slfResponse.isDone()) {
-        slfResponse.setResult(httpProcessor.getResponseHeadersOnly());
-        if(httpProcessor.getBodyLength() > 0) {
-          ByteBuffer body = httpProcessor.pullBody();
-          ByteBuffer remaining = httpProcessor.getExtraBuffers();
-          if(remaining.remaining() > 0) {
-            mbb.add(body);
-            mbb.add(remaining);
-          } else {
-            mbb.add(body);
-          }
-        } else {
-          ByteBuffer bb = httpProcessor.getExtraBuffers();
-          mbb.add(bb);
-        }
-      }
-      
-      if(!httpProcessor.isChunked()) {
-        if(mbb.remaining() > 0) {
-          localMbb.add(mbb);
-          callReader();
-        }
-      } else {
-        tbb.add(mbb);
-        int pos ;
-        boolean didWrite = false;
-        boolean doClose = false;
-        while((pos = tbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) >= 0) {
-          tbb.begin();
-          String tmp = tbb.getAsString(pos);
-          int size = Integer.parseInt(tmp, HEX_OCT);
-          System.out.println(size+":"+tbb.remaining());
-          if(size == 0) {
-            doClose = true;
-            tbb.rollback();
-            break;
-          }
-          tbb.discard(2);
-          if(tbb.remaining() >= size+2) {
-            if(size > 0) {
-              localMbb.add(tbb.pull(size));
-              didWrite = true;
-            }
-            tbb.discard(Math.min(2, tbb.remaining()));
-            tbb.commit();
-          } else {
-            System.out.println("rollback");
-            tbb.rollback();
-            break;
-          }
-        }
-        if(didWrite) {
-          callReader();
-        }
-        if(doClose) {
-          callClosers();
-        }
-      }
-    }
-  }
+//  private void parseRead() {
+//    MergedByteBuffers mbb = client.getRead();
+//    if(!httpProcessor.headersDone()) {
+//      httpProcessor.process(mbb);
+//      mbb.discard(mbb.remaining());
+//    }
+//    if(httpProcessor.headersDone()) {
+//      if(!slfResponse.isDone()) {
+//        slfResponse.setResult(httpProcessor.getResponseHeadersOnly());
+//        if(httpProcessor.getBodyLength() > 0) {
+//          ByteBuffer body = httpProcessor.pullBody();
+//          ByteBuffer remaining = httpProcessor.getExtraBuffers();
+//          if(remaining.remaining() > 0) {
+//            mbb.add(body);
+//            mbb.add(remaining);
+//          } else {
+//            mbb.add(body);
+//          }
+//        } else {
+//          ByteBuffer bb = httpProcessor.getExtraBuffers();
+//          mbb.add(bb);
+//        }
+//      }
+//      
+//      if(!httpProcessor.isChunked()) {
+//        if(mbb.remaining() > 0) {
+//          localMbb.add(mbb);
+//          callReader();
+//        }
+//      } else {
+//        tbb.add(mbb);
+//        int pos ;
+//        boolean didWrite = false;
+//        boolean doClose = false;
+//        while((pos = tbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) >= 0) {
+//          tbb.begin();
+//          String tmp = tbb.getAsString(pos);
+//          int size = Integer.parseInt(tmp, HEX_OCT);
+//          System.out.println(size+":"+tbb.remaining());
+//          if(size == 0) {
+//            doClose = true;
+//            tbb.rollback();
+//            break;
+//          }
+//          tbb.discard(2);
+//          if(tbb.remaining() >= size+2) {
+//            if(size > 0) {
+//              localMbb.add(tbb.pull(size));
+//              didWrite = true;
+//            }
+//            tbb.discard(Math.min(2, tbb.remaining()));
+//            tbb.commit();
+//          } else {
+//            System.out.println("rollback");
+//            tbb.rollback();
+//            break;
+//          }
+//        }
+//        if(didWrite) {
+//          callReader();
+//        }
+//        if(doClose) {
+//          callClosers();
+//        }
+//      }
+//    }
+//  }
   
   @Override
   public Executor getClientsThreadExecutor() {
@@ -197,8 +205,7 @@ public class HTTPStreamClient extends Client {
   private class HTTPReader implements Reader {
     @Override
     public void onRead(Client client) {
-      parseRead();
-      callReader();
+      httpProcessor.processData(client.getRead());
     }
   }
   
@@ -292,5 +299,31 @@ public class HTTPStreamClient extends Client {
   @Override
   public InetSocketAddress getLocalSocketAddress() {
     return client.getLocalSocketAddress();
+  }
+  
+  private class RequestCallback implements HTTPResponseCallback {
+
+    @Override
+    public void headersFinished(HTTPResponse hr) {
+      slfResponse.setResult(hr);
+    }
+
+    @Override
+    public void bodyData(ByteBuffer bb) {
+      localMbb.add(bb);
+      callReader();
+    }
+
+    @Override
+    public void finished() {
+      callClosers();
+    }
+
+    @Override
+    public void hasError(Throwable t) {
+      slfResponse.setFailure(t);
+      callClosers();
+    }
+    
   }
 }

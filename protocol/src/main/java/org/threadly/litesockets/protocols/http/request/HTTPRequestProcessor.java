@@ -43,6 +43,11 @@ public class HTTPRequestProcessor {
     pendingBuffers.add(bb);
     runProcessData();
   }
+  
+  public void processData(MergedByteBuffers bb) {
+    pendingBuffers.add(bb);
+    runProcessData();
+  }
 
   public void connectionClosed() {
     if(request != null) {
@@ -75,17 +80,15 @@ public class HTTPRequestProcessor {
             HTTPRequestHeader hrh = new HTTPRequestHeader(reqh);
             HTTPHeaders hh = new HTTPHeaders(tmp.getAsString(tmp.remaining()));
             request = new HTTPRequest(hrh, hh);
-            bodySize = hh.getContentLength();
-            if(bodySize == -1) {
-              String te = hh.getHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING);
-              if(te != null && te.equalsIgnoreCase("chunked")) {
-                bodySize = -1;
-                isChunked = true;
-              }
-            }
             listeners.call().headersFinished(request);
-            if(!isChunked && bodySize == 0) {
-              reset();
+            bodySize = hh.getContentLength();
+            if(hh.isChunked()) {
+              bodySize = -1;
+              isChunked = true;              
+            } else {
+              if(bodySize <= 0) {
+                reset();
+              }
             }
           } catch (Exception e) {
             reset(e);

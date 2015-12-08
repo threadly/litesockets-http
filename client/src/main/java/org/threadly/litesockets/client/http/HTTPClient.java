@@ -251,7 +251,7 @@ public class HTTPClient {
   }
   
   private void startWrite(HTTPRequestWrapper hrw) {
-    hrw.client.write(hrw.hr.getCombinedBuffers());
+    hrw.client.write(hrw.hr.getByteBuffer());
     hrw.client.write(hrw.body.duplicate());
     //Request started here so we set the timeout to start now.
     hrw.updateReadTime();

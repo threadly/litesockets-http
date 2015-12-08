@@ -84,7 +84,7 @@ public class RequestTests {
     hrb = hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "0").duplicate();
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     assertTrue(cb.finished);
     assertEquals(0, cb.bbs.size());
     assertEquals(hr, cb.request);
@@ -102,7 +102,7 @@ public class RequestTests {
     hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "10");
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     
     assertFalse(cb.finished);
     assertEquals(0, cb.bbs.size());
@@ -116,6 +116,8 @@ public class RequestTests {
     assertTrue(cb.finished);
     assertEquals(1, cb.bbs.size());
     assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(0).duplicate()));
+    System.out.println("-----\n"+hr.toString()+"-----");
+    System.out.println("-----\n"+cb.request.toString()+"-----");
     assertEquals(hr.toString(), cb.request.toString());
   }
   
@@ -124,9 +126,9 @@ public class RequestTests {
     hrb.setURL(new URL("https://test.com/test12334?query=1"));
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     
-    assertFalse(cb.finished);
+    assertTrue(cb.finished);
     assertEquals(0, cb.bbs.size());
     assertFalse(cb.request == null);
     assertTrue(cb.error == null);
@@ -134,16 +136,6 @@ public class RequestTests {
     assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
     assertEquals(RequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
     assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
-    hrp.processData(DATA_BA);
-    assertEquals(1, cb.bbs.size());
-    assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(0).duplicate()));
-    hrp.processData(DATA_BA);
-    assertFalse(cb.finished);
-    assertEquals(2, cb.bbs.size());
-    assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(1).duplicate()));
-    hrp.connectionClosed();
-    assertTrue(cb.finished);
-    assertEquals(hr.toString(), cb.request.toString());
   }
 
   
@@ -158,7 +150,7 @@ public class RequestTests {
     sb.append("A");
     hrb.appedQuery("X-CUSTOM", sb.toString());
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);
   }
@@ -175,7 +167,7 @@ public class RequestTests {
     sb.append("A");
     hrb.setHeader("X-CUSTOM", sb.toString());
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);
   }
@@ -185,7 +177,7 @@ public class RequestTests {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     hrp.processData("TRE\r\n".getBytes());
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);
@@ -196,7 +188,7 @@ public class RequestTests {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
     byte[] ba = HTTPUtils.wrapInChunk(DATA_BA);
@@ -214,7 +206,7 @@ public class RequestTests {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
-    hrp.processData(hr.getCombinedBuffers());
+    hrp.processData(hr.getByteBuffer());
     
     
     assertFalse(cb.finished);
@@ -245,9 +237,9 @@ public class RequestTests {
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.build();
     
-    ByteBuffer bb = ByteBuffer.allocate((hr.getCombinedBuffers().remaining()*10) + 10*10);
+    ByteBuffer bb = ByteBuffer.allocate((hr.getByteBuffer().remaining()*10) + 10*10);
     for(int i=0;i <10; i++) {
-      bb.put(hr.getCombinedBuffers());
+      bb.put(hr.getByteBuffer());
       bb.put(DATA_BA);
     }
     bb.flip();

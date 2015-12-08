@@ -5,10 +5,11 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
 public class HTTPResponseBuilder {
   private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-  private HTTPResponseHeader rHeader;
+  private HTTPResponseHeader rHeader = HTTPUtils.OK_RESPONSE_HEADER;
   
   public HTTPResponseBuilder() {}
   
@@ -20,7 +21,7 @@ public class HTTPResponseBuilder {
   
   public HTTPResponseBuilder setHeaders(HTTPHeaders hh) {
     this.headers.clear();
-    for(Entry<String, String> head: hh.headers.entrySet()) {
+    for(Entry<String, String> head: hh.getHeadersMap().entrySet()) {
       setHeader(head.getKey(), head.getValue());
     }
     return this;

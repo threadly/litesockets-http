@@ -1,6 +1,7 @@
 package org.threadly.litesockets.protocols.http.response;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 import org.threadly.concurrent.event.ListenerHelper;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
@@ -47,8 +48,15 @@ public class HTTPResponseProcessor {
       try{
         HTTPResponseHeader hrh = new HTTPResponseHeader(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)));
         buffers.discard(2);
-        HTTPHeaders hh = new HTTPHeaders(buffers.getAsString(buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)));
-        buffers.discard(4);
+        int pos = buffers.indexOf(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR);
+        HTTPHeaders hh;
+        if (pos > 0) {
+          hh = new HTTPHeaders(buffers.getAsString(pos));
+          buffers.discard(4);
+        } else {
+          hh  = new HTTPHeaders(new HashMap<String, String>());
+          buffers.discard(2);
+        }
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
       } catch(Exception e) {

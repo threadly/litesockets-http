@@ -14,15 +14,15 @@ import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
  * This is an immutable HTTP Request Header.  Basically the first line of the http request.  
  */
 public class HTTPRequestHeader {
-  public static final int REQUIRED_REQUEST_ITEMS = 3;
-  public final byte[] rawRequest;
-  public final String requestType;
-  public final String requestPath;
-  public final Map<String, String> requestQuery;
-  public final String httpVersion;
+  private static final int REQUIRED_REQUEST_ITEMS = 3;
+  private final String rawRequest;
+  private final String requestType;
+  private final String requestPath;
+  private final Map<String, String> requestQuery;
+  private final String httpVersion;
   
   public HTTPRequestHeader(final String requestHeader) {
-    this.rawRequest = requestHeader.trim().getBytes();
+    this.rawRequest = requestHeader.trim().intern();
     String[] tmp = requestHeader.trim().split(" ");
     if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+requestHeader);
@@ -56,7 +56,7 @@ public class HTTPRequestHeader {
     } else {
       this.requestQuery = Collections.unmodifiableMap(requestQuery);
     }
-    this.httpVersion = httpVersion.toUpperCase().intern();
+    this.httpVersion = httpVersion.trim().toUpperCase().intern();
     StringBuilder sb = new StringBuilder();
     sb.append(requestType.toString());
     sb.append(HTTPConstants.SPACE);
@@ -65,8 +65,8 @@ public class HTTPRequestHeader {
       sb.append(HTTPUtils.queryToString(requestQuery));
     }
     sb.append(HTTPConstants.SPACE);
-    sb.append(httpVersion);
-    rawRequest = sb.toString().getBytes();
+    sb.append(this.httpVersion);
+    rawRequest = sb.toString().intern();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
       throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
     }
@@ -89,12 +89,16 @@ public class HTTPRequestHeader {
   }
   
   public ByteBuffer getByteBuffer() {
-    return ByteBuffer.wrap(rawRequest).asReadOnlyBuffer();
+    return ByteBuffer.wrap(rawRequest.getBytes()).asReadOnlyBuffer();
+  }
+  
+  public int length() {
+    return rawRequest.length();
   }
   
   @Override
   public String toString() {
-    return new String(rawRequest);
+    return rawRequest;
   }
   
   @Override

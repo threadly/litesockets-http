@@ -1,5 +1,6 @@
 package org.threadly.litesockets.protocols.http.response;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
@@ -27,12 +28,22 @@ public class HTTPResponse {
     this.headers = new HTTPHeaders(headers);
   }
   
-  public HTTPResponseCode getResponseCode() {
-    return rHeader.hrc;
+  public HTTPResponseHeader getResponseHeader() {
+    return rHeader;
   }
   
   public HTTPHeaders getHeaders() {
     return headers;
+  }
+  
+  public ByteBuffer getByteBuffer() {
+    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + rHeader.length() + 4);
+    combined.put(rHeader.getByteBuffer());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.put(headers.toString().getBytes());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.flip();
+    return combined;
   }
   
   @Override

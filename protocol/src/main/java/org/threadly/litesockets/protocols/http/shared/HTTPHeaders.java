@@ -10,18 +10,22 @@ import java.util.TreeMap;
  * separated by a colon. 
  */
 public class HTTPHeaders {
-  public final String rawHeaders;
-  public final Map<String, String> headers;
+  private final String rawHeaders;
+  private final Map<String, String> headers;
   
-  public HTTPHeaders(final String headerString) {
+  public HTTPHeaders(String headerString) {
     TreeMap<String, String> map = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
     if(headerString.endsWith(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)) {
       this.rawHeaders = headerString.substring(0, headerString.length()-2).intern();
     } else if(!headerString.endsWith(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) { 
       this.rawHeaders = (headerString+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).intern();
     } else {
-      this.rawHeaders = headerString.trim().intern();
+      while(Character.isWhitespace(headerString.charAt(0))) {
+        headerString = headerString.substring(1);
+      }
+      this.rawHeaders = headerString.intern();
     }
+    
     String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
       String[] kv = h.split(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
@@ -29,27 +33,27 @@ public class HTTPHeaders {
       String value = kv[1].trim().intern();
       map.put(key, value);
     }
+    
     headers = Collections.unmodifiableMap(map);
   }
   
   public HTTPHeaders(final Map<String, String> headerMap) {
     TreeMap<String, String> lheaders = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
     StringBuilder sb = new StringBuilder();
-    int count = 0;
     for(Entry<String, String> kv: headerMap.entrySet()) {
       lheaders.put(kv.getKey().trim().intern(), kv.getValue().trim().intern());
-      count++;
       sb.append(kv.getKey());
       sb.append(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
       sb.append(HTTPConstants.SPACE);
       sb.append(kv.getValue());
-      if(count<headerMap.size()) {
-        sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-      }
-
+      sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     }
     rawHeaders = sb.toString().intern();
     this.headers = Collections.unmodifiableMap(lheaders);
+  }
+  
+  public Map<String, String> getHeadersMap() {
+    return headers;
   }
   
   public boolean isChunked() {

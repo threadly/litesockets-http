@@ -12,7 +12,6 @@ import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 public class HTTPRequest {
   private final HTTPRequestHeader request;
   private final HTTPHeaders headers;
-  private ByteBuffer combined = null;
   
   protected HTTPRequest(HTTPRequestHeader request, HTTPHeaders headers) {
     this.request = request;
@@ -27,22 +26,23 @@ public class HTTPRequest {
     return request;
   }
   
-  public ByteBuffer getCombinedBuffers() {
-    if(combined == null) {
-      combined = ByteBuffer.allocate(headers.rawHeaders.length() + request.rawRequest.length+6);
-      combined.put(request.rawRequest);
-      combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
-      combined.put(headers.rawHeaders.getBytes());
-      combined.put(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.getBytes());
-      combined.flip();
-    }
-    return combined.duplicate();
+  public ByteBuffer getByteBuffer() {
+    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + request.length() + 4);
+    combined.put(request.getByteBuffer());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.put(headers.toString().getBytes());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.flip();
+    return combined;
   }
   
   @Override
   public String toString() {
-    return this.request.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR+
-        this.headers.toString()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR;
+    System.out.println(request.toString()+":");
+    return request.toString()+
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR+
+        headers.toString()+
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR;
   }
   
   @Override
