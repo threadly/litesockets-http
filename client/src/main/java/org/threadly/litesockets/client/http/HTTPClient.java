@@ -27,6 +27,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
@@ -86,7 +87,7 @@ public class HTTPClient {
   
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size
-   * as well as your own {@link SimpleSchedulerInterface} as the thread pool to use.</p> 
+   * as well as your own {@link SocketExecuter} as the thread pool to use.</p> 
    * 
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei) {
@@ -120,7 +121,8 @@ public class HTTPClient {
     return request(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
   }
   
-  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) throws HTTPParsingException {
+  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) 
+      throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
       hr = requestAsync(ha, request, body, tu, time).get();
@@ -138,10 +140,10 @@ public class HTTPClient {
 
   public ListenableFuture<HTTPResponseData> requestAsync(URL url) {
     boolean ssl = false;
-    int port = 80;
+    int port = HTTPConstants.DEFAULT_HTTP_PORT;
     String host = url.getHost();
     if(url.getProtocol().equalsIgnoreCase("https")) {
-      port = 443;
+      port = HTTPConstants.DEFAULT_HTTPS_PORT;
       ssl = true;
     }
     if(url.getPort() != -1) {
@@ -158,7 +160,8 @@ public class HTTPClient {
     return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
   }
   
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, 
+      final ByteBuffer body, final TimeUnit tu, final long time) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, tu.toMillis(time));
     final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
@@ -276,6 +279,11 @@ public class HTTPClient {
     }
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class MainClientProcessor implements Reader, CloseListener {
 
     @Override
@@ -300,6 +308,11 @@ public class HTTPClient {
     
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<HTTPResponseData>(false);
     private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
@@ -357,6 +370,12 @@ public class HTTPClient {
     }
   }
   
+  /**
+   * This is returned when a request finishes.  
+   * 
+   * @author lwahlmeier
+   *
+   */
   public static class HTTPResponseData {
     private final HTTPResponse hr;
     private final MergedByteBuffers body;

@@ -6,16 +6,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.utils.MergedByteBuffers;
-import org.threadly.litesockets.protocols.http.request.HTTPRequestHeader;
-import org.threadly.litesockets.protocols.http.response.HTTPResponseHeader;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
 
+/**
+ * 
+ * 
+ * @author lwahlmeier
+ *
+ */
 public class HTTPUtils {
-  public static final HTTPHeaders DEFAULT_HEADERS = new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
-  public static final HTTPRequestHeader DEFAULT_REQUEST_HEADER = new HTTPRequestHeader(RequestType.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
-  public static final HTTPResponseHeader OK_RESPONSE_HEADER = new HTTPResponseHeader(HTTPResponseCode.OK, HTTPConstants.HTTP_VERSION_1_1);
-  public static final HTTPResponseHeader NOT_FOUND_RESPONSE_HEADER = new HTTPResponseHeader(HTTPResponseCode.NotFound, HTTPConstants.HTTP_VERSION_1_1);
-  public static final HTTPResponseHeader SERVER_ERROR_RESPONSE_HEADER = new HTTPResponseHeader(HTTPResponseCode.InternalServerError, HTTPConstants.HTTP_VERSION_1_1);
   
   public static String bbToString(ByteBuffer bb) {
     byte[] ba = new byte[bb.remaining()];
@@ -30,7 +28,7 @@ public class HTTPUtils {
     try {
       if(pos >= 0) {
         String csize = mbb.getAsString(pos);
-        return Integer.parseInt(csize, 16);
+        return Integer.parseInt(csize, HTTPConstants.HEX_SIZE);
       }
     } catch(Exception e) {
       return -1;

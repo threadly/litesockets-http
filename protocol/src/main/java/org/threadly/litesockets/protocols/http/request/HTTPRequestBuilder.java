@@ -18,9 +18,9 @@ import org.threadly.litesockets.protocols.http.shared.RequestType;
  */
 public class HTTPRequestBuilder {
   private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-  private HTTPRequestHeader request = HTTPUtils.DEFAULT_REQUEST_HEADER;
+  private HTTPRequestHeader request = HTTPConstants.DEFAULT_REQUEST_HEADER;
   private String host = "localhost";
-  private int port = 80;
+  private int port = HTTPConstants.DEFAULT_HTTP_PORT;
   
   public HTTPRequestBuilder(){
     headers.putAll(HTTPConstants.DEFAULT_HEADERS_MAP);

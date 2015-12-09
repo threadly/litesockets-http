@@ -4,12 +4,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
-import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
+/**
+ * A builder to help create {@link HTTPResponse} objects.
+ * 
+ * @author lwahlmeier
+ *
+ */
 public class HTTPResponseBuilder {
   private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-  private HTTPResponseHeader rHeader = HTTPUtils.OK_RESPONSE_HEADER;
+  private HTTPResponseHeader rHeader = HTTPConstants.OK_RESPONSE_HEADER;
   
   public HTTPResponseBuilder() {}
   

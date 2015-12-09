@@ -27,7 +27,10 @@ public class HTTPRequest {
   }
   
   public ByteBuffer getByteBuffer() {
-    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + request.length() + HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() +HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
+    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + request.length() + 
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
+    
     combined.put(request.getByteBuffer());
     combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     combined.put(headers.toString().getBytes());

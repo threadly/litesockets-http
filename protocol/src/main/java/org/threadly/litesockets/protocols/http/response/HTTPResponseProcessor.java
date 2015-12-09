@@ -52,10 +52,10 @@ public class HTTPResponseProcessor {
         HTTPHeaders hh;
         if (pos > 0) {
           hh = new HTTPHeaders(buffers.getAsString(pos));
-          buffers.discard(4);
+          buffers.discard(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR.length());
         } else {
           hh  = new HTTPHeaders(new HashMap<String, String>());
-          buffers.discard(2);
+          buffers.discard(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
         }
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
@@ -92,7 +92,7 @@ public class HTTPResponseProcessor {
         int pos = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
         try {
           if(pos > 0) {
-            nextChunkSize = Integer.parseInt(buffers.getAsString(pos), 16);
+            nextChunkSize = Integer.parseInt(buffers.getAsString(pos), HTTPConstants.HEX_SIZE);
             buffers.discard(2);
             if(nextChunkSize == 0) {
               buffers.discard(2);
@@ -163,7 +163,13 @@ public class HTTPResponseProcessor {
     }
   }
   
-  public static interface HTTPResponseCallback {
+  /**
+   * Used for processing data with {@link HTTPResponseProcessor}.
+   * 
+   * @author lwahlmeier
+   *
+   */
+  public interface HTTPResponseCallback {
     public void headersFinished(HTTPResponse hr);
     public void bodyData(ByteBuffer bb);
     public void finished();

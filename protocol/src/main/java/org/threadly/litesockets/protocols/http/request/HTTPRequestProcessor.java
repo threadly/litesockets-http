@@ -18,7 +18,6 @@ import org.threadly.litesockets.utils.MergedByteBuffers;
 public class HTTPRequestProcessor {
   public static final int MAX_HEADER_LENGTH = 1024*128;
   public static final int MAX_HEADER_ROW_LENGTH = 1024*8;
-  public static final int HEX_SIZE = 16;
   
   private final MergedByteBuffers pendingBuffers = new MergedByteBuffers();
   private final ListenerHelper<HTTPRequestCallback> listeners = ListenerHelper.build(HTTPRequestCallback.class);
@@ -145,10 +144,10 @@ public class HTTPRequestProcessor {
         int pos = pendingBuffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
         try {
           if(pos > 0) {
-            bodySize = Integer.parseInt(pendingBuffers.getAsString(pos), HEX_SIZE);
-            pendingBuffers.discard(2);
+            bodySize = Integer.parseInt(pendingBuffers.getAsString(pos), HTTPConstants.HEX_SIZE);
+            pendingBuffers.discard(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
             if(bodySize == 0) {
-              pendingBuffers.discard(2);
+              pendingBuffers.discard(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
               reset();
               return false;
             } else {
