@@ -8,8 +8,10 @@ repositories {
   }
 }
 
+checkstyle {
+  configFile = "${rootDir}/config/checkstyle/checkstyle.xml" as File
+}
 
-project.archivesBaseName='litesockets-http'
 
 dependencies {
   testCompile group: 'junit', name: 'junit', version: '4.12'
@@ -42,7 +44,6 @@ jar {
   manifest {
     attributes 'Implementation-Title': 'litesockets', 'Implementation-Version': version
   }
-  baseName = 'litesockets'
 }
 
 javadoc {
