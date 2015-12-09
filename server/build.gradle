@@ -1,7 +1,7 @@
 apply from: "${rootDir}/build.shared"
 apply plugin: 'jacoco'
 
-project.archivesBaseName='litesockets-http-client'
+project.archivesBaseName='litesockets-http-server'
 
 dependencies {
   testCompile group: 'junit', name: 'junit', version: '4.12'
@@ -10,10 +10,6 @@ dependencies {
     project(':protocol'),
     "org.threadly:threadly:$threadlyVersion",
     "org.threadly:litesockets:$litesocketsVersion",
-  )
-  testCompile (
-    project(":server"),
-    'junit:junit:4.11'
   )
 
 }

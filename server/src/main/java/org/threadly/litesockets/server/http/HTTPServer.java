@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.http;
+package org.threadly.litesockets.server.http;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,7 +20,6 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.util.AbstractService;
 
 public class HTTPServer extends AbstractService {
@@ -40,7 +39,7 @@ public class HTTPServer extends AbstractService {
     this.hostname = hostName;
     this.port = port;
     this.sslc = sslc;
-    this.server = se.createTCPServer(hostname, port);
+    this.server = this.se.createTCPServer(hostname, port);
     server.setClientAcceptor(clientListener);
     
     if(this.sslc != null) {

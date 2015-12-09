@@ -11,9 +11,10 @@ import javax.net.ssl.TrustManager;
 
 import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.client.http.HTTPServer.BodyFuture;
-import org.threadly.litesockets.client.http.HTTPServer.Handler;
-import org.threadly.litesockets.client.http.HTTPServer.ResponseWriter;
+import org.threadly.litesockets.server.http.HTTPServer;
+import org.threadly.litesockets.server.http.HTTPServer.BodyFuture;
+import org.threadly.litesockets.server.http.HTTPServer.Handler;
+import org.threadly.litesockets.server.http.HTTPServer.ResponseWriter;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;

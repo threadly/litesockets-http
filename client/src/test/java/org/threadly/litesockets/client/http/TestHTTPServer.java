@@ -10,18 +10,14 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.threadly.concurrent.PriorityScheduler;
-import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.client.http.HTTPServer.BodyFuture;
-import org.threadly.litesockets.client.http.HTTPServer.Handler;
-import org.threadly.litesockets.client.http.HTTPServer.ResponseWriter;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
-import org.threadly.litesockets.TCPClient;
-import org.threadly.litesockets.TCPServer;
+import org.threadly.litesockets.server.http.HTTPServer;
+import org.threadly.litesockets.server.http.HTTPServer.BodyFuture;
+import org.threadly.litesockets.server.http.HTTPServer.Handler;
+import org.threadly.litesockets.server.http.HTTPServer.ResponseWriter;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
 public class TestHTTPServer implements Handler {

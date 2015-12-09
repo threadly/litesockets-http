@@ -3,7 +3,6 @@ package org.threadly.litesockets.client.http;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.Executor;
@@ -12,18 +11,15 @@ import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.SocketExecuter;
-import org.threadly.litesockets.WireProtocol;
-import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.litesockets.TCPClient;
-import org.threadly.litesockets.utils.MergedByteBuffers;
-import org.threadly.litesockets.utils.TransactionalByteBuffers;
+import org.threadly.litesockets.WireProtocol;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
-import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
-import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.utils.SSLUtils;
+import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
 /**
  * <p>HTTPStreamClient is designed to work with larger HTTPStreams of data.  This can mean sending them
@@ -44,7 +40,6 @@ import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
  *
  */
 public class HTTPStreamClient extends Client {
-  private static final int HEX_OCT = 16;
   private final MergedByteBuffers localMbb = new MergedByteBuffers();
   private final TransactionalByteBuffers tbb = new TransactionalByteBuffers();
   private final Reader classReader = new HTTPReader();
@@ -53,7 +48,6 @@ public class HTTPStreamClient extends Client {
   private final RequestCallback requestCB = new RequestCallback();
   
   private final HTTPResponseProcessor httpProcessor;
-  private volatile HTTPRequest currentHttpRequest;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
 
   public HTTPStreamClient(TCPClient client) {
@@ -112,8 +106,6 @@ public class HTTPStreamClient extends Client {
     if(slfResponse != null && !slfResponse.isDone()) {
       slfResponse.setFailure(new Exception("New request came in!"));
     }
-    currentHttpRequest = request;
-
     slfResponse = new SettableListenableFuture<HTTPResponse>();
     localMbb.discard(localMbb.remaining());
     tbb.discard(tbb.remaining());
@@ -126,94 +118,9 @@ public class HTTPStreamClient extends Client {
     return localMbb.duplicateAndClean();
   }
 
-//  private void parseRead() {
-//    MergedByteBuffers mbb = client.getRead();
-//    if(!httpProcessor.headersDone()) {
-//      httpProcessor.process(mbb);
-//      mbb.discard(mbb.remaining());
-//    }
-//    if(httpProcessor.headersDone()) {
-//      if(!slfResponse.isDone()) {
-//        slfResponse.setResult(httpProcessor.getResponseHeadersOnly());
-//        if(httpProcessor.getBodyLength() > 0) {
-//          ByteBuffer body = httpProcessor.pullBody();
-//          ByteBuffer remaining = httpProcessor.getExtraBuffers();
-//          if(remaining.remaining() > 0) {
-//            mbb.add(body);
-//            mbb.add(remaining);
-//          } else {
-//            mbb.add(body);
-//          }
-//        } else {
-//          ByteBuffer bb = httpProcessor.getExtraBuffers();
-//          mbb.add(bb);
-//        }
-//      }
-//      
-//      if(!httpProcessor.isChunked()) {
-//        if(mbb.remaining() > 0) {
-//          localMbb.add(mbb);
-//          callReader();
-//        }
-//      } else {
-//        tbb.add(mbb);
-//        int pos ;
-//        boolean didWrite = false;
-//        boolean doClose = false;
-//        while((pos = tbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) >= 0) {
-//          tbb.begin();
-//          String tmp = tbb.getAsString(pos);
-//          int size = Integer.parseInt(tmp, HEX_OCT);
-//          System.out.println(size+":"+tbb.remaining());
-//          if(size == 0) {
-//            doClose = true;
-//            tbb.rollback();
-//            break;
-//          }
-//          tbb.discard(2);
-//          if(tbb.remaining() >= size+2) {
-//            if(size > 0) {
-//              localMbb.add(tbb.pull(size));
-//              didWrite = true;
-//            }
-//            tbb.discard(Math.min(2, tbb.remaining()));
-//            tbb.commit();
-//          } else {
-//            System.out.println("rollback");
-//            tbb.rollback();
-//            break;
-//          }
-//        }
-//        if(didWrite) {
-//          callReader();
-//        }
-//        if(doClose) {
-//          callClosers();
-//        }
-//      }
-//    }
-//  }
-  
   @Override
   public Executor getClientsThreadExecutor() {
     return client.getClientsThreadExecutor();
-  }
-
-  /**
-   * Runnable used to parse the readEvents from the client. 
-   */
-  private class HTTPReader implements Reader {
-    @Override
-    public void onRead(Client client) {
-      httpProcessor.processData(client.getRead());
-    }
-  }
-  
-  private class HTTPCloser implements CloseListener {
-    @Override
-    public void onClose(Client client) {
-      callClosers();
-    }
   }
 
   @Override
@@ -299,6 +206,21 @@ public class HTTPStreamClient extends Client {
   @Override
   public InetSocketAddress getLocalSocketAddress() {
     return client.getLocalSocketAddress();
+  }
+  
+
+  private class HTTPReader implements Reader {
+    @Override
+    public void onRead(Client client) {
+      httpProcessor.processData(client.getRead());
+    }
+  }
+  
+  private class HTTPCloser implements CloseListener {
+    @Override
+    public void onClose(Client client) {
+      callClosers();
+    }
   }
   
   private class RequestCallback implements HTTPResponseCallback {
