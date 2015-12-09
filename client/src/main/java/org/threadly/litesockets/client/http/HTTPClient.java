@@ -53,8 +53,8 @@ public class HTTPClient {
   private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
   private final MainClientProcessor mcp = new MainClientProcessor();
-  
   private final int maxConcurrent;
+  private volatile int defaultTimeout = DEFAULT_TIMEOUT;
 
   private NoThreadSocketExecuter ntse = null;
   private SingleThreadScheduler sts = null;
@@ -113,12 +113,16 @@ public class HTTPClient {
     return hr;
   }
   
+  public void setTimeout(int timeout) {
+    this.defaultTimeout = timeout;
+  }
+  
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
     return request(ha, request, EMPTY_BUFFER);
   }
   
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) throws HTTPParsingException {
-    return request(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
+    return request(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
   
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) 
@@ -157,7 +161,7 @@ public class HTTPClient {
   }
   
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
-    return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, DEFAULT_TIMEOUT);
+    return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
   
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, 
@@ -185,7 +189,7 @@ public class HTTPClient {
         try {
           hrw.client = getTCPClient(hrw.ha);
           inProcess.put(hrw.client, hrw);
-          this.startWrite(hrw);
+          startWrite(hrw);
         } catch (IOException e) {
           hrw.slf.setFailure(e);
         }

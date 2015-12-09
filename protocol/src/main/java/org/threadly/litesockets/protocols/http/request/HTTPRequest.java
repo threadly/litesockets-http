@@ -41,7 +41,6 @@ public class HTTPRequest {
   
   @Override
   public String toString() {
-    System.out.println(request.toString()+":");
     return request.toString()+
         HTTPConstants.HTTP_NEWLINE_DELIMINATOR+
         headers.toString()+

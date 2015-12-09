@@ -59,6 +59,9 @@ public class HTTPResponseProcessor {
         }
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
+        if(!response.getHeaders().isChunked() && response.getHeaders().getContentLength() <=0) {
+          reset(null);
+        }
       } catch(Exception e) {
         reset(e);
       }
