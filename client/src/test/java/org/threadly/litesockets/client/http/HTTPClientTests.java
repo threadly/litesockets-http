@@ -286,17 +286,17 @@ public class HTTPClientTests {
   @Test
   public void expireRequest() throws IOException, HTTPParsingException {
     int port = TestUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, "", false, false);
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     long start = Clock.accurateForwardProgressingMillis();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 300);
+      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 30);
       fail();
     } catch(HTTPParsingException hp) {
 
     }
-    assertTrue((Clock.accurateForwardProgressingMillis() - start) > 300);
+    assertTrue((Clock.accurateForwardProgressingMillis() - start) > 30);
   }
 
   @Test
