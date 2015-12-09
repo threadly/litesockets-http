@@ -56,6 +56,19 @@ public class HTTPResponseHeader {
   }
   
   @Override
+  public int hashCode() {
+    return hrc.hashCode() | httpVersion.hashCode();
+  }
+  
+  @Override
+  public boolean equals(Object o) {
+    if(o instanceof HTTPResponseHeader) {
+      return ((HTTPResponseHeader)o).hrc.equals(hrc) && ((HTTPResponseHeader)o).httpVersion.equals(httpVersion);
+    }
+    return false;
+  }
+  
+  @Override
   public String toString() {
     return new String(rawResponse);
   }

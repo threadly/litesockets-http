@@ -6,8 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
 
 
 /**

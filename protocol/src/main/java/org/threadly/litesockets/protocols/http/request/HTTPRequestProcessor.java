@@ -3,15 +3,22 @@ package org.threadly.litesockets.protocols.http.request;
 import java.nio.ByteBuffer;
 
 import org.threadly.concurrent.event.ListenerHelper;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 
+/**
+ * This processes byte data and turns it into HTTPrequests.  It does this through callbacks to a {@link HTTPRequestCallback} interface.  
+ * These callbacks happen on the same thread that called to process the data.
+ * 
+ * @author lwahlmeier
+ *
+ */
 public class HTTPRequestProcessor {
-  public final static int MAX_HEADER_LENGTH = 1024*128;
-  public final static int MAX_HEADER_ROW_LENGTH = 1024*8;
-  
+  public static final int MAX_HEADER_LENGTH = 1024*128;
+  public static final int MAX_HEADER_ROW_LENGTH = 1024*8;
+  public static final int HEX_SIZE = 16;
   
   private final MergedByteBuffers pendingBuffers = new MergedByteBuffers();
   private final ListenerHelper<HTTPRequestCallback> listeners = ListenerHelper.build(HTTPRequestCallback.class);
@@ -138,7 +145,7 @@ public class HTTPRequestProcessor {
         int pos = pendingBuffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
         try {
           if(pos > 0) {
-            bodySize = Integer.parseInt(pendingBuffers.getAsString(pos), 16);
+            bodySize = Integer.parseInt(pendingBuffers.getAsString(pos), HEX_SIZE);
             pendingBuffers.discard(2);
             if(bodySize == 0) {
               pendingBuffers.discard(2);
@@ -200,7 +207,13 @@ public class HTTPRequestProcessor {
     return request != null;
   }
 
-  public static interface HTTPRequestCallback {
+  /**
+   * Used for processing data with {@link HTTPRequestProcessor}.
+   * 
+   * @author lwahlmeier
+   *
+   */
+  public interface HTTPRequestCallback {
     public void headersFinished(HTTPRequest hr);
     public void bodyData(ByteBuffer bb);
     public void finished();

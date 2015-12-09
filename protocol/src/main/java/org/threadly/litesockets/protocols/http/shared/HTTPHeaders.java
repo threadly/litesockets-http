@@ -91,9 +91,6 @@ public class HTTPHeaders {
   public boolean equals(Object o) {
     if(o instanceof HTTPHeaders) {
       HTTPHeaders h = (HTTPHeaders)o;
-      if(h == this) {
-        return true;
-      }
       return headers.equals(h.headers);
     }
     return false;

@@ -36,6 +36,33 @@ public class RequestTests {
   }
   
   @Test
+  public void requestCompareTest1() {
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder();
+    HTTPRequest hr1 = hrb.build();
+    HTTPRequest hr2 = hrb.build();
+    assertEquals(hr1, hr2);
+    assertEquals(hr1.hashCode(), hr2.hashCode());
+    hr2 = hrb.setHeader("X-Custom", "blah").build();
+    assertNotEquals(hr1, hr2);
+    assertNotEquals(hr1.hashCode(), hr2.hashCode());
+    assertEquals(hr1.getHTTPRequestHeaders(), hr2.getHTTPRequestHeaders());
+    assertNotEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
+    hr1 = hrb.setHeader("X-Custom", "blah").build();
+    assertEquals(hr1, hr2);
+    assertEquals(hr1.hashCode(), hr2.hashCode());
+    hr2 = hrb.setPath("/test/1").build();
+    assertNotEquals(hr1, hr2);
+    assertNotEquals(hr1.hashCode(), hr2.hashCode());
+    assertNotEquals(hr1.toString(), hr2.toString());
+    assertNotEquals(hr1.getHTTPRequestHeaders(), hr2.getHTTPRequestHeaders());
+    assertEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
+    hr2 = hr1.makeBuilder().build();
+    assertEquals(hr1, hr2);
+    assertEquals(hr1.hashCode(), hr2.hashCode());
+    assertEquals(hr1.toString(), hr2.toString());
+  }
+  
+  @Test
   public void builderQueryCheck() {
     for(int i=0; i<20; i++) {
       String nq = "query"+i;

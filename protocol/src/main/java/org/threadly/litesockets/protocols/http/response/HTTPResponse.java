@@ -3,7 +3,6 @@ package org.threadly.litesockets.protocols.http.response;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
-import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
@@ -37,7 +36,7 @@ public class HTTPResponse {
   }
   
   public ByteBuffer getByteBuffer() {
-    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + rHeader.length() + 4);
+    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + rHeader.length() + + HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() +HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
     combined.put(rHeader.getByteBuffer());
     combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     combined.put(headers.toString().getBytes());
@@ -47,8 +46,13 @@ public class HTTPResponse {
   }
   
   @Override
+  public int hashCode() {
+    return rHeader.hashCode() ^ headers.hashCode();
+  }
+  
+  @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPRequest) {
+    if(o instanceof HTTPResponse) {
       HTTPResponse hr = (HTTPResponse)o;
       if(hr.rHeader.equals(rHeader) && hr.headers.equals(headers)) {
         return true;
