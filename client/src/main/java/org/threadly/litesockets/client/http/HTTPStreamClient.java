@@ -17,6 +17,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
@@ -49,6 +50,7 @@ public class HTTPStreamClient extends Client {
   
   private final HTTPResponseProcessor httpProcessor;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
+  private volatile HTTPRequest currentHttpRequest;
 
   public HTTPStreamClient(TCPClient client) {
     super(client.getClientsSocketExecuter());
@@ -106,6 +108,7 @@ public class HTTPStreamClient extends Client {
     if(slfResponse != null && !slfResponse.isDone()) {
       slfResponse.setFailure(new Exception("New request came in!"));
     }
+    currentHttpRequest = request;
     slfResponse = new SettableListenableFuture<HTTPResponse>();
     localMbb.discard(localMbb.remaining());
     tbb.discard(tbb.remaining());
@@ -115,10 +118,7 @@ public class HTTPStreamClient extends Client {
   
   @Override
   public ListenableFuture<?> write(ByteBuffer bb) {
-    if(bb.remaining() == 0) {
-      new Exception().printStackTrace();
-    }
-    if(currentHttpRequest!= null && currentHttpRequest.isChunked()) {
+    if(currentHttpRequest != null && currentHttpRequest.getHTTPHeaders().isChunked()) {
       return client.write(HTTPUtils.wrapInChunk(bb));
     } else {
       return client.write(bb);
