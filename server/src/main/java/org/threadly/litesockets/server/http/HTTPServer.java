@@ -21,6 +21,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTP
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.util.AbstractService;
+import org.threadly.util.ExceptionUtils;
 
 public class HTTPServer extends AbstractService {
   private static final Logger log = Logger.getLogger(HTTPServer.class.getSimpleName());
@@ -131,8 +132,7 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void hasError(Throwable t) {
-      // TODO Auto-generated method stub
-      
+      ExceptionUtils.handleException(t);
     }
   }
   

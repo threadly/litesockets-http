@@ -42,7 +42,7 @@ test {
 
 jar {
   manifest {
-    attributes 'Implementation-Title': 'litesockets', 'Implementation-Version': version
+    attributes 'Implementation-Title': 'litesockets-http', 'Implementation-Version': version
   }
 }
 

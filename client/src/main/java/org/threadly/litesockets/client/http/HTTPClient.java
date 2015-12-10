@@ -3,7 +3,7 @@ package org.threadly.litesockets.client.http;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +51,7 @@ public class HTTPClient {
   private final SocketExecuter sei;
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
-  private final ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, LinkedList<TCPClient>>();
+  private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>>();
   private final MainClientProcessor mcp = new MainClientProcessor();
   private final int maxConcurrent;
   private volatile int defaultTimeout = DEFAULT_TIMEOUT;
@@ -107,7 +107,7 @@ public class HTTPClient {
       if(e.getCause() instanceof HTTPParsingException) {
         throw (HTTPParsingException)e.getCause();
       } else {
-        throw new HTTPParsingException(e.getCause());
+        throw new HTTPParsingException(e);
       }
     }
     return hr;
@@ -204,8 +204,6 @@ public class HTTPClient {
   public void stop() {
     if(ntse != null) {
       ntse.stopIfRunning();
-      ntse.wakeup();
-      ntse.wakeup();
     }
     if(sts != null) {
       sts.shutdownNow();
@@ -213,7 +211,7 @@ public class HTTPClient {
   }
   
   private TCPClient getTCPClient(final HTTPAddress ha) throws IOException {
-    LinkedList<TCPClient> ll = sockets.get(ha);
+    ArrayDeque<TCPClient> ll = sockets.get(ha);
     TCPClient tc = null;
     if(ll != null) {
       synchronized(ll) {
@@ -246,9 +244,9 @@ public class HTTPClient {
   
   private void addBackTCPClient(final HTTPAddress ha, final TCPClient client) {
     if(!client.isClosed()) {
-      LinkedList<TCPClient> ll = sockets.get(ha);  
+      ArrayDeque<TCPClient> ll = sockets.get(ha);  
       if(ll == null) {
-        sockets.put(ha, new LinkedList<TCPClient>());
+        sockets.put(ha, new ArrayDeque<TCPClient>());
         ll = sockets.get(ha);
       }
       synchronized(ll) {

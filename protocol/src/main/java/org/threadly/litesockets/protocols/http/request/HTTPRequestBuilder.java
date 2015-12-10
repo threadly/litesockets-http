@@ -59,7 +59,7 @@ public class HTTPRequestBuilder {
     return this;
   }
   
-  public HTTPRequestBuilder setHTTPHeaders(HTTPHeaders hh) {
+  public HTTPRequestBuilder replaceHTTPHeaders(HTTPHeaders hh) {
     this.headers.clear();
     for(Entry<String, String> head: hh.getHeadersMap().entrySet()) {
       setHeader(head.getKey(), head.getValue());

@@ -15,6 +15,14 @@ import org.threadly.litesockets.utils.MergedByteBuffers;
  */
 public class HTTPUtils {
   
+  public static String leftTrim(String value) {
+    int count = 0;
+    while(Character.isWhitespace(value.charAt(count))) {
+      count++;
+    }
+    return value.substring(count);
+  }
+  
   public static String bbToString(ByteBuffer bb) {
     byte[] ba = new byte[bb.remaining()];
     bb.get(ba);
@@ -30,7 +38,7 @@ public class HTTPUtils {
         String csize = mbb.getAsString(pos);
         return Integer.parseInt(csize, HTTPConstants.HEX_SIZE);
       }
-    } catch(Exception e) {
+    } catch(NumberFormatException e) {
       return -1;
     }
     return -1;

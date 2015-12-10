@@ -20,9 +20,7 @@ public class HTTPHeaders {
     } else if(!headerString.endsWith(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) { 
       this.rawHeaders = (headerString+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).intern();
     } else {
-      while(Character.isWhitespace(headerString.charAt(0))) {
-        headerString = headerString.substring(1);
-      }
+      headerString = HTTPUtils.leftTrim(headerString);
       this.rawHeaders = headerString.intern();
     }
     

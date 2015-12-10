@@ -62,7 +62,7 @@ public class HTTPResponseHeader {
   
   @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPResponseHeader) {
+    if(o == this && o instanceof HTTPResponseHeader) {
       return ((HTTPResponseHeader)o).hrc.equals(hrc) && ((HTTPResponseHeader)o).httpVersion.equals(httpVersion);
     }
     return false;

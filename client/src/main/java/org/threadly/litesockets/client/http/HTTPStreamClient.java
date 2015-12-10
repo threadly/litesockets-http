@@ -178,17 +178,17 @@ public class HTTPStreamClient extends Client {
 
   @Override
   protected ByteBuffer getWriteBuffer() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   protected void reduceWrite(int size) {
-    
+    throw new UnsupportedOperationException();
   }
 
   @Override
   protected SocketChannel getChannel() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -198,7 +198,7 @@ public class HTTPStreamClient extends Client {
 
   @Override
   protected Socket getSocket() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override

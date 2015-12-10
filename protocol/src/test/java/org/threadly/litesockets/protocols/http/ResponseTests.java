@@ -18,8 +18,8 @@ public class ResponseTests {
     HTTPResponseBuilder hrb = new HTTPResponseBuilder();
     HTTPResponse hr1 = hrb.build();
     HTTPResponse hr2 = hrb.build();
-    assertEquals(hr1, hr2);
     assertEquals(hr1.hashCode(), hr2.hashCode());
+    assertEquals(hr1, hr2);
     hr2 = hrb.setHeader("X-Custom", "blah").build();
     assertNotEquals(hr1, hr2);
     assertNotEquals(hr1.hashCode(), hr2.hashCode());
