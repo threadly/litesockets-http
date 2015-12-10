@@ -54,7 +54,9 @@ public class HTTPRequest {
   
   @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPRequest) {
+    if(o == this) {
+      return true;
+    } else if(o instanceof HTTPRequest) {
       HTTPRequest hr = (HTTPRequest)o;
       if(hr.request.equals(request) && hr.headers.equals(headers)) {
         return true;

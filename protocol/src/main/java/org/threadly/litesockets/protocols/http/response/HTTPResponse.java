@@ -54,7 +54,9 @@ public class HTTPResponse {
   
   @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPResponse) {
+    if(o == this) {
+      return true;
+    } else if(o instanceof HTTPResponse) {
       HTTPResponse hr = (HTTPResponse)o;
       if(hr.rHeader.equals(rHeader) && hr.headers.equals(headers)) {
         return true;

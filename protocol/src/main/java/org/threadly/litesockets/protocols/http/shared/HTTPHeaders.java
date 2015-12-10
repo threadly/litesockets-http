@@ -87,7 +87,9 @@ public class HTTPHeaders {
   
   @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPHeaders) {
+    if(o == this) {
+      return true;
+    } else if(o instanceof HTTPHeaders) {
       HTTPHeaders h = (HTTPHeaders)o;
       return headers.equals(h.headers);
     }
