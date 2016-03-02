@@ -31,3 +31,55 @@ jacocoTestReport {
   }
 }
 
+
+if(project.hasProperty("sonatypeUsername")) {
+  uploadArchives {
+    repositories {
+      mavenDeployer {
+        beforeDeployment {
+          MavenDeployment deployment -> signing.signPom(deployment)
+        }
+
+        repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+          authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+        snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
+          authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+
+        pom.project {
+          name 'LiteSockets'
+          packaging 'jar'
+          description 'A light weight socket library designed for highly concurrent applications.  LiteSockets leverages threadly to make it easy to maintain concurrent connections while keeping threading on a per-client basis single threaded.'
+          url 'https://github.com/threadly/litesockets-http'
+
+          scm {
+            url 'scm:git@github.com:threadly/litesockets-http.git'
+            connection 'scm:git@github.com:threadly/litesockets-http.git'
+            developerConnection 'scm:git@github.com:threadly/litesockets-http.git'
+          }
+
+          licenses {
+            license {
+              name 'The MIT License (MIT)'
+              url 'http://opensource.org/licenses/MIT'
+              distribution 'repo'
+            }
+          }
+
+          developers {
+            developer {
+              id 'lwahlmeier'
+              name 'Luke Wahlmeier'
+            }
+            developer {
+              id 'jent'
+              name 'Mike Jensen'
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
