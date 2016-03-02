@@ -1,3 +1,3 @@
-apply from: "${rootDir}/build.gradle.shared"
+apply from: "${rootDir}/build.upload.shared"
 
 project.archivesBaseName='litesockets-http-server'
