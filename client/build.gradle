@@ -1,5 +1,7 @@
 apply from: "${rootDir}/build.gradle.shared"
 
+project.archivesBaseName='litesockets-http-client'
+
 dependencies {
   testCompile group: 'junit', name: 'junit', version: '4.12'
 
@@ -12,7 +14,4 @@ dependencies {
     project(":server"),
     'junit:junit:4.11'
   )
-
 }
-
-project.archivesBaseName='litesockets-http-client'

@@ -1,5 +1,7 @@
 apply from: "${rootDir}/build.gradle.shared"
 
+project.archivesBaseName='litesockets-http-server'
+
 dependencies {
   testCompile group: 'junit', name: 'junit', version: '4.12'
 
@@ -8,7 +10,4 @@ dependencies {
     "org.threadly:threadly:$threadlyVersion",
     "org.threadly:litesockets:$litesocketsVersion",
   )
-
 }
-
-project.archivesBaseName='litesockets-http-server'
