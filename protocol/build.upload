@@ -1,3 +1,0 @@
-apply from: "${rootDir}/build.upload.shared"
-
-project.archivesBaseName='litesockets-http-protocol'
