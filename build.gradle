@@ -6,6 +6,7 @@ if(project.hasProperty("sonatypeUsername")) {
 apply plugin: 'checkstyle'
 
 if(project.hasProperty("sonatypeUsername")) {
+
   sourceCompatibility = 1.6
   targetCompatibility = 1.6
 
@@ -46,10 +47,10 @@ if(project.hasProperty("sonatypeUsername")) {
       }
     }
   }
-
   signing {
     sign configurations.archives
   }
+  subprojects {
 
   uploadArchives {
     repositories {
@@ -98,5 +99,6 @@ if(project.hasProperty("sonatypeUsername")) {
         }
       }
     }
+  }
   }
 }
