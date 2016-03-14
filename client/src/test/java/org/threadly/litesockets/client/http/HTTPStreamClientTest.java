@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,15 +15,14 @@ import org.junit.Test;
 import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
-import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.test.concurrent.TestCondition;
 
 public class HTTPStreamClientTest {
@@ -57,10 +57,9 @@ public class HTTPStreamClientTest {
     final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port, 10000);
     final AtomicBoolean set = new AtomicBoolean(false);
     final MergedByteBuffers mbb = new MergedByteBuffers();
-    hsc.setReader(new Reader() {
+    hsc.setHTTPStreamReader(new HTTPStreamReader() {
       @Override
-      public void onRead(Client client) {
-        MergedByteBuffers bb = client.getRead();
+      public void handle(ByteBuffer bb) {
         mbb.add(bb);
       }});
     hsc.connect();
@@ -100,11 +99,9 @@ public class HTTPStreamClientTest {
     final AtomicBoolean set = new AtomicBoolean(false);
     final AtomicInteger count = new AtomicInteger(0);
     final MergedByteBuffers mbb = new MergedByteBuffers();
-    hsc.setReader(new Reader() {
+    hsc.setHTTPStreamReader(new HTTPStreamReader() {
       @Override
-      public void onRead(Client client) {
-        MergedByteBuffers bb = client.getRead();
-        //System.out.println(bb.copy().getAsString(bb.remaining()));
+      public void handle(ByteBuffer bb) {
         mbb.add(bb);
       }});
     hsc.connect();

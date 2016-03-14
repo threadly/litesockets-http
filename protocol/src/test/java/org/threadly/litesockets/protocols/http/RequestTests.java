@@ -36,6 +36,14 @@ public class RequestTests {
   }
   
   @Test
+  public void requestSetPathLoop() {
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder();
+    for(int i=0; i<60000; i++) {
+      hrb.setPath("/test?123");
+    }
+  }
+  
+  @Test
   public void requestCompareTest1() {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder();
     HTTPRequest hr1 = hrb.build();

@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
 
 import org.threadly.concurrent.event.ListenerHelper;
+import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.CloseListener;
 import org.threadly.litesockets.Client.Reader;
@@ -20,6 +21,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.util.AbstractService;
 import org.threadly.util.ExceptionUtils;
 
@@ -77,7 +79,7 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void accept(Client client) {
-      log.info("New client connection:"+client);
+      //log.info("New client connection:"+client);
       TCPClient tclient = (TCPClient)client;
       HTTPRequestProcessor hrp = new HTTPRequestProcessor();
       hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
@@ -94,7 +96,9 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void onRead(Client client) {
-      clients.get(client).processData(client.getRead());
+      MergedByteBuffers mbb = client.getRead();
+      //System.out.println(mbb.copy().getAsString(mbb.remaining())+":"+client);
+      clients.get(client).processData(mbb);
     }
   }
   
@@ -114,7 +118,7 @@ public class HTTPServer extends AbstractService {
     @Override
     public void headersFinished(HTTPRequest hr) {
       this.hr = hr;
-      log.info("From:\""+client.getRemoteSocketAddress()+"\": Method:\""+hr.getHTTPRequestHeaders().getRequestType()+"\" Path:\""+hr.getHTTPRequestHeaders().getRequestPath()+"\"");
+      //log.info("From:\""+client.getRemoteSocketAddress()+"\": Method:\""+hr.getHTTPRequestHeaders().getRequestType()+"\" Path:\""+hr.getHTTPRequestHeaders().getRequestPath()+"\"");
       handler.call().handle(hr, bodyFuture, responseWriter);
     }
 
@@ -141,6 +145,7 @@ public class HTTPServer extends AbstractService {
     private boolean responseSent = false;
     private boolean done = false;
     private boolean closeOnDone = false;
+    private ListenableFuture<?> lastWriteFuture;
     
     protected ResponseWriter(Client client) {
       this.client = client;
@@ -162,7 +167,7 @@ public class HTTPServer extends AbstractService {
     
     public void writeBody(ByteBuffer bb) {
       if(responseSent && !done) {
-        client.write(bb);
+        lastWriteFuture = client.write(bb);
       } else if(responseSent){
         throw new IllegalStateException("Can not send body before HTTPResponse!");
       } else {
@@ -173,7 +178,11 @@ public class HTTPServer extends AbstractService {
     public void done() {
       done = true;
       if(closeOnDone && !client.isClosed()) {
-        client.close();
+        lastWriteFuture.addListener(new Runnable(){
+          @Override
+          public void run() {
+            client.close();
+          }});
       }
     }
     

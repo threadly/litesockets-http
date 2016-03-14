@@ -6,6 +6,7 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -29,6 +30,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
@@ -47,7 +49,7 @@ public class HTTPClientTests {
     }
     LARGE_CONTENT = sb.toString();
     RESPONSE_CL = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(CONTENT.length())).build();
-    RESPONSE_NO_CL = new HTTPResponseBuilder().build();
+    RESPONSE_NO_CL = new HTTPResponseBuilder().setHeaders(new HTTPHeaders(new HashMap<String,String>())).build();
     RESPONSE_HUGE = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(LARGE_CONTENT.length())).build();
   }
 
@@ -266,6 +268,7 @@ public class HTTPClientTests {
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     HTTPResponseData hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+    System.out.println(hrs.getResponse());
     assertEquals("TEST123", hrs.getBodyAsString());
   }
 

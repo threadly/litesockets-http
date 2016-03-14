@@ -50,12 +50,18 @@ public class HTTPRequestHeader {
   
   public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this.requestType = requestType;
-    this.requestPath = requestPath.intern();
-    if(requestQuery == null) {
-      this.requestQuery = Collections.unmodifiableMap(new HashMap<String, String>());
+    final HashMap<String, String> rqm = new HashMap<String, String>();
+    if(requestPath.contains("?")) {
+      int pos = requestPath.indexOf("?");
+      this.requestPath = requestPath.substring(0, pos);
+      rqm.putAll(HTTPUtils.queryToMap(requestPath.substring(pos+1)));
     } else {
-      this.requestQuery = Collections.unmodifiableMap(requestQuery);
+      this.requestPath = requestPath.intern();
     }
+    if(requestQuery != null) {
+      rqm.putAll(requestQuery);
+    }
+    this.requestQuery = Collections.unmodifiableMap(rqm);
     this.httpVersion = httpVersion.trim().toUpperCase().intern();
     StringBuilder sb = new StringBuilder();
     sb.append(requestType.toString());

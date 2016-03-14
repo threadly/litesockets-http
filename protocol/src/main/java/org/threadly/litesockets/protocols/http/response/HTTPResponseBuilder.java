@@ -17,7 +17,15 @@ public class HTTPResponseBuilder {
   private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
   private HTTPResponseHeader rHeader = HTTPConstants.OK_RESPONSE_HEADER;
   
-  public HTTPResponseBuilder() {}
+  public HTTPResponseBuilder() {
+    headers.putAll(HTTPConstants.DEFAULT_HEADERS.getHeadersMap());
+    headers.put(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "0");
+  }
+  
+  public HTTPResponseBuilder setHTTPVersion(String version) {
+    rHeader = new HTTPResponseHeader(rHeader.getResponseCode(), version);
+    return this;
+  }
   
   
   public HTTPResponseBuilder setHeader(String key, String value) {
