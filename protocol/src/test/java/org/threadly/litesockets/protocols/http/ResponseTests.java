@@ -11,6 +11,13 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 
 public class ResponseTests {
+	
+  @Test
+  public void ResponseHeaderTest1() {
+	  HTTPResponseHeader hrh = new HTTPResponseHeader("HTTP/1.0 500 Internal Server Error");
+	  assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh.getHTTPVersion());
+	  assertEquals(HTTPResponseCode.InternalServerError, hrh.getResponseCode());
+  }
 
   
   @Test
