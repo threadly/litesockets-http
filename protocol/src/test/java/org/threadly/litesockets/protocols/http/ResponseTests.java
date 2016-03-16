@@ -2,6 +2,11 @@ package org.threadly.litesockets.protocols.http;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.junit.Test;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
@@ -11,14 +16,6 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 
 public class ResponseTests {
-	
-  @Test
-  public void ResponseHeaderTest1() {
-	  HTTPResponseHeader hrh = new HTTPResponseHeader("HTTP/1.0 500 Internal Server Error");
-	  assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh.getHTTPVersion());
-	  assertEquals(HTTPResponseCode.InternalServerError, hrh.getResponseCode());
-  }
-
   
   @Test
   public void responseCompareTest1() {

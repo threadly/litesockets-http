@@ -12,39 +12,38 @@ import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
  */
 public class HTTPResponseHeader {
   private static final int REQUIRED_RESPONSE_ITEMS = 3;
-  private final byte[] rawResponse;
+  private final String rawResponse;
   private final HTTPResponseCode hrc;
   private final String httpVersion;
   
   public HTTPResponseHeader(String stringResponse) {
-    
-    this.rawResponse = stringResponse.trim().getBytes();
+    this.rawResponse = stringResponse.trim();
     String[] tmp = stringResponse.trim().split(" ", 3);
     if(tmp.length != REQUIRED_RESPONSE_ITEMS) {
       throw new IllegalArgumentException("Invalide Response Header! :"+stringResponse);
     }
     httpVersion = tmp[0].trim().intern();
     if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
     }
     hrc = HTTPResponseCode.findResponseCode(Integer.parseInt(tmp[1].trim()));
   }
   
   public HTTPResponseHeader(HTTPResponseCode rCode, String httpVersion) {
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
     }
     hrc = rCode;
     this.httpVersion = httpVersion.intern();
-    rawResponse = (this.httpVersion+" "+hrc.getId()+" "+hrc.toString()).getBytes();
+    rawResponse = (this.httpVersion+" "+hrc.getId()+" "+hrc.toString());
   }
   
   public int length() {
-    return this.rawResponse.length;
+    return rawResponse.length();
   }
   
   public ByteBuffer getByteBuffer() {
-    return ByteBuffer.wrap(this.rawResponse);
+    return ByteBuffer.wrap(this.rawResponse.getBytes()).asReadOnlyBuffer();
   }
   
   public HTTPResponseCode getResponseCode() {
@@ -57,12 +56,14 @@ public class HTTPResponseHeader {
   
   @Override
   public int hashCode() {
-    return hrc.hashCode() | httpVersion.hashCode();
+    return rawResponse.hashCode();
   }
   
   @Override
   public boolean equals(Object o) {
-    if(o == this && o instanceof HTTPResponseHeader) {
+    if(o == this) {
+      return true;
+    } else if (o instanceof HTTPResponseHeader) {
       return ((HTTPResponseHeader)o).hrc.equals(hrc) && ((HTTPResponseHeader)o).httpVersion.equals(httpVersion);
     }
     return false;
@@ -70,7 +71,7 @@ public class HTTPResponseHeader {
   
   @Override
   public String toString() {
-    return new String(rawResponse);
+    return rawResponse;
   }
   
 
