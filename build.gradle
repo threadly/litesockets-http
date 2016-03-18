@@ -1,32 +1,53 @@
 apply from: 'build.shared'
-apply plugin: 'jacoco'
-
-test {
-  jacoco {
-    excludes = ['**/package-info**','**/*Test']
-    destinationFile = file("$buildDir/reports/jacoco/test.exec")
-  }
+apply plugin: 'maven'
+if(project.hasProperty("sonatypeUsername")) {
+  apply plugin: 'signing'
 }
+apply plugin: 'checkstyle'
 
-build.dependsOn("jacocoTestReport");
+if(project.hasProperty("sonatypeUsername")) {
 
-jacocoTestReport {
-  doFirst {
-    classDirectories = fileTree(dir: 'build/classes/main', include: 'org/threadly/**')
-    sourceDirectories = fileTree(dir: 'scr/main/java', include: 'org/threadly/**')
+  sourceCompatibility = 1.6
+  targetCompatibility = 1.6
+
+  compileJava {
+    String[] java6Paths = new String[5]
+    java6Paths[0] = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar"
+    java6Paths[1] = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar"
+    java6Paths[2] = "/usr/lib/jvm/java-1.6.0-openjdk-amd64/jre/lib/rt.jar"
+    java6Paths[3] = "/usr/lib/jvm/java-1.6.0-openjdk/jre/lib/rt.jar"
+    java6Paths[4] = "/usr/lib/jvm/java-6-sun/jre/lib/rt.jar"
+    for (String path : java6Paths) {
+      if (new java.io.File(path).exists()) {
+        println 'Using java 6 rt.jar: ' + path
+        options.bootClasspath = path
+        break
+      }
+    }
+    if (options.bootClasspath == null) {
+      println 'Unable to find java 6 rt.jar, will cause failure so exiting now'
+      println ''
+      System.exit(1)
+    }
   }
-  reports {
-    csv.enabled false
-    xml.enabled true
-    xml.destination "${buildDir}/reports/jacoco/jacoco.xml"
-    html.enabled true
-    html.destination "${buildDir}/reports/jacoco/html"
+
+  compileTestJava {
+    options.compilerArgs << "-Xlint:all" << "-Xlint:-deprecation" << "-Werror"
+  
+    String[] java6Paths = new String[5]
+    java6Paths[0] = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar"
+    java6Paths[1] = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar"
+    java6Paths[2] = "/usr/lib/jvm/java-1.6.0-openjdk-amd64/jre/lib/rt.jar"
+    java6Paths[3] = "/usr/lib/jvm/java-1.6.0-openjdk/jre/lib/rt.jar"
+    java6Paths[4] = "/usr/lib/jvm/java-6-sun/jre/lib/rt.jar"
+    for (String path : java6Paths) {
+      if (new java.io.File(path).exists()) {
+        options.bootClasspath = path
+        break
+      }
+    }
   }
-  doLast {
-    println "Test results available at:"
-    println "html - $buildDir/reports/tests/html/index.html"
-    println "Test coverage reports available at:"
-    println "html - $buildDir/reports/jacoco/html/index.html"
-    println "xml  - $buildDir/reports/jacoco/jacoco.xml"
+  signing {
+    sign configurations.archives
   }
 }
