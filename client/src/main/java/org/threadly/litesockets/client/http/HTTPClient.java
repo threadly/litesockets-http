@@ -44,7 +44,7 @@ public class HTTPClient {
   public static final int DEFAULT_TIMEOUT = 15000;
   public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
-  
+
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
   private final SubmitterScheduler ssi;
@@ -68,7 +68,7 @@ public class HTTPClient {
   public HTTPClient() {
     this(DEFAULT_CONCURRENT, MAX_HTTP_RESPONSE);
   }
-  
+
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size but will still 
    * create its own {@link SingleThreadScheduler} to use as a threadpool.</p> 
@@ -83,8 +83,8 @@ public class HTTPClient {
     sei = ntse;
     ntse.start();
   }
-  
-  
+
+
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size
    * as well as your own {@link SocketExecuter} as the thread pool to use.</p> 
@@ -96,7 +96,7 @@ public class HTTPClient {
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
   }
-  
+
   public HTTPResponseData request(URL url) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
@@ -112,19 +112,37 @@ public class HTTPClient {
     }
     return hr;
   }
-  
+
+  public int getRequestQueueSize() {
+    return this.queue.size();
+  }
+
+  public int getInProgressSize() {
+    return this.inProcess.size();
+  }
+
+  public int getTCPClientSize() {
+    int i = 0;
+    for(ArrayDeque<TCPClient> ad: sockets.values()) {
+      synchronized(ad) {
+        i+=ad.size();
+      }
+    }
+    return i;
+  }
+
   public void setTimeout(int timeout) {
     this.defaultTimeout = timeout;
   }
-  
+
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
     return request(ha, request, EMPTY_BUFFER);
   }
-  
+
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) throws HTTPParsingException {
     return request(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
-  
+
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) 
       throws HTTPParsingException {
     HTTPResponseData hr = null;
@@ -155,15 +173,15 @@ public class HTTPClient {
     }
     return requestAsync(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
   }
-  
+
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
     return requestAsync(ha, request, EMPTY_BUFFER);
   }
-  
+
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
     return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
-  
+
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, 
       final ByteBuffer body, final TimeUnit tu, final long time) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, tu.toMillis(time));
@@ -179,7 +197,7 @@ public class HTTPClient {
     }
     return lf;
   }
-  
+
   private void processQueue() {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
     while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
@@ -209,7 +227,7 @@ public class HTTPClient {
       sts.shutdownNow();
     }
   }
-  
+
   private TCPClient getTCPClient(final HTTPAddress ha) throws IOException {
     ArrayDeque<TCPClient> ll = sockets.get(ha);
     TCPClient tc = null;
@@ -241,7 +259,7 @@ public class HTTPClient {
     }
     return tc;
   }
-  
+
   private void addBackTCPClient(final HTTPAddress ha, final TCPClient client) {
     if(!client.isClosed()) {
       ArrayDeque<TCPClient> ll = sockets.get(ha);  
@@ -254,15 +272,15 @@ public class HTTPClient {
       }
     }
   }
-  
+
   private void startWrite(HTTPRequestWrapper hrw) {
-    hrw.client.write(hrw.hr.getByteBuffer());
-    hrw.client.write(hrw.body.duplicate());
     //Request started here so we set the timeout to start now.
     hrw.updateReadTime();
     sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
+    hrw.client.write(hrw.hr.getByteBuffer());
+    hrw.client.write(hrw.body.duplicate());
   }
-  
+
   /**
    * Used to run the NoThreadSocketExecuter.
    */
@@ -280,7 +298,7 @@ public class HTTPClient {
       }
     }
   }
-  
+
   /**
    * 
    * @author lwahlmeier
@@ -307,9 +325,9 @@ public class HTTPClient {
         client.close();
       }
     }
-    
+
   }
-  
+
   /**
    * 
    * @author lwahlmeier
@@ -326,7 +344,7 @@ public class HTTPClient {
     private MergedByteBuffers responseMBB = new MergedByteBuffers();
     private TCPClient client;
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
-    
+
     public HTTPRequestWrapper(HTTPRequest hr, HTTPAddress ha, ByteBuffer body, long timeout) {
       hrp.addHTTPRequestCallback(this);
       this.hr = hr;
@@ -334,11 +352,11 @@ public class HTTPClient {
       this.body = body;
       this.timeout = timeout;
     }
-    
+
     public void updateReadTime() {
       lastRead = Clock.lastKnownForwardProgressingMillis();
     }
-    
+
     public long timeTillExpired() {
       return timeout - (Clock.lastKnownForwardProgressingMillis() - lastRead);
     }
@@ -371,7 +389,7 @@ public class HTTPClient {
       slf.setFailure(t);
     }
   }
-  
+
   /**
    * This is returned when a request finishes.  
    * 
@@ -381,20 +399,20 @@ public class HTTPClient {
   public static class HTTPResponseData {
     private final HTTPResponse hr;
     private final MergedByteBuffers body;
-    
+
     public HTTPResponseData(HTTPResponse hr, MergedByteBuffers bb) {
       this.hr = hr;
       this.body = bb;
     }
-    
+
     public HTTPResponse getResponse() {
       return hr;
     }
-    
+
     public MergedByteBuffers getBody() {
       return body.copy();
     }
-    
+
     public String getBodyAsString() {
       return body.copy().getAsString(body.remaining());
     }

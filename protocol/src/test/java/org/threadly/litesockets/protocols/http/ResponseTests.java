@@ -2,11 +2,6 @@ package org.threadly.litesockets.protocols.http;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.junit.Test;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
