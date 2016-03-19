@@ -208,7 +208,8 @@ public class HTTPClient {
           hrw.client = getTCPClient(hrw.ha);
           inProcess.put(hrw.client, hrw);
           startWrite(hrw);
-        } catch (IOException e) {
+        } catch (Exception e) {
+          //Have to catch all here or we dont keep processing if NoThreadSE is in use
           hrw.slf.setFailure(e);
         }
       }
