@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,6 +53,7 @@ public class HTTPClient {
   private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
   private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
   private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>>();
+  private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<TCPClient>();
   private final MainClientProcessor mcp = new MainClientProcessor();
   private final int maxConcurrent;
   private volatile int defaultTimeout = DEFAULT_TIMEOUT;
@@ -122,13 +124,13 @@ public class HTTPClient {
   }
 
   public int getTCPClientSize() {
-    int i = 0;
-    for(ArrayDeque<TCPClient> ad: sockets.values()) {
-      synchronized(ad) {
-        i+=ad.size();
-      }
+    return tcpClients.size();
+  }
+  
+  public void closeAllClients() {
+    for(TCPClient client: tcpClients) {
+      client.close();
     }
-    return i;
   }
 
   public void setTimeout(int timeout) {
@@ -248,6 +250,7 @@ public class HTTPClient {
     }
     if(tc == null) {
       tc = sei.createTCPClient(ha.getHost(), ha.getPort());
+      tcpClients.add(tc);
       if(ha.getdoSSL()) {
         SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(ha.getHost(), ha.getPort());
         sse.setUseClientMode(true);
@@ -315,6 +318,7 @@ public class HTTPClient {
       }
       client.close();
       inProcess.remove(client);
+      tcpClients.remove(client);
     }
 
     @Override
