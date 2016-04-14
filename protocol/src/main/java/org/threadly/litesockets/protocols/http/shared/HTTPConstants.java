@@ -26,6 +26,9 @@ public class HTTPConstants {
   public static final String SPACE = " ";
   
   public static final String HTTP_KEY_CONNECTION = "Connection";
+  public static final String HTTP_KEY_UPGRADE = "Upgrade";
+  public static final String HTTP_KEY_WEBSOCKET_VERSION = "Sec-WebSocket-Version";
+  public static final String HTTP_KEY_WEBSOCKET_KEY = "Sec-WebSocket-Key";
   public static final String HTTP_KEY_CONTENT_TYPE = "Content-Type";
   public static final String HTTP_KEY_CONTENT_LENGTH = "Content-Length";
   public static final String HTTP_KEY_TRANSFER_ENCODING  = "Transfer-Encoding";

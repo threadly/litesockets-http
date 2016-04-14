@@ -7,6 +7,7 @@ import java.util.Random;
 
 import org.threadly.litesockets.utils.MergedByteBuffers;
 
+
 public class WebSocketFrameParser {
   public static final String MAGIC_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"; 
   private static final byte[] MAGIC_UUID_BA = MAGIC_UUID.getBytes();
@@ -28,6 +29,13 @@ public class WebSocketFrameParser {
     public byte getValue() {
       return value;
     }
+  }
+  
+  
+  public static String makeSecretKey() {
+    byte[] ba = new byte[20];
+    RANDOM.nextBytes(ba);
+    return Base64.encode(ba);
   }
 
   /**

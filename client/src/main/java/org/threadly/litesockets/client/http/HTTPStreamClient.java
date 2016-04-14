@@ -6,7 +6,8 @@ import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLEngine;
 
-import org.threadly.concurrent.event.ListenerHelper;
+import org.threadly.concurrent.event.RunnableListenerHelper;
+import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
@@ -40,26 +41,25 @@ import org.threadly.litesockets.utils.SSLUtils;
  *
  */
 public class HTTPStreamClient {
+  private static final int DEFAULT_TIMEOUT = 20000;
   private final Reader classReader = new HTTPReader();
   private final CloseListener classCloser = new HTTPCloser();
-  private final TCPClient client;
+  private final RunnableListenerHelper closeListener = new RunnableListenerHelper(true);
   private final RequestCallback requestCB = new RequestCallback();
+  private final TCPClient client;
+  private final String host;
+  private final int port;
   
   private final HTTPResponseProcessor httpProcessor;
-  private final ListenerHelper<HTTPStreamReader> httpReader = ListenerHelper.build(HTTPStreamReader.class);
+  private volatile boolean isConnected = false;
+  private volatile HTTPStreamReader httpReader;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
   private volatile HTTPRequest currentHttpRequest;
 
   public HTTPStreamClient(TCPClient client) {
     this.client = client;
-    client.addCloseListener(classCloser);
-    httpProcessor = new HTTPResponseProcessor();
-    httpProcessor.addHTTPRequestCallback(requestCB);
-  }
-
-  public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout) throws IOException {
-    client = se.createTCPClient(host, port);
-    client.setConnectionTimeout(timeout);
+    host = client.getRemoteSocketAddress().getHostString();
+    port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
     httpProcessor.addHTTPRequestCallback(requestCB);
@@ -72,22 +72,40 @@ public class HTTPStreamClient {
    * 
    * @param host the hostname or ip address to connect to
    * @param port the tcp port to connect to
-   * @param timeout how long to wait for the connection to be made
    * @throws IOException this will happen if we have problems connecting for some reason.
    */
-  public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout, boolean doSSL) throws IOException {
+  public HTTPStreamClient(SocketExecuter se, String host, int port) throws IOException {
+    this.host = host;
+    this.port = port;
     client = se.createTCPClient(host, port);
-    client.setConnectionTimeout(timeout);
-    if(doSSL) {
-      SSLEngine ssle = SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port);
-      ssle.setUseClientMode(true);
-      client.setSSLEngine(ssle);
-      client.startSSL();
-    }
-    client.setReader(classReader);
+    client.setConnectionTimeout(DEFAULT_TIMEOUT);
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
     httpProcessor.addHTTPRequestCallback(requestCB);
+  }
+  
+  public void enableSSL() {
+    SSLEngine ssle = SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port);
+    ssle.setUseClientMode(true);
+    enableSSL(ssle);
+  }
+  
+  public void enableSSL(SSLEngine ssle) {
+    ssle.setUseClientMode(true);
+    client.setSSLEngine(ssle);
+    client.startSSL();
+  }
+  
+  public void setTimeout(int timeout) {
+    client.setConnectionTimeout(timeout);
+  }
+  
+  public String getHost() {
+    return host;
+  }
+  
+  public int getPort() {
+    return port;
   }
 
   /**
@@ -123,22 +141,41 @@ public class HTTPStreamClient {
   }
   
   public void setHTTPStreamReader(HTTPStreamReader hsr) {
-    this.httpReader.clearListeners();
-    this.httpReader.addListener(hsr);
-    client.setReader(classReader);
+    if(hsr != null) {
+      httpReader = hsr;
+      client.setReader(classReader);
+    }
   }
 
   public Executor getClientsThreadExecutor() {
-    //We use the clients executer to keep things single threaded between both clients
     return client.getClientsThreadExecutor();
   }
 
   public ListenableFuture<Boolean> connect() {
-    return client.connect();
+    ListenableFuture<Boolean> lf = client.connect();
+    lf.addCallback(new FutureCallback<Boolean>(){
+      @Override
+      public void handleResult(Boolean result) {
+        isConnected = true;
+      }
+
+      @Override
+      public void handleFailure(Throwable t) {
+        isConnected = false;
+      }});
+    return lf;
   }
   
-  public void addCloseListener(CloseListener cl) {
-    client.addCloseListener(cl);
+  public void addCloseListener(Runnable cl) {
+    if(!client.isClosed()) {
+      closeListener.addListener(cl);
+    } else {
+      cl.run();
+    }
+  }
+  
+  public boolean isConnected() {
+    return isConnected;
   }
 
   public void close() {
@@ -155,7 +192,8 @@ public class HTTPStreamClient {
   private class HTTPCloser implements CloseListener {
     @Override
     public void onClose(Client client) {
-      //TODO:
+      isConnected = false;
+      closeListener.callListeners();
     }
   }
   
@@ -168,7 +206,7 @@ public class HTTPStreamClient {
 
     @Override
     public void bodyData(ByteBuffer bb) {
-      httpReader.call().handle(bb);
+      httpReader.handle(bb);
     }
 
     @Override

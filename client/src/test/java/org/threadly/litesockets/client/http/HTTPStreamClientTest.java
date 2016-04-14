@@ -54,7 +54,7 @@ public class HTTPStreamClientTest {
     final int number = 300;
     fakeServer = new FakeHTTPStreamingServer(port, RESPONSE_CHUNKED, "", number, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
-    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port, 10000);
+    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port);
     final AtomicBoolean set = new AtomicBoolean(false);
     final MergedByteBuffers mbb = new MergedByteBuffers();
     hsc.setHTTPStreamReader(new HTTPStreamReader() {
@@ -95,7 +95,7 @@ public class HTTPStreamClientTest {
     final int number = 300;
     fakeServer = new FakeHTTPStreamingServer(port, HTTPClientTests.RESPONSE_HUGE, HTTPClientTests.LARGE_CONTENT, 0, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
-    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port, 10000);
+    final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port);
     final AtomicBoolean set = new AtomicBoolean(false);
     final AtomicInteger count = new AtomicInteger(0);
     final MergedByteBuffers mbb = new MergedByteBuffers();
