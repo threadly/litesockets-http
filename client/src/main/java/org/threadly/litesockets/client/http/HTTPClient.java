@@ -10,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import org.threadly.concurrent.SingleThreadScheduler;
@@ -57,6 +58,7 @@ public class HTTPClient {
   private final MainClientProcessor mcp = new MainClientProcessor();
   private final int maxConcurrent;
   private volatile int defaultTimeout = DEFAULT_TIMEOUT;
+  private volatile SSLContext sslContext = SSLUtils.OPEN_SSL_CTX;
 
   private NoThreadSocketExecuter ntse = null;
   private SingleThreadScheduler sts = null;
@@ -125,6 +127,10 @@ public class HTTPClient {
 
   public int getTCPClientSize() {
     return tcpClients.size();
+  }
+  
+  public void setSSLContext(SSLContext sslctx) {
+    sslContext = sslctx;
   }
   
   public void closeAllClients() {
@@ -252,7 +258,7 @@ public class HTTPClient {
       tc = sei.createTCPClient(ha.getHost(), ha.getPort());
       tcpClients.add(tc);
       if(ha.getdoSSL()) {
-        SSLEngine sse = SSLUtils.OPEN_SSL_CTX.createSSLEngine(ha.getHost(), ha.getPort());
+        SSLEngine sse = sslContext.createSSLEngine(ha.getHost(), ha.getPort());
         sse.setUseClientMode(true);
         tc.setSSLEngine(sse);
         tc.startSSL();
