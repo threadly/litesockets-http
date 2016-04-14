@@ -4,26 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 
 import org.junit.Test;
-import org.threadly.concurrent.PriorityScheduler;
-import org.threadly.concurrent.future.FutureCallback;
-import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.client.http.HTTPStreamClient;
-import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
-import org.threadly.litesockets.protocols.http.request.HTTPRequest;
-import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
-import org.threadly.litesockets.protocols.http.response.HTTPResponse;
-import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser.WebSocketOpCodes;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 
 public class WebSocketsTests {
   
