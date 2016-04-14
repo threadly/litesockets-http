@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
+import javax.net.ssl.SSLEngine;
+
 import org.threadly.concurrent.event.ListenerHelper;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
@@ -76,8 +78,12 @@ public class HTTPStreamClient {
   public HTTPStreamClient(SocketExecuter se, String host, int port, int timeout, boolean doSSL) throws IOException {
     client = se.createTCPClient(host, port);
     client.setConnectionTimeout(timeout);
-    client.setSSLEngine(SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port));
-    client.startSSL();
+    if(doSSL) {
+      SSLEngine ssle = SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port);
+      ssle.setUseClientMode(true);
+      client.setSSLEngine(ssle);
+      client.startSSL();
+    }
     client.setReader(classReader);
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
