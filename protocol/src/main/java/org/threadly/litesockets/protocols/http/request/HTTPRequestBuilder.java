@@ -11,6 +11,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.util.ArgumentVerifier;
 
 /**
  * A builder object for HTTPRequests.  This helps construct different types of httpRequests. 
@@ -94,6 +95,11 @@ public class HTTPRequestBuilder {
     }
     this.port = port;
     return this;
+  }
+  
+  public HTTPAddress buildHTTPAddress(boolean doSSL) {
+    ArgumentVerifier.assertNotNull(this.headers.get(HTTPConstants.HTTP_KEY_HOST), "Must set Host Header!");
+    return new HTTPAddress(this.headers.get(HTTPConstants.HTTP_KEY_HOST), port, doSSL);
   }
   
   public HTTPRequestBuilder setPath(String path) {

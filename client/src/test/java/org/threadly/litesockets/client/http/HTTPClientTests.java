@@ -81,7 +81,8 @@ public class HTTPClientTests {
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
     final HTTPClient httpClient = new HTTPClient();
     final AtomicInteger count = new AtomicInteger(0);
-
+    httpClient.start(); 
+    
     PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
@@ -135,6 +136,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
+    httpClient.start();
     final AtomicInteger count = new AtomicInteger(0);
 
     PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
@@ -194,6 +196,7 @@ public class HTTPClientTests {
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
+    httpClient.start();
     final AtomicInteger count = new AtomicInteger(0);
 
     PriorityScheduler CLIENT_PS = new PriorityScheduler(200);

@@ -72,10 +72,11 @@ public class HTTPStreamClient {
   /**
    * <p>When constructing the HTTPStreamClient we connect to a specific server.  If you 
    * want to use the HTTPRequest to set the server/port you can use the .getHost() and
-   * .getPort() methods on it</p> 
-   * 
-   * @param host the hostname or ip address to connect to
-   * @param port the tcp port to connect to
+   * .getPort() methods on it.</p> 
+   *
+   * @param se the SocketExecuter to use for this client.
+   * @param host the hostname or ip address to connect to.
+   * @param port the tcp port to connect to.
    * @throws IOException this will happen if we have problems connecting for some reason.
    */
   public HTTPStreamClient(SocketExecuter se, String host, int port) throws IOException {

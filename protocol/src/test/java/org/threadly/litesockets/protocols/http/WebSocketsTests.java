@@ -5,35 +5,34 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Random;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser.WebSocketOpCodes;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WebSocketOpCodes;
+
 
 public class WebSocketsTests {
-  
-
-
 
   @Test
-  public void checkSmallSize() {
+  public void checkSmallSize() throws ParseException {
     simpleSizeParsing(5);
   }
-  
+
   @Test
-  public void checkMedSize() {
+  public void checkMedSize() throws ParseException {
     simpleSizeParsing(6555);
   }
-  
+
   @Test
-  public void checkLargeSize() {
+  public void checkLargeSize() throws ParseException {
     simpleSizeParsing(165550);
   }
-  
-  public void simpleSizeParsing(int size) {
+
+  public void simpleSizeParsing(int size) throws ParseException {
     WebSocketFrame wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCodes.Text.getValue(), true);
     WebSocketFrame wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
@@ -45,8 +44,8 @@ public class WebSocketsTests {
     assertEquals(wsf.hasMask(), wsf2.hasMask());
     assertEquals(wsf.getMaskValue(), wsf2.getMaskValue());
     assertTrue(Arrays.equals(wsf.getMaskArray(), wsf2.getMaskArray()));
-    
-    
+
+
     wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCodes.Text.getValue(), false);
     wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
@@ -70,9 +69,9 @@ public class WebSocketsTests {
       sb.append(test);
     }
     String testString = sb.toString();
-    ByteBuffer bb = WebSocketFrameParser.unmaskData(ByteBuffer.wrap(testString.getBytes()), mask);
+    ByteBuffer bb = WebSocketFrameParser.doDataMask(ByteBuffer.wrap(testString.getBytes()), mask);
     assertFalse(testString.equals(new String(bb.array())));
-    ByteBuffer nbb = WebSocketFrameParser.unmaskData(bb, mask);
+    ByteBuffer nbb = WebSocketFrameParser.doDataMask(bb, mask);
     assertEquals(testString, new String(nbb.array()));
   }
 }

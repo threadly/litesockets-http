@@ -3,6 +3,7 @@ package org.threadly.litesockets.client.ws;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.text.ParseException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLEngine;
@@ -18,8 +19,8 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.http.shared.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 
 public class WebSocketClient {
@@ -33,7 +34,6 @@ public class WebSocketClient {
   private final HTTPRequestBuilder hrb = new HTTPRequestBuilder();
   private final LocalStreamReader lsr = new LocalStreamReader();
   private final HTTPStreamClient hsc;
-  private volatile String webSocketKey = WebSocketFrameParser.makeSecretKey();
   private volatile WebSocketDataReader onData;
 
   public WebSocketClient(TCPClient client, boolean alreadyUpgraded) {
@@ -71,7 +71,7 @@ public class WebSocketClient {
     hrb.setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
     .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, HTTPConstants.HTTP_KEY_UPGRADE)
     .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
-    .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, webSocketKey)
+    .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, WebSocketFrameParser.makeSecretKey())
     .setHost(hsc.getHost());
   }
   
@@ -89,7 +89,7 @@ public class WebSocketClient {
 
   public void setWebSocketKey(String key) {
     if(!sentRequest.get()) {
-      hrb.setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, webSocketKey);
+      hrb.setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, key);
     }
   }
 
@@ -134,7 +134,13 @@ public class WebSocketClient {
         @Override
         public void handleResult(HTTPResponse result) {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
-            connectFuture.setResult(true);
+            String orig = hrb.build().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
+            String resp = result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT);
+              if(WebSocketFrameParser.validateKeyResponse(orig, resp)) {
+                connectFuture.setResult(true);
+              } else {
+                connectFuture.setFailure(new IllegalStateException("Bad WebSocket Key Response!: "+ resp +": Should be:"+WebSocketFrameParser.makeKeyResponse(orig)));
+              }
           } else {
             connectFuture.setFailure(new IllegalStateException("Protcol not upgraded!"));
           }
@@ -180,7 +186,7 @@ public class WebSocketClient {
               break;
             }
           }
-        } catch(IllegalStateException e) {
+        } catch(ParseException e) {
           break;
         }
       }

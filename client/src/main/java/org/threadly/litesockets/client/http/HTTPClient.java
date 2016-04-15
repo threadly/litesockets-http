@@ -33,6 +33,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
+import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
 
 /**
@@ -41,7 +42,7 @@ import org.threadly.util.Clock;
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
  * 
  */
-public class HTTPClient {
+public class HTTPClient extends AbstractService {
   public static final int DEFAULT_CONCURRENT = 2;
   public static final int DEFAULT_TIMEOUT = 15000;
   public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
@@ -75,8 +76,10 @@ public class HTTPClient {
 
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size but will still 
-   * create its own {@link SingleThreadScheduler} to use as a threadpool.</p> 
-   * 
+   * create its own {@link SingleThreadScheduler} to use as a threadpool.</p>
+   *  
+   * @param maxConcurrent maximum number of requests to run simultaneously. 
+   * @param maxResponseSize the maximum responseSize clients are allowed to send.
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize) {
     this.maxConcurrent = maxConcurrent;
@@ -93,6 +96,9 @@ public class HTTPClient {
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size
    * as well as your own {@link SocketExecuter} as the thread pool to use.</p> 
    * 
+   * @param maxConcurrent maximum number of requests to run simultaneously. 
+   * @param maxResponseSize the maximum responseSize clients are allowed to send.
+   * @param sei the SocketExecuter to use with these HTTPClients.
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei) {
     this.maxConcurrent = maxConcurrent;
@@ -100,8 +106,74 @@ public class HTTPClient {
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
   }
+ 
+  /**
+   * Number of HTTPRequests pending on the HTTPClient.  These requests are not currently being processed, but waiting in queue for the next
+   * free http worker.
+   * 
+   * @return number of pending requests.
+   */
+  public int getRequestQueueSize() {
+    return this.queue.size();
+  }
 
-  public HTTPResponseData request(URL url) throws HTTPParsingException {
+  /**
+   * Number of HTTPRequests pending on the HTTPClient.  These are requests that are currently either trying to connect to or have been sent to 
+   * a server.
+   * 
+   * @return number of request currently in progress.
+   */
+  public int getInProgressSize() {
+    return this.inProcess.size();
+  }
+
+  /**
+   * Returns the total number of open Client Connections on this HTTPClient  
+   * 
+   * @return number of open connections.
+   */
+  public int getOpenConnections() {
+    return tcpClients.size();
+  }
+  
+  /**
+   * Sets the {@link SSLContext} to be used for connection using ssl on this client.
+   * If nothing is set a completely open {@link SSLContext} is used providing no cert validation.
+   * 
+   * @param sslctx the {@link SSLContext} to use for ssl connections. 
+   */
+  public void setSSLContext(SSLContext sslctx) {
+    sslContext = sslctx;
+  }
+  
+  /**
+   * This forces closed all client connections on this HTTPClient.
+   * NOTE: this will disrupt any pending requests if called.
+   * 
+   */
+  public void closeAllClients() {
+    for(TCPClient client: tcpClients) {
+      client.close();
+    }
+  }
+
+  /**
+   * Sets the default timeout in milliseconds to wait for HTTPRequest responses from the server.
+   * 
+   * @param timeout time in milliseconds to wait for HTTPRequests to finish.
+   */
+  public void setTimeout(int timeout) {
+    this.defaultTimeout = timeout;
+  }
+
+  /**
+   * Sends a blocking HTTP request.
+   * 
+   * @param url the url to send the request too.
+   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
+   */
+  public HTTPResponseData request(final URL url) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
       hr = requestAsync(url).get();
@@ -117,45 +189,47 @@ public class HTTPClient {
     return hr;
   }
 
-  public int getRequestQueueSize() {
-    return this.queue.size();
-  }
-
-  public int getInProgressSize() {
-    return this.inProcess.size();
-  }
-
-  public int getTCPClientSize() {
-    return tcpClients.size();
-  }
-  
-  public void setSSLContext(SSLContext sslctx) {
-    sslContext = sslctx;
-  }
-  
-  public void closeAllClients() {
-    for(TCPClient client: tcpClients) {
-      client.close();
-    }
-  }
-
-  public void setTimeout(int timeout) {
-    this.defaultTimeout = timeout;
-  }
-
+  /**
+   * Sends a blocking HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
+   */
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
     return request(ha, request, EMPTY_BUFFER);
   }
 
+  /**
+   * Sends a blocking HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body. 
+   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
+   */
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) throws HTTPParsingException {
     return request(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
 
-  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit tu, final long time) 
+  /**
+   * Sends a blocking HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body.
+   * @param unit the time unit of the timeout argument 
+   * @param timeout the maximum time to wait
+   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
+   */
+  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) 
       throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
-      hr = requestAsync(ha, request, body, tu, time).get();
+      hr = requestAsync(ha, request, body, unit, timeout).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
@@ -168,6 +242,13 @@ public class HTTPClient {
     return hr;
   }
 
+  /**
+   * Sends an asynchronous HTTP request.
+   * 
+   * @param url the url to send the request too.
+   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * successfully or with errors.
+   */
   public ListenableFuture<HTTPResponseData> requestAsync(URL url) {
     boolean ssl = false;
     int port = HTTPConstants.DEFAULT_HTTP_PORT;
@@ -182,17 +263,44 @@ public class HTTPClient {
     return requestAsync(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
   }
 
+  /**
+   * Sends an asynchronous HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * successfully or with errors.
+   */
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
     return requestAsync(ha, request, EMPTY_BUFFER);
   }
 
+  /**
+   * Sends an asynchronous HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body. 
+   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * successfully or with errors.
+   */
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
     return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
   }
 
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, 
-      final ByteBuffer body, final TimeUnit tu, final long time) {
-    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, tu.toMillis(time));
+  /**
+   * Sends an asynchronous HTTP request.
+   * 
+   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
+   * @param request the {@link HTTPRequest} to send the server once connected.
+   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body.
+   * @param unit the time unit of the timeout argument 
+   * @param timeout the maximum time to wait
+   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * successfully or with errors.
+   */
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) {
+    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, unit.toMillis(timeout));
     final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
     if(ntse != null) {
@@ -224,11 +332,14 @@ public class HTTPClient {
     }
   }
 
-  /**
-   * Stops the HttpClient.  Any requests currently pending will not be ran.  If this is not called
-   * and HTTPClient looses all references it will be GCed correctly. 
-   */
-  public void stop() {
+  @Override
+  protected void startupService() {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  protected void shutdownService() {
     if(ntse != null) {
       ntse.stopIfRunning();
     }
@@ -428,6 +539,5 @@ public class HTTPClient {
       return body.copy().getAsString(body.remaining());
     }
   }
-
 
 }

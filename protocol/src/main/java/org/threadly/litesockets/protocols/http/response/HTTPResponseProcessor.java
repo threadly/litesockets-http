@@ -114,6 +114,7 @@ public class HTTPResponseProcessor {
           ByteBuffer bb = buffers.pull(nextChunkSize);
           buffers.discard(2);
           sendDuplicateBBtoListeners(bb);  
+          nextChunkSize = -1;
         } else {
           return;
         }

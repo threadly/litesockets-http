@@ -1,39 +1,53 @@
-package org.threadly.litesockets.protocols.http.shared;
+package org.threadly.litesockets.protocols.ws;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.Random;
 
+import org.threadly.litesockets.protocols.utils.Base64;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 
 
+/**
+ * Simple frame parser for websockets.
+ * 
+ * @author lwahlmeier
+ *
+ */
 public class WebSocketFrameParser {
   public static final String MAGIC_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"; 
+  
   private static final byte[] MAGIC_UUID_BA = MAGIC_UUID.getBytes();
+  private static final int UNSIGN_BYTE_MASK = 0xff;
+  private static final int UNSIGNED_SHORT_MASK = 0xffff;
+  private static final int OPCODE_MASK = 0xf;
+  private static final int WS_SMALL_LENGTH_MASK = 0x7f;
   private static final int WS_SHORT_SIZE = 126;
   private static final int WS_LONG_SIZE = 127;
+  private static final int WS_SHORT_LENGTH = 2;
+  private static final int WS_LONG_LENGTH = 8;
   private static final int MASK_SIZE = 4;
   private static final int MIN_WS_FRAME_SIZE = 2;
+  private static final int MAX_WS_FRAME_SIZE = 14;
+  private static final int STATIC_FOUR = 4;
+  private static final int STATIC_FIVE = 5;
+  private static final int STATIC_SIX = 6;
+  private static final int STATIC_SEVEN = 7;
+  private static final int DEFAULT_SECRET_KEY_SIZE = 20;
+  private static final String DEFAULT_SECRET_HASH_ALGO = "SHA-1";
   private static final Random RANDOM = new Random();
   
-  public static enum WebSocketOpCodes {
-    Continuation((byte)0), Text((byte)1), Binary((byte)2),
-    Close((byte)8), Ping((byte)9), Pong((byte)10); 
-    
-    private final byte value;
-    WebSocketOpCodes(byte value) {
-      this.value = value;
-    }
-    
-    public byte getValue() {
-      return value;
-    }
-  }
   
+  private WebSocketFrameParser() {}
   
   public static String makeSecretKey() {
-    byte[] ba = new byte[20];
+    return makeSecretKey(DEFAULT_SECRET_KEY_SIZE);
+  }
+  
+  public static String makeSecretKey(final int size) {
+    byte[] ba = new byte[size];
     RANDOM.nextBytes(ba);
     return Base64.encode(ba);
   }
@@ -44,10 +58,10 @@ public class WebSocketFrameParser {
    * @param str base64 string passed in the Sec-WebSocket-Key header.
    * @return a base64 string to set as the Sec-WebSocket-Key response.
    */
-  public static String makeKey(final String str) {
+  public static String makeKeyResponse(final String str) {
     final MessageDigest md;
     try {
-      md = MessageDigest.getInstance("SHA-1");
+      md = MessageDigest.getInstance(DEFAULT_SECRET_HASH_ALGO);
       md.update(str.getBytes());
       md.update(MAGIC_UUID_BA);
       return Base64.encode(md.digest());
@@ -55,8 +69,20 @@ public class WebSocketFrameParser {
       throw new RuntimeException("HUGE problem we dont support the SHA1 hash cant to websockets!!!!!", e);
     }
   }
+  
+  public static boolean validateKeyResponse(final String orig, final String response) {
+    String correctResponse =  makeKeyResponse(orig);
+    return response.equals(correctResponse);
+  }
 
-  public static WebSocketFrame parseWebSocketFrame(final ByteBuffer bb) {
+  /**
+   * Parses a WebSocket frame out of the provided {@link ByteBuffer}.
+   * 
+   * @param bb the ByteBuffer containing the WebSocketFrame.
+   * @return a {@link WebSocketFrame}.
+   * @throws ParseException this is thrown if there is not enough data to make a {@link WebSocketFrame}. 
+   */
+  public static WebSocketFrame parseWebSocketFrame(final ByteBuffer bb) throws ParseException {
     MergedByteBuffers mbb = new MergedByteBuffers();
     mbb.add(bb);
     int origSize = mbb.remaining();
@@ -64,20 +90,22 @@ public class WebSocketFrameParser {
     bb.position(bb.position() + origSize - mbb.remaining());
     return wsf;
   }
+  
   /**
-   * Parses a WebSocketFrame from the passed in MergedByteBuffers.  Only the data for the frame
+   * Parses a WebSocket frame from the passed in {@link MergedByteBuffers}.  Only the data for the frame
    * will be parsed out of the ByteBuffer, the payload will remain.
    * 
-   * @param mbb MergedByteBuffers containing the frame as the first bytes.
-   * @return a WebSocketFrame object to get info about the data in the WebSocketFrame.
+   * @param mbb {@link MergedByteBuffers} containing the frame as the first bytes.
+   * @return a {@link WebSocketFrame} object to get info about the data in the {@link WebSocketFrame}.
+   * @throws ParseException this is thrown if there is not enough data to make a {@link WebSocketFrame}.
    */
-  public static WebSocketFrame parseWebSocketFrame(final MergedByteBuffers mbb) {
+  public static WebSocketFrame parseWebSocketFrame(final MergedByteBuffers mbb) throws ParseException {
     final int size = getFrameLength(mbb);
     if(size > 0 && mbb.remaining() >= size) {
       ByteBuffer nbb = mbb.pull(size);
       return new WebSocketFrame(nbb);
     } else {
-      throw new IllegalStateException("Not enough data to make a WebSocketFrame");
+      throw new ParseException("Not enough data to make a WebSocketFrame", 0);
     }
   }
 
@@ -90,17 +118,24 @@ public class WebSocketFrameParser {
    */
   public static int getFrameLength(final MergedByteBuffers mbb) {
     final MergedByteBuffers nmbb = mbb.copy();
-    return getFrameLength(nmbb.pull(Math.min(nmbb.remaining(), 14)));
+    return getFrameLength(nmbb.pull(Math.min(nmbb.remaining(), MAX_WS_FRAME_SIZE)));
   }
 
-  public static ByteBuffer unmaskData(final ByteBuffer nbb, final int MASK) {
-    if(MASK == 0) {
+  /**
+   * This will mask or unmask data against provided mask.
+   * 
+   * @param nbb the {@link ByteBuffer} to apply the mask to.
+   * @param mask the mask to apply to the ByteBuffer.
+   * @return {@link ByteBuffer} with the provided mask applyed to it.
+   */
+  public static ByteBuffer doDataMask(final ByteBuffer nbb, final int mask) {
+    if(mask == 0) {
       return nbb;
     } else {
-      byte[] maskArray = ByteBuffer.allocate(4).putInt(MASK).array();
+      byte[] maskArray = ByteBuffer.allocate(MASK_SIZE).putInt(mask).array();
       ByteBuffer rbb = ByteBuffer.allocate(nbb.remaining());
       while(nbb.remaining()>=MASK_SIZE) {
-        rbb.putInt(nbb.getInt()^MASK);
+        rbb.putInt(nbb.getInt()^mask);
       }
       for(int i=0; nbb.remaining() > 0; i++) {
         rbb.put((byte)(nbb.get()^maskArray[i%MASK_SIZE]));
@@ -110,22 +145,46 @@ public class WebSocketFrameParser {
     }
   }
 
+  /**
+   * Gives the total length of the Frame in the provided {@link ByteBuffer}.
+   * It will not shift any data in the provided {@link ByteBuffer}.
+   * 
+   * @param bb the {@link ByteBuffer} to find the frame length on.
+   * @return the size of the frame in this {@link ByteBuffer}.
+   */
   public static int getFrameLength(final ByteBuffer bb) {
     if(bb.remaining() < MIN_WS_FRAME_SIZE) {
       return -1;
     }
 
-    int size = 2 + getLengthSize(bb);
+    int size = MIN_WS_FRAME_SIZE + getLengthSize(bb);
     if(hasMask(bb)) {
       size += MASK_SIZE;
     } 
     return size;
   }
   
+  /**
+   * Creates a {@link WebSocketFrame} object with the provided parameters.
+   * 
+   * @param size the size of the payload in the WebSocket Frame.
+   * @param opCode The opCode to put in this WebSocket.
+   * @param mask true if a mask should be added to this frame, false if not.
+   * @return a {@link WebSocketFrame} object created with the provided params.
+   */
   public static WebSocketFrame makeWebSocketFrame(final int size, byte opCode, final boolean mask) {
     return makeWebSocketFrame(size, true, opCode, mask);
   }
   
+  /**
+   * Creates a {@link WebSocketFrame} object with the provided parameters.
+   * 
+   * @param size the size of the payload in the WebSocket Frame.
+   * @param isFinished true if we should mark this WebSocket Frame as finished false if not.
+   * @param opCode The opCode to put in this WebSocket.
+   * @param mask true if a mask should be added to this frame, false if not.
+   * @return a {@link WebSocketFrame} object created with the provided params.
+   */
   public static WebSocketFrame makeWebSocketFrame(final int size, boolean isFinished, byte opCode, final boolean mask) {
 
     ByteBuffer nbb;
@@ -133,22 +192,22 @@ public class WebSocketFrameParser {
     byte bmask = mask ? (byte)1 : (byte)0;
     byte firstByte = opCode;
     if(isFinished) {
-      firstByte = (byte)(firstByte | (1<<7));
+      firstByte = (byte)(firstByte | (1<<STATIC_SEVEN));
     }
     
     if(size < WS_SHORT_SIZE) {
-      nbb = ByteBuffer.allocate(2+maskExtra);
+      nbb = ByteBuffer.allocate(MIN_WS_FRAME_SIZE+maskExtra);
       nbb.put(firstByte);
-      nbb.put((byte)(bmask<<7 | size));
-    } else if (size <= 65535) {
-      nbb = ByteBuffer.allocate(4+maskExtra);
+      nbb.put((byte)(bmask<<STATIC_SEVEN | size));
+    } else if (size <= UNSIGNED_SHORT_MASK) {
+      nbb = ByteBuffer.allocate(MIN_WS_FRAME_SIZE+WS_SHORT_LENGTH+maskExtra);
       nbb.put(firstByte);
-      nbb.put((byte)(bmask<<7|WS_SHORT_SIZE));
+      nbb.put((byte)(bmask<<STATIC_SEVEN|WS_SHORT_SIZE));
       nbb.putShort((short)size);
     } else {
-      nbb = ByteBuffer.allocate(10+maskExtra);
+      nbb = ByteBuffer.allocate(MIN_WS_FRAME_SIZE+WS_LONG_LENGTH+maskExtra);
       nbb.put(firstByte);
-      nbb.put((byte)(bmask<<7|WS_LONG_SIZE));
+      nbb.put((byte)(bmask<<STATIC_SEVEN|WS_LONG_SIZE));
       nbb.putLong(size);
     }
 
@@ -160,21 +219,21 @@ public class WebSocketFrameParser {
   }
 
   private static byte getSmallLen(final ByteBuffer bb) {
-    return (byte)(bb.get(1) & 0x7f);            
+    return (byte)(bb.get(1) & WS_SMALL_LENGTH_MASK);            
   }
 
   private static int getLengthSize(final ByteBuffer bb) {
     final byte sl = getSmallLen(bb);
     if(sl == WS_SHORT_SIZE) {
-      return 2;
+      return WS_SHORT_LENGTH;
     } else if(sl == WS_LONG_SIZE) {
-      return 8;
+      return WS_LONG_LENGTH;
     }
     return 0;
   }
 
   private static boolean hasMask(final ByteBuffer bb) {
-    return (bb.get(1) &0xff) >> 7 == 1;
+    return (bb.get(1) & UNSIGN_BYTE_MASK) >> STATIC_SEVEN == 1;
   }
 
 
@@ -204,27 +263,27 @@ public class WebSocketFrameParser {
     }
 
     public boolean isFinished() {
-      return ((bb.get(0)&0xff) >> 7) == 1;
+      return ((bb.get(0)&UNSIGN_BYTE_MASK) >> STATIC_SEVEN) == 1;
     }
 
     public boolean hasRSV1() {
-      return ((bb.get(0) >> 6) &0x1) == 1;
+      return ((bb.get(0) >> STATIC_SIX) &0x1) == 1;
     }
 
     public boolean hasRSV2() {
-      return ((bb.get(0) >> 5) &0x1) == 1;
+      return ((bb.get(0) >> STATIC_FIVE) &0x1) == 1;
     }
 
     public boolean hasRSV3() {
-      return ((bb.get(0) >> 4) &0x1) == 1;
+      return ((bb.get(0) >> STATIC_FOUR) &0x1) == 1;
     }
 
     public int getOpCode() {
-      return bb.get(0) & 0xf;
+      return bb.get(0) & OPCODE_MASK;
     }
 
     public boolean hasMask() {
-      return (bb.get(1) &0xff) >> 7 == 1;
+      return (bb.get(1) & UNSIGN_BYTE_MASK) >> STATIC_SEVEN == 1;
     }
 
     public long getPayloadDataLength() {
@@ -232,7 +291,7 @@ public class WebSocketFrameParser {
       if(sl < WS_SHORT_SIZE) {
         return sl;
       } else if(sl == WS_SHORT_SIZE) {
-        return bb.getShort(2) & 0xffff;
+        return bb.getShort(2) & UNSIGNED_SHORT_MASK;
       } else {
         return bb.getLong(2);
       }
@@ -249,10 +308,9 @@ public class WebSocketFrameParser {
       byte[] ba = new byte[MASK_SIZE];
       if(hasMask()) {
         final int start = getFrameLength(bb)-MASK_SIZE;
-        ba[0] = bb.get(start);
-        ba[1] = bb.get(start+1);
-        ba[2] = bb.get(start+2);
-        ba[3] = bb.get(start+3);
+        for(int i=0; i<MASK_SIZE; i++) {
+          ba[i] = bb.get(start+i);  
+        }
         return ba;
       }
       return ba;
@@ -262,7 +320,7 @@ public class WebSocketFrameParser {
       if(!hasMask()) {
         return nbb;
       } else {
-        return unmaskData(nbb, getMaskValue());
+        return doDataMask(nbb, getMaskValue());
       }
     }
   }

@@ -3,6 +3,7 @@ apply plugin: 'maven'
 if(project.hasProperty("sonatypeUsername")) {
   apply plugin: 'signing'
 }
+
 apply plugin: 'checkstyle'
 
 if(project.hasProperty("sonatypeUsername")) {
