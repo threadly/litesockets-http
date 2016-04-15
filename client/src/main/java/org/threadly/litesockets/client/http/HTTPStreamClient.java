@@ -55,10 +55,14 @@ public class HTTPStreamClient {
   private volatile HTTPStreamReader httpReader;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
   private volatile HTTPRequest currentHttpRequest;
-
+  
   public HTTPStreamClient(TCPClient client) {
+    this(client, client.getRemoteSocketAddress().getHostName());
+  }
+  
+  public HTTPStreamClient(TCPClient client, String host) {
     this.client = client;
-    host = client.getRemoteSocketAddress().getHostString();
+    this.host = host;
     port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
