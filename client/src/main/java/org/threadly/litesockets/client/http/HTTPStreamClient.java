@@ -184,6 +184,7 @@ public class HTTPStreamClient {
   }
 
   public void close() {
+    isConnected = false;
     client.close();
   }  
 

@@ -140,15 +140,18 @@ public class WebSocketClient {
                 connectFuture.setResult(true);
               } else {
                 connectFuture.setFailure(new IllegalStateException("Bad WebSocket Key Response!: "+ resp +": Should be:"+WebSocketFrameParser.makeKeyResponse(orig)));
+                hsc.close();
               }
           } else {
             connectFuture.setFailure(new IllegalStateException("Protcol not upgraded!"));
+            hsc.close();
           }
         }
 
         @Override
         public void handleFailure(Throwable t) {
           connectFuture.setFailure(t);
+          hsc.close();
         }});
     }
     return connectFuture;
@@ -156,6 +159,10 @@ public class WebSocketClient {
   
   public boolean isConnected() {
     return hsc.isConnected();
+  }
+  
+  public void close() {
+    hsc.close();
   }
   
   public void addCloseListener(Runnable cl) {

@@ -29,7 +29,11 @@ public class HTTPResponseBuilder {
   
   
   public HTTPResponseBuilder setHeader(String key, String value) {
-    headers.put(key, value);
+    if(value == null) {
+      headers.remove(key);
+    } else {
+      headers.put(key, value);
+    }
     return this;
   }
   
