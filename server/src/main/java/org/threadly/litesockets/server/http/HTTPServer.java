@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
 
 import org.threadly.concurrent.event.ListenerHelper;
+import org.threadly.concurrent.event.RunnableListenerHelper;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.CloseListener;
@@ -30,7 +31,7 @@ public class HTTPServer extends AbstractService {
   
   private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<TCPClient, HTTPRequestProcessor>();
   private final ClientListener clientListener = new ClientListener();
-  private final ListenerHelper<Handler> handler = ListenerHelper.build(Handler.class);
+  private final ListenerHelper<HTTPServerHandler> handler = ListenerHelper.build(HTTPServerHandler.class);
   private final SSLContext sslc;
   private final SocketExecuter se;
   private final TCPServer server;
@@ -71,7 +72,7 @@ public class HTTPServer extends AbstractService {
     server.close();
   }
   
-  public void setHandler(Handler handler) {
+  public void setHandler(HTTPServerHandler handler) {
     this.handler.addListener(handler);
   }
   
@@ -79,7 +80,7 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void accept(Client client) {
-      //log.info("New client connection:"+client);
+      log.info("New client connection:"+client);
       TCPClient tclient = (TCPClient)client;
       HTTPRequestProcessor hrp = new HTTPRequestProcessor();
       hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
@@ -91,13 +92,15 @@ public class HTTPServer extends AbstractService {
     @Override
     public void onClose(Client client) {
       log.info("Client connection closed:"+client);
-      clients.remove(client);
+      HTTPRequestProcessor hrp = clients.remove(client);
+      if(hrp != null) {
+        hrp.connectionClosed();
+      }
     }
 
     @Override
     public void onRead(Client client) {
       MergedByteBuffers mbb = client.getRead();
-      //System.out.println(mbb.copy().getAsString(mbb.remaining())+":"+client);
       clients.get(client).processData(mbb);
     }
   }
@@ -118,8 +121,7 @@ public class HTTPServer extends AbstractService {
     @Override
     public void headersFinished(HTTPRequest hr) {
       this.hr = hr;
-      //log.info("From:\""+client.getRemoteSocketAddress()+"\": Method:\""+hr.getHTTPRequestHeaders().getRequestType()+"\" Path:\""+hr.getHTTPRequestHeaders().getRequestPath()+"\"");
-      handler.call().handle(hr, bodyFuture, responseWriter);
+      handler.call().handle(hr, responseWriter, bodyFuture);
     }
 
     @Override
@@ -137,11 +139,16 @@ public class HTTPServer extends AbstractService {
     @Override
     public void hasError(Throwable t) {
       ExceptionUtils.handleException(t);
+      bodyFuture.completed(hr, responseWriter);
+      bodyFuture = new BodyFuture();
+      responseWriter = new ResponseWriter(this.client);
+      
     }
   }
   
   public static class ResponseWriter { 
     private final Client client;
+    private final RunnableListenerHelper closeListener = new RunnableListenerHelper(false);
     private boolean responseSent = false;
     private boolean done = false;
     private boolean closeOnDone = false;
@@ -149,6 +156,16 @@ public class HTTPServer extends AbstractService {
     
     protected ResponseWriter(Client client) {
       this.client = client;
+      this.client.addCloseListener(new CloseListener() {
+
+        @Override
+        public void onClose(Client client) {
+          closeListener.callListeners();
+        }});
+    }
+    
+    public boolean dataPending() {
+      return client.getWriteBufferSize() > 0;
     }
     
     public void sendHTTPResponse(HTTPResponse hr) {
@@ -163,6 +180,14 @@ public class HTTPServer extends AbstractService {
       } else {
         throw new IllegalStateException("Cant write HTTPResponse, Response is already finished!");
       }
+    }
+    
+    public boolean isClosed() {
+      return client.isClosed();
+    }
+    
+    public void addCloseListener(Runnable cl) {
+      closeListener.addListener(cl);
     }
     
     public void writeBody(ByteBuffer bb) {
@@ -211,9 +236,9 @@ public class HTTPServer extends AbstractService {
     }
   }
   
-  public interface Handler {
+  public interface HTTPServerHandler {
     HTTPServer getServer();
-    void handle(HTTPRequest httpRequest, BodyFuture bodyListener, ResponseWriter responseWriter);
+    void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener);
   }
   
   public interface BodyListener {

@@ -13,7 +13,7 @@ import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.server.http.HTTPServer;
 import org.threadly.litesockets.server.http.HTTPServer.BodyFuture;
-import org.threadly.litesockets.server.http.HTTPServer.Handler;
+import org.threadly.litesockets.server.http.HTTPServer.HTTPServerHandler;
 import org.threadly.litesockets.server.http.HTTPServer.ResponseWriter;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
@@ -21,7 +21,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
 import org.threadly.litesockets.utils.TransactionalByteBuffers;
 
-public class FakeHTTPStreamingServer implements Handler {
+public class FakeHTTPStreamingServer implements HTTPServerHandler {
   public static byte[] SEND_DATA = new byte[1024];
   TrustManager[] myTMs = new TrustManager [] {new FullTrustManager() };
   KeyStore KS;
@@ -81,7 +81,7 @@ public class FakeHTTPStreamingServer implements Handler {
   }
 
   @Override
-  public void handle(HTTPRequest httpRequest, BodyFuture bodyListener,ResponseWriter responseWriter) {
+  public void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener) {
     responseWriter.sendHTTPResponse(hr);
     sendBack.begin();
     while(sendBack.remaining() > 0) {
@@ -103,5 +103,4 @@ public class FakeHTTPStreamingServer implements Handler {
     sendBack.rollback();
 
   }
-
 }

@@ -217,7 +217,7 @@ public class HTTPStreamClient {
 
     @Override
     public void finished() {
-      client.close();
+      close();
     }
 
     @Override
