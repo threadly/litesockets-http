@@ -80,15 +80,10 @@ public class TestHTTPServer implements HTTPServerHandler {
       responseWriter.writeBody(sendBack.pull(Math.min(500, sendBack.remaining())));
     }
     sendBack.rollback();
-    responseWriter.done();
     if(closeOnSend) {
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-      responseWriter.closeConnection();
+      responseWriter.closeOnDone();
     }
+    responseWriter.done();
   }
 
 }

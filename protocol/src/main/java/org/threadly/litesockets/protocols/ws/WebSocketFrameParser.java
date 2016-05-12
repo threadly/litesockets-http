@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Random;
 
-import org.threadly.litesockets.protocols.utils.Base64;
+import org.threadly.litesockets.utils.Base64;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 
 
