@@ -29,7 +29,8 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseHeader;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCodes;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
@@ -63,10 +64,10 @@ public class WebSocketClientTest {
   public void simpleConnectTest() throws IOException, URISyntaxException {
     httpServer.setClientAcceptor(new WSEchoHandler());
     final AtomicReference<String> response = new AtomicReference<String>(null);
-    final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port));
+    final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port+"/?test=2"));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(ByteBuffer bb) {
+      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
         MergedByteBuffers mbb = new MergedByteBuffers();
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
@@ -74,7 +75,7 @@ public class WebSocketClientTest {
     wsc.connect().addCallback(new FutureCallback<Boolean>(){
       @Override
       public void handleResult(Boolean result) {
-        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCodes.Text.getValue(), false);
+        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), false);
       }
 
       @Override
@@ -92,7 +93,7 @@ public class WebSocketClientTest {
     assertEquals("ECHO", response.get());
     assertTrue(wsc.isConnected());
     response.set(null);
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCodes.Text.getValue(), true);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), true);
     new TestCondition(){
       @Override
       public boolean get() {
@@ -113,7 +114,7 @@ public class WebSocketClientTest {
     final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(ByteBuffer bb) {
+      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
 
       }});
     wsc.addCloseListener(new Runnable() {
@@ -157,7 +158,7 @@ public class WebSocketClientTest {
     final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(ByteBuffer bb) {
+      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
 
       }});
     wsc.addCloseListener(new Runnable() {

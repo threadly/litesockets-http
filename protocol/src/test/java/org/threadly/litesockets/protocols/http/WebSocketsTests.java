@@ -12,7 +12,7 @@ import java.util.Random;
 import org.junit.Test;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCodes;
+import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
 
 
 public class WebSocketsTests {
@@ -33,7 +33,7 @@ public class WebSocketsTests {
   }
 
   public void simpleSizeParsing(int size) throws ParseException {
-    WebSocketFrame wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCodes.Text.getValue(), true);
+    WebSocketFrame wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCode.Text.getValue(), true);
     WebSocketFrame wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
     assertEquals(wsf.getPayloadDataLength(), wsf2.getPayloadDataLength());
@@ -46,7 +46,7 @@ public class WebSocketsTests {
     assertTrue(Arrays.equals(wsf.getMaskArray(), wsf2.getMaskArray()));
 
 
-    wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCodes.Text.getValue(), false);
+    wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCode.Text.getValue(), false);
     wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
     assertEquals(wsf.getPayloadDataLength(), wsf2.getPayloadDataLength());

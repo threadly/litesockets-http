@@ -48,7 +48,7 @@ public class FakeHTTPStreamingServer implements HTTPServerHandler {
     SEB = new ThreadedSocketExecuter(PS);
     SEB.start();
     server = new HTTPServer(SEB, "localhost", port, sslCtx);
-    server.setHandler(this);
+    server.addHandler(this);
     server.start();
     this.sendBack.add(ByteBuffer.wrap(sendBack.getBytes()));
   }
@@ -73,11 +73,6 @@ public class FakeHTTPStreamingServer implements HTTPServerHandler {
     server.stopIfRunning();
     SEB.stopIfRunning();
     PS.shutdownNow();
-  }
-
-  @Override
-  public HTTPServer getServer() {
-    return server;
   }
 
   @Override

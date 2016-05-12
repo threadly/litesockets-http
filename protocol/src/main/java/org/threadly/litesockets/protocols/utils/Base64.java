@@ -34,92 +34,76 @@ package org.threadly.litesockets.protocols.utils;
  */
 public class Base64 {
   private static final String CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  private static final byte[] ENCODE_DATA = CHARSET.getBytes();
-
 
   private Base64() {}
 
   /**
-   * base-64 encode a string
-   * @param str   The ascii string to encode
-   * @return   The base64 encoded result
+   * base-64 encode a string.
+   * @param str   The ascii string to encode.
+   * @return   The base64 encoded result.
    */
   public static String encode(final String str) {
     return encode(str.getBytes());
   }
 
   /**
-   * base-64 encode a byte array
-   * @param src The byte array to encode
-   * @return   The base64 encoded result
+   * base-64 encode a byte array.
+   * @param src The byte array to encode.
+   * @return   The base64 encoded result.
    */
   public static String encode(final byte[] src) {
     return encode(src, 0, src.length);
   }
 
   /**
-   * base-64 encode a byte array
-   * @param src The byte array to encode
-   * @param start The starting index
-   * @param length The number of bytes
-   * @return   The base64 encoded result
+   * base-64 encode a byte array.
+   * @param src The byte array to encode.
+   * @param start The starting index.
+   * @param length The number of bytes.
+   * @return   The base64 encoded result.
    */
   public static String encode(final byte[] src, final int start, final int length) {
-    byte[] dst = new byte[(length+2)/3 * 4 + length/72];
+    StringBuilder sb = new StringBuilder();
     int x = 0;
-    int dstIndex = 0;
     int state = 0;  // which char in pattern
     int old = 0;  // previous byte
-    int len = 0;  // length decoded so far
     int max = length + start;
     for (int srcIndex = start; srcIndex<max; srcIndex++) {
       x = src[srcIndex];
       switch (++state) {
         case 1:
-          dst[dstIndex++] = ENCODE_DATA[(x>>2) & 0x3f];
+          sb.append(CHARSET.charAt((x>>2) & 0x3f));
           break;
         case 2:
-          dst[dstIndex++] = ENCODE_DATA[((old<<4)&0x30) 
-                                       | ((x>>4)&0xf)];
+          sb.append(CHARSET.charAt(((old<<4)&0x30) | ((x>>4)&0xf)));
           break;
         case 3:
-          dst[dstIndex++] = ENCODE_DATA[((old<<2)&0x3C) 
-                                       | ((x>>6)&0x3)];
-          dst[dstIndex++] = ENCODE_DATA[x&0x3F];
+          sb.append(CHARSET.charAt(((old<<2)&0x3C) | ((x>>6)&0x3)));
+          sb.append(CHARSET.charAt(x&0x3F));
           state = 0;
           break;
         default:
           break;
       }
       old = x;
-      if (++len >= 72) {
-        dst[dstIndex++] = (byte) '\n';
-        len = 0;
-      }
     }
 
     // now clean up the end bytes
-    switch (state) {
-      case 1: {
-        dst[dstIndex++] = ENCODE_DATA[(old<<4) & 0x30];
-        dst[dstIndex++] = (byte) '=';
-        dst[dstIndex++] = (byte) '=';
-      } break;
-      case 2: {
-        dst[dstIndex++] = ENCODE_DATA[(old<<2) & 0x3c];
-        dst[dstIndex++] = (byte) '=';
-      } break;
+    if(state == 1) {
+      sb.append(CHARSET.charAt((old<<4) & 0x30)).append("==");
+    } else if(state == 2) {
+      sb.append(CHARSET.charAt((old<<2) & 0x3c)).append("=");
     }
     
-    return new String(dst);
+    return sb.toString();
   }
 
   /**
    * A Base64 decoder.  This implementation is slow, and 
    * doesn't handle wrapped lines.
    * The output is undefined if there are errors in the input.
-   * @param s   a Base64 encoded string
-   * @return   The byte array eith the decoded result
+   * @param s   a Base64 encoded string.
+   * @return   The byte array eith the decoded result.
    */
   public static byte[] decode(final String s) {
     int end = 0;  // end state

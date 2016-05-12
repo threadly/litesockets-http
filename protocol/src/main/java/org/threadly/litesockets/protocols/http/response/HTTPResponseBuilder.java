@@ -6,6 +6,7 @@ import java.util.TreeMap;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 
 /**
  * A builder to help create {@link HTTPResponse} objects.
@@ -47,6 +48,11 @@ public class HTTPResponseBuilder {
   
   public HTTPResponseBuilder setResponseHeader(HTTPResponseHeader hrh) {
     rHeader = hrh;
+    return this;
+  }
+  
+  public HTTPResponseBuilder setResponseCode(HTTPResponseCode rc) {
+    rHeader = new HTTPResponseHeader(rc, rHeader.getHTTPVersion());
     return this;
   }
   

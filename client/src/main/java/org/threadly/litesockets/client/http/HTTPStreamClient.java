@@ -16,6 +16,7 @@ import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
@@ -40,7 +41,7 @@ import org.threadly.litesockets.utils.SSLUtils;
  * @author lwahlmeier
  *
  */
-public class HTTPStreamClient {
+public class HTTPStreamClient implements StreamingClient {
   private static final int DEFAULT_TIMEOUT = 20000;
   private final Reader classReader = new HTTPReader();
   private final CloseListener classCloser = new HTTPCloser();
@@ -51,22 +52,34 @@ public class HTTPStreamClient {
   private final int port;
   
   private final HTTPResponseProcessor httpProcessor;
+  
   private volatile boolean isConnected = false;
+  private volatile boolean headersSent = false;
   private volatile HTTPStreamReader httpReader;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
   private volatile HTTPRequest currentHttpRequest;
   
-  public HTTPStreamClient(TCPClient client) {
-    this(client, client.getRemoteSocketAddress().getHostName());
+  /**
+   * Creates an HTTPStreaming client from an already existing TCPClient.
+   * 
+   * @param client the {@link TCPClient} to use for this connection.
+   * @param headerSent true if the http headers have already been sent, false if they still need to be sent.
+   */
+  public HTTPStreamClient(TCPClient client, boolean headerSent) {
+    this(client, client.getRemoteSocketAddress().getHostName(), headerSent);
   }
   
-  public HTTPStreamClient(TCPClient client, String host) {
+  public HTTPStreamClient(TCPClient client, String host, boolean headerSent) {
     this.client = client;
     this.host = host;
+    if(headersSent) {
+      currentHttpRequest = new HTTPRequestBuilder().build();
+    }
     port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
     httpProcessor.addHTTPRequestCallback(requestCB);
+
   }
 
   /**
@@ -89,26 +102,37 @@ public class HTTPStreamClient {
     httpProcessor.addHTTPRequestCallback(requestCB);
   }
   
+  @Override
   public void enableSSL() {
     SSLEngine ssle = SSLUtils.OPEN_SSL_CTX.createSSLEngine(host, port);
     ssle.setUseClientMode(true);
     enableSSL(ssle);
   }
   
+  @Override
   public void enableSSL(SSLEngine ssle) {
     ssle.setUseClientMode(true);
     client.setSSLEngine(ssle);
     client.startSSL();
   }
   
-  public void setTimeout(int timeout) {
+  @Override
+  public void setConnectionTimeout(int timeout) {
     client.setConnectionTimeout(timeout);
   }
   
+  /**
+   * 
+   * @return the connected Host name/ip.
+   */
   public String getHost() {
     return host;
   }
   
+  /**
+   * 
+   * @return Returns the connected port number.
+   */
   public int getPort() {
     return port;
   }
@@ -134,24 +158,33 @@ public class HTTPStreamClient {
     return slfResponse;
   }
   
+  @Override
   public ListenableFuture<?> write(ByteBuffer bb) {
     if(currentHttpRequest == null) {
       throw new IllegalStateException("Must have a pending HTTPRequest before you can write!");
     }
-    if(currentHttpRequest.getHTTPHeaders().isChunked()) {
+    if(currentHttpRequest != null && currentHttpRequest.getHTTPHeaders().isChunked()) {
       return client.write(HTTPUtils.wrapInChunk(bb));
     } else {
       return client.write(bb);
     }
   }
-  
+
+  /**
+   * Sets the HTTPStreamReader for this client.
+   * 
+   * @param hsr the {@link HTTPStreamReader}
+   */
   public void setHTTPStreamReader(HTTPStreamReader hsr) {
-    if(hsr != null) {
-      httpReader = hsr;
+    httpReader = hsr;
+    if(hsr == null) {
+      client.setReader(null);
+    } else {
       client.setReader(classReader);
     }
   }
 
+  @Override
   public Executor getClientsThreadExecutor() {
     return client.getClientsThreadExecutor();
   }
@@ -188,6 +221,11 @@ public class HTTPStreamClient {
     client.close();
   }  
 
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class HTTPReader implements Reader {
     @Override
     public void onRead(Client client) {
@@ -195,6 +233,11 @@ public class HTTPStreamClient {
     }
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class HTTPCloser implements CloseListener {
     @Override
     public void onClose(Client client) {
@@ -203,6 +246,11 @@ public class HTTPStreamClient {
     }
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class RequestCallback implements HTTPResponseCallback {
 
     @Override
@@ -212,7 +260,9 @@ public class HTTPStreamClient {
 
     @Override
     public void bodyData(ByteBuffer bb) {
-      httpReader.handle(bb);
+      if(httpReader != null) {
+        httpReader.handle(bb);
+      }
     }
 
     @Override
@@ -228,7 +278,19 @@ public class HTTPStreamClient {
     
   }
   
-  public static interface HTTPStreamReader {
+  /**
+   * Simple HTTPStreamReader callback interface.
+   * 
+   * @author lwahlmeier
+   *
+   */
+  public interface HTTPStreamReader {
+    
+    /**
+     * This is called when body reads come in from the client.
+     * 
+     * @param bb a {@link ByteBuffer} containing the next body data.
+     */
     public void handle(ByteBuffer bb);
   }
 }

@@ -21,24 +21,55 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.util.AbstractService;
 import org.threadly.util.ExceptionUtils;
 
+/**
+ * A simple HTTPServer abstraction.
+ * 
+ * @author lwahlmeier
+ *
+ */
 public class HTTPServer extends AbstractService {
-  private static final Logger log = Logger.getLogger(HTTPServer.class.getSimpleName());
+  public static final HTTPResponse NOT_FOUND_RESPONSE = new HTTPResponseBuilder().setResponseCode(HTTPResponseCode.NotFound).build();
+  private static final Logger LOG = Logger.getLogger(HTTPServer.class.getSimpleName());
   
   private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<TCPClient, HTTPRequestProcessor>();
   private final ClientListener clientListener = new ClientListener();
-  private final ListenerHelper<HTTPServerHandler> handler = ListenerHelper.build(HTTPServerHandler.class);
   private final SSLContext sslc;
   private final SocketExecuter se;
   private final TCPServer server;
   private final String hostname;
   private final int port;
   
-  public HTTPServer(SocketExecuter se, String hostName, int port, SSLContext sslc) throws IOException {
+  private volatile HTTPServerHandler handler;
+  
+  
+  /**
+   * Constructs an {@link HTTPServer} without SSL support.
+   * 
+   * @param se The {@link SocketExecuter} to use for this HTTPServer.
+   * @param hostName The hostname or ip to bind this httpServer too.
+   * @param port the port this server will bind to.
+   * @throws IOException this is thrown if we have problems creating this HTTPServers listen socket.
+   */
+  public HTTPServer(final SocketExecuter se, final String hostName, final int port) throws IOException {
+    this(se, hostName, port, null);
+  }
+  
+  /**
+   * Constructs an {@link HTTPServer} with SSL support.
+   * 
+   * @param se The {@link SocketExecuter} to use for this HTTPServer.
+   * @param hostName The hostname or ip to bind this httpServer too.
+   * @param port the port this server will bind to.
+   * @param sslc the {@link SSLContext} to use for this server.
+   * @throws IOException this is thrown if we have problems creating this HTTPServers listen socket.
+   */
+  public HTTPServer(final SocketExecuter se, final String hostName, final int port, final SSLContext sslc) throws IOException {
     this.se = se;
     this.hostname = hostName;
     this.port = port;
@@ -53,10 +84,17 @@ public class HTTPServer extends AbstractService {
     }
   }
   
+  /**
+   * @return the listen port this server is bound to.
+   */
   public int getListenPort() {
     return port;
   }
   
+  /**
+   * 
+   * @return the ip/hostname this server is bound to.
+   */
   public String getHostName() {
     return hostname;
   }
@@ -72,15 +110,25 @@ public class HTTPServer extends AbstractService {
     server.close();
   }
   
-  public void setHandler(HTTPServerHandler handler) {
-    this.handler.addListener(handler);
+  /**
+   * Sets an {@link HTTPServerHandler} to this server.
+   * 
+   * @param handler the handler to use.
+   */
+  public void addHandler(final HTTPServerHandler handler) {
+    this.handler = handler;
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class ClientListener implements ClientAcceptor, Reader, CloseListener {
 
     @Override
     public void accept(Client client) {
-      log.info("New client connection:"+client);
+      LOG.info("New client connection:"+client);
       TCPClient tclient = (TCPClient)client;
       HTTPRequestProcessor hrp = new HTTPRequestProcessor();
       hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
@@ -91,7 +139,7 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void onClose(Client client) {
-      log.info("Client connection closed:"+client);
+      LOG.info("Client connection closed:"+client);
       HTTPRequestProcessor hrp = clients.remove(client);
       if(hrp != null) {
         hrp.connectionClosed();
@@ -100,11 +148,15 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void onRead(Client client) {
-      MergedByteBuffers mbb = client.getRead();
-      clients.get(client).processData(mbb);
+      clients.get(client).processData(client.getRead());
     }
   }
   
+  /**
+   * 
+   * @author lwahlmeier
+   *
+   */
   private class HTTPRequestListener implements HTTPRequestCallback {
     
     final TCPClient client;
@@ -121,7 +173,13 @@ public class HTTPServer extends AbstractService {
     @Override
     public void headersFinished(HTTPRequest hr) {
       this.hr = hr;
-      handler.call().handle(hr, responseWriter, bodyFuture);
+      if(handler != null) {
+        handler.handle(hr, responseWriter, bodyFuture);
+      } else {
+        responseWriter.sendHTTPResponse(NOT_FOUND_RESPONSE);
+        responseWriter.closeOnDone();
+        responseWriter.done();
+      }
     }
 
     @Override
@@ -146,6 +204,12 @@ public class HTTPServer extends AbstractService {
     }
   }
   
+  /**
+   * This class is used to write responses to HTTPRequests that are made against the HTTPServer.
+   * 
+   * @author lwahlmeier
+   *
+   */
   public static class ResponseWriter { 
     private final Client client;
     private final RunnableListenerHelper closeListener = new RunnableListenerHelper(false);
@@ -164,17 +228,29 @@ public class HTTPServer extends AbstractService {
         }});
     }
     
-    public boolean dataPending() {
-      return client.getWriteBufferSize() > 0;
+    /**
+     * Inform if the client has data pending to be written to the socket.  This includes header data. 
+     * 
+     * @return the size of data pending to be written to the socket.
+     */
+    public int pendingDataSize() {
+      return client.getWriteBufferSize();
     }
     
-    public void sendHTTPResponse(HTTPResponse hr) {
+    /**
+     * This sends an {@link HTTPResponse} to the client.  This must be sent before any body data can be written.
+     * 
+     * @param hr the {@link HTTPResponse} to write to the client.
+     * @return a {@link ListenableFuture} that will be complete once this data is written to the socket.
+     */
+    public ListenableFuture<?> sendHTTPResponse(HTTPResponse hr) {
       if(!responseSent && ! done) {
         if(hr.getResponseHeader().getHTTPVersion().equals(HTTPConstants.HTTP_VERSION_1_0)) {
           closeOnDone = true;
         }
         responseSent = true;
-        client.write(hr.getByteBuffer());
+        lastWriteFuture = client.write(hr.getByteBuffer());
+        return lastWriteFuture;
       } else if (responseSent) {
         throw new IllegalStateException("HTTPResponse already sent!");
       } else {
@@ -182,17 +258,43 @@ public class HTTPServer extends AbstractService {
       }
     }
     
+    /**
+     * This will force the connection to be closed once done is called and all pending data from that point has been written.
+     * 
+     */
+    public void closeOnDone() {
+      this.closeOnDone = true;
+    }
+    
+    /**
+     * informs if the clients connection is still open or not.
+     * 
+     * @return true if the client connection is closed, false if its still open.
+     */
     public boolean isClosed() {
       return client.isClosed();
     }
     
+    /**
+     * Allows you to set a runnable to run once the clients connection is closed.
+     * 
+     * @param cl the Runnable to run once the connection is closed.
+     */
     public void addCloseListener(Runnable cl) {
       closeListener.addListener(cl);
     }
     
-    public void writeBody(ByteBuffer bb) {
+    /**
+     * Write body data to the client.  This can only be done after {@link #sendHTTPResponse(HTTPResponse)} has been called. 
+     * You must have already setup what is being sent (Content-Length, chunked, etc) in the HTTPResponse call.
+     * 
+     * @param bb the data to write as the body for this client.
+     * @return a {@link ListenableFuture} that will be complete once this data is written to the socket.
+     */
+    public ListenableFuture<?> writeBody(ByteBuffer bb) {
       if(responseSent && !done) {
         lastWriteFuture = client.write(bb);
+        return lastWriteFuture;
       } else if(responseSent){
         throw new IllegalStateException("Can not send body before HTTPResponse!");
       } else {
@@ -200,6 +302,10 @@ public class HTTPServer extends AbstractService {
       }
     }
     
+    /**
+     * This is called once you are done handling this HTTPRequest.  If the connection is not closed
+     * the client can send a new HTTPRequest that will call back on the {@link HTTPServerHandler} again.
+     */
     public void done() {
       done = true;
       if(closeOnDone && !client.isClosed()) {
@@ -211,6 +317,9 @@ public class HTTPServer extends AbstractService {
       }
     }
     
+    /**
+     * forces this clients connection closed.
+     */
     public void closeConnection() {
       done = true;
       client.close();
@@ -219,9 +328,21 @@ public class HTTPServer extends AbstractService {
     
   }
   
+  /**
+   * A simple callback class to allow HTTPServerHandlers to listen for body data as it 
+   * comes in from the clients socket.
+   * 
+   * @author lwahlmeier
+   *
+   */
   public static class BodyFuture {
     private final ListenerHelper<BodyListener> listener = ListenerHelper.build(BodyListener.class);
     
+    /**
+     * Sets the BodyListener to be used/called back on.
+     * 
+     * @param listener the listener to set.
+     */
     public void setBodyListener(BodyListener listener) {
       this.listener.clearListeners();
       this.listener.addListener(listener);
@@ -236,13 +357,46 @@ public class HTTPServer extends AbstractService {
     }
   }
   
+  /**
+   *  The servers handler interface.  This must be set to handle clients sending request to the server. 
+   * 
+   * @author lwahlmeier
+   *
+   */
   public interface HTTPServerHandler {
-    HTTPServer getServer();
+    /**
+     * This is called when a new HTTPRequest has came in on a client connection.
+     * 
+     * @param httpRequest the {@link HTTPRequest} the client sent.
+     * @param responseWriter the {@link ResponseWriter} that is used to send responses back on.
+     * @param bodyListener the {@link BodyFuture} that will be used to call back on as body data is read from the client.
+     */
     void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener);
   }
   
+  /**
+   * A simple callback interface used to receive body data from an HTTP client.
+   * 
+   * @author lwahlmeier
+   *
+   */
   public interface BodyListener {
+    /**
+     * This is called as body data come in.  This is called in an in-order thread safe way.
+     * 
+     * @param httpRequest the initial {@link HTTPRequest} this body is for.
+     * @param bb the current body data.
+     * @param responseWriter the {@link ResponseWriter} for this client.
+     */
     public void onBody(HTTPRequest httpRequest, ByteBuffer bb, ResponseWriter responseWriter);
+    
+    /**
+     * This is called when the body has completed.
+     * NOTE: it is not always possible to know if the body data is done depending on the {@link HTTPRequest} so this might not get called.
+     * 
+     * @param httpRequest the initial {@link HTTPRequest} for this client.
+     * @param responseWriter the {@link ResponseWriter} for this client.
+     */
     public void bodyComplete(HTTPRequest httpRequest, ResponseWriter responseWriter);
   }
 

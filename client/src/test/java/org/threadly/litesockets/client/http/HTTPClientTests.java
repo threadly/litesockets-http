@@ -82,7 +82,7 @@ public class HTTPClientTests {
     final HTTPClient httpClient = new HTTPClient();
     final AtomicInteger count = new AtomicInteger(0);
     httpClient.start(); 
-    
+
     PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
@@ -342,35 +342,35 @@ public class HTTPClientTests {
     }
   }
 
-//  @Test
-//  public void blockingRequestERROR() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-//    int port = TestUtils.findTCPPort();
-//    fakeServer = new TestHTTPServer(port, RESPONSE_ERROR_1, false, false);
-//    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-//    final HTTPClient httpClient = new HTTPClient();
-//    final ListenableFuture<HTTPResponseData> lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hrb.build());
-//    final AtomicBoolean failed = new AtomicBoolean(false);
-//    lf.addCallback(new FutureCallback<HTTPResponseData>() {
-//
-//      @Override
-//      public void handleResult(HTTPResponseData result) {
-//        fail();
-//      }
-//
-//      @Override
-//      public void handleFailure(Throwable t) {
-//        failed.set(false);
-//      }});
-//
-//    try {
-//      lf.get(5000, TimeUnit.MILLISECONDS);
-//      fail();
-//    } catch(ExecutionException e) {
-//
-//    }
-//    assertFalse(failed.get());
-//
-//  }
+  //  @Test
+  //  public void blockingRequestERROR() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+  //    int port = TestUtils.findTCPPort();
+  //    fakeServer = new TestHTTPServer(port, RESPONSE_ERROR_1, false, false);
+  //    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+  //    final HTTPClient httpClient = new HTTPClient();
+  //    final ListenableFuture<HTTPResponseData> lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hrb.build());
+  //    final AtomicBoolean failed = new AtomicBoolean(false);
+  //    lf.addCallback(new FutureCallback<HTTPResponseData>() {
+  //
+  //      @Override
+  //      public void handleResult(HTTPResponseData result) {
+  //        fail();
+  //      }
+  //
+  //      @Override
+  //      public void handleFailure(Throwable t) {
+  //        failed.set(false);
+  //      }});
+  //
+  //    try {
+  //      lf.get(5000, TimeUnit.MILLISECONDS);
+  //      fail();
+  //    } catch(ExecutionException e) {
+  //
+  //    }
+  //    assertFalse(failed.get());
+  //
+  //  }
 
   @Test
   public void timeOut() throws IOException, InterruptedException, ExecutionException, TimeoutException {
@@ -397,8 +397,8 @@ public class HTTPClientTests {
     }
     fail();
   }
-  
-  
+
+
   @Test
   public void urlRequest() throws HTTPParsingException, IOException {
     int port = TestUtils.findTCPPort();

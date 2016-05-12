@@ -18,7 +18,7 @@ public class HTTPResponseHeader {
   
   public HTTPResponseHeader(String stringResponse) {
     this.rawResponse = stringResponse.trim();
-    String[] tmp = stringResponse.trim().split(" ", 3);
+    String[] tmp = stringResponse.trim().split(" ", REQUIRED_RESPONSE_ITEMS);
     if(tmp.length != REQUIRED_RESPONSE_ITEMS) {
       throw new IllegalArgumentException("Invalide Response Header! :"+stringResponse);
     }

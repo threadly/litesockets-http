@@ -31,6 +31,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HT
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.protocols.http.shared.RequestType;
 import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
@@ -108,8 +109,8 @@ public class HTTPClient extends AbstractService {
   }
  
   /**
-   * Number of HTTPRequests pending on the HTTPClient.  These requests are not currently being processed, but waiting in queue for the next
-   * free http worker.
+   * Number of HTTPRequests pending on the HTTPClient.  These requests are not currently being processed, 
+   * but waiting in queue for the next free http worker.
    * 
    * @return number of pending requests.
    */
@@ -118,8 +119,8 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * Number of HTTPRequests pending on the HTTPClient.  These are requests that are currently either trying to connect to or have been sent to 
-   * a server.
+   * Number of HTTPRequests pending on the HTTPClient.  These are requests that are currently 
+   * either trying to connect to or have been sent to a server.
    * 
    * @return number of request currently in progress.
    */
@@ -128,7 +129,7 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * Returns the total number of open Client Connections on this HTTPClient  
+   * Returns the total number of open Client Connections on this HTTPClient.
    * 
    * @return number of open connections.
    */
@@ -174,9 +175,22 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
+    return request(url, RequestType.GET, EMPTY_BUFFER);
+  }
+  
+  /**
+   * Sends a blocking HTTP request.
+   * 
+   * @param url the url to send the request too.
+   * @param rt the {@link RequestType} to use on the request.
+   * @param bb the data to put in the body for this request.
+   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
+   */
+  public HTTPResponseData request(final URL url, final RequestType rt, final ByteBuffer bb) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
-      hr = requestAsync(url).get();
+      hr = requestAsync(url, rt, bb).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
@@ -245,11 +259,24 @@ public class HTTPClient extends AbstractService {
   /**
    * Sends an asynchronous HTTP request.
    * 
-   * @param url the url to send the request too.
+   * @param url the {@link URL} to send the request too.
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
-  public ListenableFuture<HTTPResponseData> requestAsync(URL url) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
+    return requestAsync(url, RequestType.GET, EMPTY_BUFFER);
+  }
+  
+  /**
+   * Sends an asynchronous HTTP request.
+   * 
+   * @param url the {@link URL} to send the request too.
+   * @param rt the {@link RequestType} to use on the request.
+   * @param bb the data to put in the body for this request.
+   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * successfully or with errors.
+   */
+  public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final RequestType rt, final ByteBuffer bb) {
     boolean ssl = false;
     int port = HTTPConstants.DEFAULT_HTTP_PORT;
     String host = url.getHost();
@@ -260,7 +287,9 @@ public class HTTPClient extends AbstractService {
     if(url.getPort() != -1) {
       port = url.getPort();
     }
-    return requestAsync(new HTTPAddress(host, port, ssl), new HTTPRequestBuilder(url).build());
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder(url);
+    hrb.setRequestType(rt);
+    return requestAsync(new HTTPAddress(host, port, ssl), hrb.build(), bb);
   }
 
   /**
@@ -299,7 +328,8 @@ public class HTTPClient extends AbstractService {
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, 
+      final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, unit.toMillis(timeout));
     final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
