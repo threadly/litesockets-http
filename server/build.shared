@@ -9,9 +9,7 @@ repositories {
   }
 }
 
-checkstyle {
-  configFile = "${rootDir}/config/checkstyle/checkstyle.xml" as File
-}
+project.archivesBaseName='litesockets-http-server'
 
 dependencies {
   testCompile group: 'junit', name: 'junit', version: '4.12'
@@ -19,11 +17,15 @@ dependencies {
   compile (
     "org.threadly:threadly:$threadlyVersion",
     "org.threadly:litesockets:$litesocketsVersion",
+    "org.threadly:litesockets-http-protocol:0.6.1-SNAPSHOT",
+  )
+  testCompile (
+    "org.threadly:litesockets-http-client:0.6.1-SNAPSHOT",
   )
 }
 
 compileJava {
-  options.compilerArgs << "-Xlint:all" << "-Xlint:-deprecation" << "-Werror"
+  options.compilerArgs << "-Xlint:all"
 }
 
 compileTestJava {
@@ -42,7 +44,7 @@ test {
 
 jar {
   manifest {
-    attributes 'Implementation-Title': 'litesockets-http', 'Implementation-Version': version
+    attributes 'Implementation-Title': 'litesockets-http-server', 'Implementation-Version': version
   }
 }
 

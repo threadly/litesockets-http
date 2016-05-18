@@ -1,0 +1,98 @@
+apply from: 'build.shared'
+apply plugin: 'maven'
+apply plugin: 'signing'
+apply plugin: 'checkstyle'
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+
+compileJava {
+  String[] java6Paths = new String[5]
+  java6Paths[0] = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar"
+  java6Paths[1] = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar"
+  java6Paths[2] = "/usr/lib/jvm/java-1.6.0-openjdk-amd64/jre/lib/rt.jar"
+  java6Paths[3] = "/usr/lib/jvm/java-1.6.0-openjdk/jre/lib/rt.jar"
+  java6Paths[4] = "/usr/lib/jvm/java-6-sun/jre/lib/rt.jar"
+  for (String path : java6Paths) {
+    if (new java.io.File(path).exists()) {
+      println 'Using java 6 rt.jar: ' + path
+      options.bootClasspath = path
+      break
+    }
+  }
+  if (options.bootClasspath == null) {
+    println 'Unable to find java 6 rt.jar, will cause failure so exiting now'
+    println ''
+    System.exit(1)
+  }
+}
+
+compileTestJava {
+  options.compilerArgs << "-Xlint:all" << "-Xlint:-deprecation" << "-Werror"
+  
+  String[] java6Paths = new String[5]
+  java6Paths[0] = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar"
+  java6Paths[1] = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar"
+  java6Paths[2] = "/usr/lib/jvm/java-1.6.0-openjdk-amd64/jre/lib/rt.jar"
+  java6Paths[3] = "/usr/lib/jvm/java-1.6.0-openjdk/jre/lib/rt.jar"
+  java6Paths[4] = "/usr/lib/jvm/java-6-sun/jre/lib/rt.jar"
+  for (String path : java6Paths) {
+    if (new java.io.File(path).exists()) {
+      options.bootClasspath = path
+      break
+    }
+  }
+}
+
+signing {
+  sign configurations.archives
+}
+
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      beforeDeployment {
+        MavenDeployment deployment -> signing.signPom(deployment)
+      }
+ 
+      repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: sonatypeUsername, password: sonatypePassword)
+      }
+      snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
+        authentication(userName: sonatypeUsername, password: sonatypePassword)
+      }
+ 
+      pom.project {
+        name 'litesockets-http-protocol'
+        packaging 'jar'
+        description 'A light weight http protocol parsing library.  This library is used to parse http requests.  The parsing happens completely independant of any networking.'
+        url 'https://github.com/threadly/litesockets-http'
+ 
+        scm {
+          url 'scm:git@github.com:threadly/litesockets-http.git'
+          connection 'scm:git@github.com:threadly/litesockets-http.git'
+          developerConnection 'scm:git@github.com:threadly/litesockets-http.git'
+        }
+ 
+        licenses {
+          license {
+            name 'The MIT License (MIT)'
+            url 'http://opensource.org/licenses/MIT'
+            distribution 'repo'
+          }
+        }
+ 
+        developers {
+          developer {
+            id 'lwahlmeier'
+            name 'Luke Wahlmeier'
+          }
+          developer {
+            id 'jent'
+            name 'Mike Jensen'
+          }
+        }
+      }
+    }
+  }
+}

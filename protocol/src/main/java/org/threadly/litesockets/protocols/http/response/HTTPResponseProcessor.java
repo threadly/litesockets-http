@@ -17,7 +17,7 @@ public class HTTPResponseProcessor {
   public static final int MAX_RESPONSE_HEADER_SIZE = 500;
   public static final int MAX_HEADER_SIZE = 50000;
   private final MergedByteBuffers buffers = new MergedByteBuffers();
-  private final ListenerHelper<HTTPResponseCallback> listeners = ListenerHelper.build(HTTPResponseCallback.class);
+  private final ListenerHelper<HTTPResponseCallback> listeners = new ListenerHelper<HTTPResponseCallback>(HTTPResponseCallback.class);
   private HTTPResponse response;
   private int nextChunkSize = -1;
   private int currentBodySize = 0;

@@ -20,7 +20,7 @@ public class HTTPRequestProcessor {
   public static final int MAX_HEADER_ROW_LENGTH = 1024*8;
   
   private final MergedByteBuffers pendingBuffers = new MergedByteBuffers();
-  private final ListenerHelper<HTTPRequestCallback> listeners = ListenerHelper.build(HTTPRequestCallback.class);
+  private final ListenerHelper<HTTPRequestCallback> listeners = new ListenerHelper<HTTPRequestCallback>(HTTPRequestCallback.class);
   private int maxHeaderLength = MAX_HEADER_LENGTH;
   private int maxRowLength = MAX_HEADER_ROW_LENGTH;
   private HTTPRequest request;

@@ -336,7 +336,7 @@ public class HTTPServer extends AbstractService {
    *
    */
   public static class BodyFuture {
-    private final ListenerHelper<BodyListener> listener = ListenerHelper.build(BodyListener.class);
+    private final ListenerHelper<BodyListener> listener = new ListenerHelper<BodyListener>(BodyListener.class);
     
     /**
      * Sets the BodyListener to be used/called back on.
