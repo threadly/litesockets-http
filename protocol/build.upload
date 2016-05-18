@@ -73,15 +73,15 @@ uploadArchives {
           connection 'scm:git@github.com:threadly/litesockets-http.git'
           developerConnection 'scm:git@github.com:threadly/litesockets-http.git'
         }
- 
+
         licenses {
           license {
-            name 'The MIT License (MIT)'
-            url 'http://opensource.org/licenses/MIT'
+            name 'Mozilla Public License Version 2.0'
+            url 'https://www.mozilla.org/MPL/2.0/'
             distribution 'repo'
           }
         }
- 
+
         developers {
           developer {
             id 'lwahlmeier'
