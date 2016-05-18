@@ -17,10 +17,10 @@ dependencies {
   compile (
     "org.threadly:threadly:$threadlyVersion",
     "org.threadly:litesockets:$litesocketsVersion",
-    "org.threadly:litesockets-http-protocol:0.6.1-SNAPSHOT",
+    "org.threadly:litesockets-http-protocol:$version",
   )
   testCompile (
-    "org.threadly:litesockets-http-server:0.6.1-SNAPSHOT",
+    "org.threadly:litesockets-http-server:$version",
   )
 }
 
