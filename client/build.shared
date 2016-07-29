@@ -3,6 +3,7 @@ apply plugin: 'maven'
 apply plugin: 'checkstyle'
 
 repositories {
+  mavenLocal()
   mavenCentral()
   maven {
     url "http://oss.sonatype.org/content/groups/public/"

@@ -6,6 +6,7 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -281,11 +282,29 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     try{
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+      httpClient.request(hrb.buildHTTPAddress(false), hrb.build(), ByteBuffer.allocate(0), TimeUnit.MILLISECONDS, 10000);
       fail();
     } catch(HTTPParsingException e) {
+      e.printStackTrace();
       assertEquals("Did not get complete body!", e.getMessage());
+    }
+  }
+  
+  @Test
+  public void timeoutRequest() throws IOException, HTTPParsingException {
+    int port = TestUtils.findTCPPort();
+    TCPServer server = SEI.createTCPServer("localhost", port);
+    server.start();
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
+    try{
+      httpClient.request(hrb.buildHTTPAddress(false), hrb.build(), ByteBuffer.allocate(0), TimeUnit.MILLISECONDS, 500);
+      fail();
+    } catch(HTTPParsingException e) {
+      assertEquals("HTTP Timeout!", e.getMessage());
     }
   }
 

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -249,8 +250,10 @@ public class HTTPClient extends AbstractService {
     } catch (Exception e) {
       if(e.getCause() instanceof HTTPParsingException) {
         throw (HTTPParsingException)e.getCause();
+      } else if(e instanceof CancellationException) {
+        throw new HTTPParsingException("HTTP Timeout!", e);
       } else {
-        throw new HTTPParsingException(e.getCause());
+        throw new HTTPParsingException(e);
       }
     }
     return hr;
@@ -348,16 +351,23 @@ public class HTTPClient extends AbstractService {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
     while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
       HTTPRequestWrapper hrw = queue.poll();
-      //This runs concurrently if using a threaded SocketExecuter, so we have to null check before we add.
-      if(hrw != null) {
-        try {
-          hrw.client = getTCPClient(hrw.ha);
-          inProcess.put(hrw.client, hrw);
-          startWrite(hrw);
-        } catch (Exception e) {
-          //Have to catch all here or we dont keep processing if NoThreadSE is in use
-          hrw.slf.setFailure(e);
-        }
+      process(hrw);
+    }
+  }
+  
+  private void process(HTTPRequestWrapper hrw) {
+    if(hrw != null) {
+      try {
+        sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
+        
+        hrw.updateReadTime();
+        hrw.client = getTCPClient(hrw.ha);
+        inProcess.put(hrw.client, hrw);
+        hrw.client.write(hrw.hr.getByteBuffer());
+        hrw.client.write(hrw.body.duplicate());
+      } catch (Exception e) {
+        //Have to catch all here or we dont keep processing if NoThreadSE is in use
+        //hrw.slf.setFailure(e);
       }
     }
   }
@@ -424,14 +434,6 @@ public class HTTPClient extends AbstractService {
     }
   }
 
-  private void startWrite(HTTPRequestWrapper hrw) {
-    //Request started here so we set the timeout to start now.
-    hrw.updateReadTime();
-    sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
-    hrw.client.write(hrw.hr.getByteBuffer());
-    hrw.client.write(hrw.body.duplicate());
-  }
-
   /**
    * Used to run the NoThreadSocketExecuter.
    */
@@ -460,10 +462,18 @@ public class HTTPClient extends AbstractService {
     @Override
     public void onClose(Client client) {
       HTTPRequestWrapper hrw = inProcess.get(client);
-      if(hrw != null) {
-        hrw.hrp.connectionClosed();
-      }
+
       client.close();
+      if(hrw != null) {
+        boolean wasProcessing = hrw.hrp.isProcessing();
+        hrw.hrp.connectionClosed();
+        if(!hrw.slf.isDone() && !wasProcessing) {
+          hrw.client = null;
+          process(hrw);  
+        } else {
+          hrw.slf.setFailure(new HTTPParsingException("Did not get complete body!"));
+        }
+      }
       inProcess.remove(client);
       tcpClients.remove(client);
     }

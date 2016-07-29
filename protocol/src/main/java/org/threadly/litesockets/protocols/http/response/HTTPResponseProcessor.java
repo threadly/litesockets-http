@@ -89,6 +89,17 @@ public class HTTPResponseProcessor {
     }
   }
   
+  public int getCurrentBodySize() {
+    return this.currentBodySize;
+  }
+  
+  public boolean isProcessing() {
+    if(response != null || buffers.remaining() > 0) {
+      return true;
+    }
+    return false;
+  }
+  
   private void processChunks() {
     while(buffers.remaining() > 0) {
       if(nextChunkSize == -1) {
