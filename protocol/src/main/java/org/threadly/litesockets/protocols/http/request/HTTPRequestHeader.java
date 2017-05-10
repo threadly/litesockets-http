@@ -22,7 +22,7 @@ public class HTTPRequestHeader {
   private final String httpVersion;
   
   public HTTPRequestHeader(final String requestHeader) {
-    this.rawRequest = requestHeader.trim().intern();
+    this.rawRequest = requestHeader.trim();
     String[] tmp = requestHeader.trim().split(" ");
     if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+requestHeader);
@@ -31,14 +31,14 @@ public class HTTPRequestHeader {
     String ptmp = tmp[1].trim();
     if(ptmp.indexOf("?") >= 0) {
       int pos = tmp[1].indexOf("?");
-      requestPath = ptmp.substring(0, pos).intern();
+      requestPath = ptmp.substring(0, pos);
       requestQuery = HTTPUtils.queryToMap(ptmp.substring(pos+1));
     } else {
-      requestPath = ptmp.intern();
+      requestPath = ptmp;
       requestQuery = HTTPUtils.queryToMap("");
     }
     
-    httpVersion = tmp[2].trim().toUpperCase().intern();
+    httpVersion = tmp[2].trim().toUpperCase();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
       throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
     }
@@ -56,13 +56,13 @@ public class HTTPRequestHeader {
       this.requestPath = requestPath.substring(0, pos);
       rqm.putAll(HTTPUtils.queryToMap(requestPath.substring(pos+1)));
     } else {
-      this.requestPath = requestPath.intern();
+      this.requestPath = requestPath;
     }
     if(requestQuery != null) {
       rqm.putAll(requestQuery);
     }
     this.requestQuery = Collections.unmodifiableMap(rqm);
-    this.httpVersion = httpVersion.trim().toUpperCase().intern();
+    this.httpVersion = httpVersion.trim().toUpperCase();
     StringBuilder sb = new StringBuilder();
     sb.append(requestType.toString());
     sb.append(HTTPConstants.SPACE);
@@ -72,7 +72,7 @@ public class HTTPRequestHeader {
     }
     sb.append(HTTPConstants.SPACE);
     sb.append(this.httpVersion);
-    rawRequest = sb.toString().intern();
+    rawRequest = sb.toString();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
       throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
     }

@@ -22,7 +22,7 @@ public class HTTPResponseHeader {
     if(tmp.length != REQUIRED_RESPONSE_ITEMS) {
       throw new IllegalArgumentException("Invalide Response Header! :"+stringResponse);
     }
-    httpVersion = tmp[0].trim().intern();
+    httpVersion = tmp[0].trim();
     if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
       throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
     }
@@ -34,7 +34,7 @@ public class HTTPResponseHeader {
       throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
     }
     hrc = rCode;
-    this.httpVersion = httpVersion.intern();
+    this.httpVersion = httpVersion;
     rawResponse = (this.httpVersion+" "+hrc.getId()+" "+hrc.toString());
   }
   

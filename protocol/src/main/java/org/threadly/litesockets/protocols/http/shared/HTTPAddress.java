@@ -21,14 +21,14 @@ public class HTTPAddress {
       this.port = port;
       this.host = url.getHost();
       this.doSSL = url.getProtocol().equalsIgnoreCase("https");
-      finalString = ("HTTPAddress:"+host+":"+port+":SSL:"+doSSL).intern();
+      finalString = ("HTTPAddress:"+host+":"+port+":SSL:"+doSSL);
   }
   
   public HTTPAddress(String host, int port, boolean doSSL) {
-    this.host = host.intern();
+    this.host = host;
     this.port = port;
     this.doSSL = doSSL;
-    finalString = ("HTTPAddress:"+host+":"+port+":SSL:"+doSSL).intern();
+    finalString = ("HTTPAddress:"+host+":"+port+":SSL:"+doSSL);
   }
   
   public String getHost() {

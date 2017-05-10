@@ -93,9 +93,9 @@ public class HTTPUtils {
       for(String kv: tmpQ) {
         String[] tmpkv = kv.split("=");
         if(tmpkv.length == 1) {
-          map.put(tmpkv[0].trim().intern(), "");
+          map.put(tmpkv[0].trim(), "");
         } else {
-          map.put(tmpkv[0].trim().intern(), tmpkv[1].trim().intern());
+          map.put(tmpkv[0].trim(), tmpkv[1].trim());
         }
       }
     }
