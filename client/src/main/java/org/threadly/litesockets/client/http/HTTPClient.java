@@ -24,6 +24,8 @@ import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
@@ -33,7 +35,6 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.RequestType;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
@@ -503,7 +504,7 @@ public class HTTPClient extends AbstractService {
     private final long timeout;
     private final ByteBuffer body;
     private HTTPResponse response;
-    private MergedByteBuffers responseMBB = new MergedByteBuffers();
+    private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
     private TCPClient client;
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
@@ -572,11 +573,11 @@ public class HTTPClient extends AbstractService {
     }
 
     public MergedByteBuffers getBody() {
-      return body.copy();
+      return body.duplicate();
     }
 
     public String getBodyAsString() {
-      return body.copy().getAsString(body.remaining());
+      return body.duplicate().getAsString(body.remaining());
     }
   }
 

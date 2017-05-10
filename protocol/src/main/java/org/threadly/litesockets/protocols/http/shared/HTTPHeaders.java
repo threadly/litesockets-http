@@ -16,19 +16,19 @@ public class HTTPHeaders {
   public HTTPHeaders(String headerString) {
     TreeMap<String, String> map = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
     if(headerString.endsWith(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)) {
-      this.rawHeaders = headerString.substring(0, headerString.length()-2).intern();
+      this.rawHeaders = headerString.substring(0, headerString.length()-2);
     } else if(!headerString.endsWith(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) { 
-      this.rawHeaders = (headerString+HTTPConstants.HTTP_NEWLINE_DELIMINATOR).intern();
+      this.rawHeaders = (headerString+HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     } else {
       headerString = HTTPUtils.leftTrim(headerString);
-      this.rawHeaders = headerString.intern();
+      this.rawHeaders = headerString;
     }
     
     String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
       String[] kv = h.split(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
-      String key = kv[0].trim().intern();
-      String value = kv[1].trim().intern();
+      String key = kv[0].trim();
+      String value = kv[1].trim();
       map.put(key, value);
     }
     
@@ -39,14 +39,14 @@ public class HTTPHeaders {
     TreeMap<String, String> lheaders = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
     StringBuilder sb = new StringBuilder();
     for(Entry<String, String> kv: headerMap.entrySet()) {
-      lheaders.put(kv.getKey().trim().intern(), kv.getValue().trim().intern());
+      lheaders.put(kv.getKey().trim(), kv.getValue().trim());
       sb.append(kv.getKey());
       sb.append(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
       sb.append(HTTPConstants.SPACE);
       sb.append(kv.getValue());
       sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     }
-    rawHeaders = sb.toString().intern();
+    rawHeaders = sb.toString();
     this.headers = Collections.unmodifiableMap(lheaders);
   }
   

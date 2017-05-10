@@ -5,7 +5,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 
 /**
  * 
@@ -30,7 +31,7 @@ public class HTTPUtils {
   }
   
   public static int getNextChunkLength(final ByteBuffer bb) {
-    MergedByteBuffers mbb = new MergedByteBuffers();
+    MergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     mbb.add(bb);
     int pos = mbb.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     try {
@@ -92,9 +93,9 @@ public class HTTPUtils {
       for(String kv: tmpQ) {
         String[] tmpkv = kv.split("=");
         if(tmpkv.length == 1) {
-          map.put(tmpkv[0].trim().intern(), "");
+          map.put(tmpkv[0].trim(), "");
         } else {
-          map.put(tmpkv[0].trim().intern(), tmpkv[1].trim().intern());
+          map.put(tmpkv[0].trim(), tmpkv[1].trim());
         }
       }
     }
