@@ -14,6 +14,7 @@ import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPStreamClient;
 import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.client.http.StreamingClient;
@@ -24,7 +25,6 @@ import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 
 
 /**
@@ -360,7 +360,7 @@ public class WebSocketClient implements StreamingClient{
    */
   private class LocalStreamReader implements HTTPStreamReader {
 
-    private final MergedByteBuffers mbb = new MergedByteBuffers();
+    private final ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     private WebSocketFrame lastFrame;
 
     @Override
@@ -373,7 +373,7 @@ public class WebSocketClient implements StreamingClient{
           }
           if(lastFrame != null) {
             if(mbb.remaining() >= lastFrame.getPayloadDataLength()) {
-              ByteBuffer data = mbb.pull((int) lastFrame.getPayloadDataLength());
+              ByteBuffer data = mbb.pullBuffer((int) lastFrame.getPayloadDataLength());
               if(lastFrame.hasMask()) {
                 data = lastFrame.unmaskPayload(data);
               }

@@ -4,10 +4,11 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
+import java.util.Base64;
 import java.util.Random;
 
-import org.threadly.litesockets.utils.Base64;
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 
 
 /**
@@ -49,7 +50,7 @@ public class WebSocketFrameParser {
   public static String makeSecretKey(final int size) {
     byte[] ba = new byte[size];
     RANDOM.nextBytes(ba);
-    return Base64.encode(ba);
+    return Base64.getEncoder().encodeToString(ba);
   }
 
   /**
@@ -64,7 +65,7 @@ public class WebSocketFrameParser {
       md = MessageDigest.getInstance(DEFAULT_SECRET_HASH_ALGO);
       md.update(str.getBytes());
       md.update(MAGIC_UUID_BA);
-      return Base64.encode(md.digest());
+      return Base64.getEncoder().encodeToString(md.digest());
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("HUGE problem we dont support the SHA1 hash cant to websockets!!!!!", e);
     }
@@ -83,8 +84,7 @@ public class WebSocketFrameParser {
    * @throws ParseException this is thrown if there is not enough data to make a {@link WebSocketFrame}. 
    */
   public static WebSocketFrame parseWebSocketFrame(final ByteBuffer bb) throws ParseException {
-    MergedByteBuffers mbb = new MergedByteBuffers();
-    mbb.add(bb);
+    MergedByteBuffers mbb = new SimpleMergedByteBuffers(false, bb);
     int origSize = mbb.remaining();
     WebSocketFrame wsf = parseWebSocketFrame(mbb);
     bb.position(bb.position() + origSize - mbb.remaining());
@@ -102,7 +102,7 @@ public class WebSocketFrameParser {
   public static WebSocketFrame parseWebSocketFrame(final MergedByteBuffers mbb) throws ParseException {
     final int size = getFrameLength(mbb);
     if(size > 0 && mbb.remaining() >= size) {
-      ByteBuffer nbb = mbb.pull(size);
+      ByteBuffer nbb = mbb.pullBuffer(size);
       return new WebSocketFrame(nbb);
     } else {
       throw new ParseException("Not enough data to make a WebSocketFrame", 0);
@@ -117,8 +117,8 @@ public class WebSocketFrameParser {
    * @return size of the frame in bytes, or -1 is there is not enough data to make figure out the frame length.
    */
   public static int getFrameLength(final MergedByteBuffers mbb) {
-    final MergedByteBuffers nmbb = mbb.copy();
-    return getFrameLength(nmbb.pull(Math.min(nmbb.remaining(), MAX_WS_FRAME_SIZE)));
+    final MergedByteBuffers nmbb = mbb.duplicate();
+    return getFrameLength(nmbb.pullBuffer(Math.min(nmbb.remaining(), MAX_WS_FRAME_SIZE)));
   }
 
   /**

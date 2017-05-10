@@ -19,7 +19,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
-import org.threadly.litesockets.utils.TransactionalByteBuffers;
+import org.threadly.litesockets.buffers.TransactionalByteBuffers;
 
 public class FakeHTTPStreamingServer implements HTTPServerHandler {
   public static byte[] SEND_DATA = new byte[1024];
@@ -80,7 +80,7 @@ public class FakeHTTPStreamingServer implements HTTPServerHandler {
     responseWriter.sendHTTPResponse(hr);
     sendBack.begin();
     while(sendBack.remaining() > 0) {
-      responseWriter.writeBody(sendBack.pull(Math.min(500, sendBack.remaining())));
+      responseWriter.writeBody(sendBack.pullBuffer(Math.min(500, sendBack.remaining())));
     }
     for(int i=0; i<this.kToSend; i++) {
       if(chunked) {

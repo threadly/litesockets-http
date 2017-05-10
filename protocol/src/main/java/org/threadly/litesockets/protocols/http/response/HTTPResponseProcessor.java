@@ -4,10 +4,12 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 
 import org.threadly.concurrent.event.ListenerHelper;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 
 
 /**
@@ -16,7 +18,7 @@ import org.threadly.litesockets.utils.MergedByteBuffers;
 public class HTTPResponseProcessor {
   public static final int MAX_RESPONSE_HEADER_SIZE = 500;
   public static final int MAX_HEADER_SIZE = 50000;
-  private final MergedByteBuffers buffers = new MergedByteBuffers();
+  private final ReuseableMergedByteBuffers buffers = new ReuseableMergedByteBuffers();
   private final ListenerHelper<HTTPResponseCallback> listeners = new ListenerHelper<HTTPResponseCallback>(HTTPResponseCallback.class);
   private HTTPResponse response;
   private int nextChunkSize = -1;
@@ -37,9 +39,7 @@ public class HTTPResponseProcessor {
   }
   
   public void processData(ByteBuffer bb) {
-    MergedByteBuffers mbb = new MergedByteBuffers();
-    mbb.add(bb);
-    processData(mbb);
+    processData(new SimpleMergedByteBuffers(false, bb));
   }
   
   public void processData(MergedByteBuffers bb) {
@@ -78,13 +78,13 @@ public class HTTPResponseProcessor {
     } else {
       if(response.getHeaders().getContentLength() != -1 && currentBodySize < response.getHeaders().getContentLength()) {
         int pull = Math.min(response.getHeaders().getContentLength(), buffers.remaining());
-        sendDuplicateBBtoListeners(buffers.pull(pull));
+        sendDuplicateBBtoListeners(buffers.pullBuffer(pull));
         currentBodySize+=pull;
         if(currentBodySize >= response.getHeaders().getContentLength()) {
           reset(null);
         }
       } else if (response.getHeaders().getContentLength() == -1) {
-        sendDuplicateBBtoListeners(buffers.pull(buffers.remaining()));
+        sendDuplicateBBtoListeners(buffers.pullBuffer(buffers.remaining()));
       }
     }
   }
@@ -122,7 +122,7 @@ public class HTTPResponseProcessor {
         }
       } else {
         if(buffers.remaining() >= nextChunkSize+2) {
-          ByteBuffer bb = buffers.pull(nextChunkSize);
+          ByteBuffer bb = buffers.pullBuffer(nextChunkSize);
           buffers.discard(2);
           sendDuplicateBBtoListeners(bb);  
           nextChunkSize = -1;

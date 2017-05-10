@@ -17,12 +17,12 @@ import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 import org.threadly.test.concurrent.TestCondition;
 
 public class HTTPStreamClientTest {
@@ -56,7 +56,7 @@ public class HTTPStreamClientTest {
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
     final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port);
     final AtomicBoolean set = new AtomicBoolean(false);
-    final MergedByteBuffers mbb = new MergedByteBuffers();
+    final ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     hsc.setHTTPStreamReader(new HTTPStreamReader() {
       @Override
       public void handle(ByteBuffer bb) {
@@ -98,7 +98,7 @@ public class HTTPStreamClientTest {
     final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port);
     final AtomicBoolean set = new AtomicBoolean(false);
     final AtomicInteger count = new AtomicInteger(0);
-    final MergedByteBuffers mbb = new MergedByteBuffers();
+    final ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     hsc.setHTTPStreamReader(new HTTPStreamReader() {
       @Override
       public void handle(ByteBuffer bb) {

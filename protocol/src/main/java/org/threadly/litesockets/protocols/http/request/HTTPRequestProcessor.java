@@ -3,10 +3,11 @@ package org.threadly.litesockets.protocols.http.request;
 import java.nio.ByteBuffer;
 
 import org.threadly.concurrent.event.ListenerHelper;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.utils.MergedByteBuffers;
 
 /**
  * This processes byte data and turns it into HTTPrequests.  It does this through callbacks to a {@link HTTPRequestCallback} interface.  
@@ -19,7 +20,7 @@ public class HTTPRequestProcessor {
   public static final int MAX_HEADER_LENGTH = 1024*128;
   public static final int MAX_HEADER_ROW_LENGTH = 1024*8;
   
-  private final MergedByteBuffers pendingBuffers = new MergedByteBuffers();
+  private final ReuseableMergedByteBuffers pendingBuffers = new ReuseableMergedByteBuffers();
   private final ListenerHelper<HTTPRequestCallback> listeners = new ListenerHelper<HTTPRequestCallback>(HTTPRequestCallback.class);
   private int maxHeaderLength = MAX_HEADER_LENGTH;
   private int maxRowLength = MAX_HEADER_ROW_LENGTH;
@@ -74,8 +75,8 @@ public class HTTPRequestProcessor {
           return;
         }
         if(pos > -1) {
-          MergedByteBuffers tmp = new MergedByteBuffers();
-          tmp.add(pendingBuffers.pull(pos+2));
+          MergedByteBuffers tmp = new ReuseableMergedByteBuffers();
+          tmp.add(pendingBuffers.pullBuffer(pos+2));
           pendingBuffers.discard(2);
           try{
             String reqh = tmp.getAsString(tmp.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR));
@@ -121,11 +122,11 @@ public class HTTPRequestProcessor {
   
   private boolean parseStreamBody() {
     if(bodySize == -1) {
-      sendDuplicateBBtoListeners(pendingBuffers.pull(pendingBuffers.remaining()));
+      sendDuplicateBBtoListeners(pendingBuffers.pullBuffer(pendingBuffers.remaining()));
       return false;
     } else {
       if(currentBodySize < bodySize) {
-        ByteBuffer bb = pendingBuffers.pull(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
+        ByteBuffer bb = pendingBuffers.pullBuffer(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
         currentBodySize+=bb.remaining();
         sendDuplicateBBtoListeners(bb);
         if(currentBodySize == bodySize) {
@@ -172,7 +173,7 @@ public class HTTPRequestProcessor {
         } else if(currentBodySize == bodySize && pendingBuffers.remaining() < 2) {
           return false;
         } else {
-          ByteBuffer bb = pendingBuffers.pull(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
+          ByteBuffer bb = pendingBuffers.pullBuffer(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
           currentBodySize+=bb.remaining();
           chunkedBB.put(bb);
         }

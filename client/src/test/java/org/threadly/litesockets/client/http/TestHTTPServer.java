@@ -18,7 +18,7 @@ import org.threadly.litesockets.server.http.HTTPServer.BodyFuture;
 import org.threadly.litesockets.server.http.HTTPServer.HTTPServerHandler;
 import org.threadly.litesockets.server.http.HTTPServer.ResponseWriter;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
-import org.threadly.litesockets.utils.TransactionalByteBuffers;
+import org.threadly.litesockets.buffers.TransactionalByteBuffers;
 
 public class TestHTTPServer implements HTTPServerHandler {
   private final TrustManager[] myTMs = new TrustManager [] {new FullTrustManager() };
@@ -77,7 +77,7 @@ public class TestHTTPServer implements HTTPServerHandler {
     responseWriter.sendHTTPResponse(hr);
     sendBack.begin();
     while(sendBack.remaining() > 0) {
-      responseWriter.writeBody(sendBack.pull(Math.min(500, sendBack.remaining())));
+      responseWriter.writeBody(sendBack.pullBuffer(Math.min(500, sendBack.remaining())));
     }
     sendBack.rollback();
     if(closeOnSend) {

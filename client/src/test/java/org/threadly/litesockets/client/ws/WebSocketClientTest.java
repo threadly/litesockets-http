@@ -31,7 +31,8 @@ import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
-import org.threadly.litesockets.utils.MergedByteBuffers;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.ExceptionUtils;
@@ -68,7 +69,7 @@ public class WebSocketClientTest {
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
       public void onData(WebSocketFrame wsf, ByteBuffer bb) {
-        MergedByteBuffers mbb = new MergedByteBuffers();
+        ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
       }});
@@ -201,7 +202,7 @@ public class WebSocketClientTest {
 
     @Override
     public void accept(Client client) {
-      buffers.put(client, new MergedByteBuffers());
+      buffers.put(client, new ReuseableMergedByteBuffers());
       headerDone.put(client, false);
       client.setReader(this);
     }
@@ -211,7 +212,7 @@ public class WebSocketClientTest {
       if(!headerDone.get(client)) {
         MergedByteBuffers mbb = buffers.get(client);
         mbb.add(client.getRead());
-        System.out.println(mbb.copy().getAsString(mbb.remaining()));
+        System.out.println(mbb.duplicate().getAsString(mbb.remaining()));
         if(mbb.indexOf("\r\n\r\n") > -1) {
           headerDone.put(client, true);
           String[] request = mbb.getAsString(mbb.indexOf("\r\n\r\n")).split("\r\n");
@@ -228,13 +229,13 @@ public class WebSocketClientTest {
           hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, null);
           client.write(hrb.build().getByteBuffer());
           if(mbb.remaining() > 0) {
-            client.write(mbb.pull(mbb.remaining()));
+            client.write(mbb.pullBuffer(mbb.remaining()));
           }
         }
       } else {
         MergedByteBuffers mbb = client.getRead();
         if(mbb.remaining() > 0) {
-          client.write(mbb.pull(mbb.remaining()));
+          client.write(mbb.pullBuffer(mbb.remaining()));
         }
       }
     }
@@ -248,7 +249,7 @@ public class WebSocketClientTest {
 
     @Override
     public void accept(Client client) {
-      buffers.put(client, new MergedByteBuffers());
+      buffers.put(client, new ReuseableMergedByteBuffers());
       headerDone.put(client, false);
       client.setReader(this);
     }
@@ -269,7 +270,7 @@ public class WebSocketClientTest {
 
     @Override
     public void accept(Client client) {
-      buffers.put(client, new MergedByteBuffers());
+      buffers.put(client, new ReuseableMergedByteBuffers());
       headerDone.put(client, false);
       client.setReader(this);
     }
@@ -279,7 +280,7 @@ public class WebSocketClientTest {
       if(!headerDone.get(client)) {
         MergedByteBuffers mbb = buffers.get(client);
         mbb.add(client.getRead());
-        System.out.println(mbb.copy().getAsString(mbb.remaining()));
+        System.out.println(mbb.duplicate().getAsString(mbb.remaining()));
         if(mbb.indexOf("\r\n\r\n") > -1) {
           headerDone.put(client, true);
           String[] request = mbb.getAsString(mbb.indexOf("\r\n\r\n")).split("\r\n");
@@ -296,13 +297,13 @@ public class WebSocketClientTest {
           hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, null);
           client.write(hrb.build().getByteBuffer());
           if(mbb.remaining() > 0) {
-            client.write(mbb.pull(mbb.remaining()));
+            client.write(mbb.pullBuffer(mbb.remaining()));
           }
         }
       } else {
         MergedByteBuffers mbb = client.getRead();
         if(mbb.remaining() > 0) {
-          client.write(mbb.pull(mbb.remaining()));
+          client.write(mbb.pullBuffer(mbb.remaining()));
         }
       }
     }
