@@ -214,7 +214,6 @@ public class HTTPServer extends AbstractService {
     private boolean responseSent = false;
     private boolean done = false;
     private boolean closeOnDone = false;
-    private ListenableFuture<?> lastWriteFuture;
     
     protected ResponseWriter(Client client) {
       this.client = client;
@@ -246,8 +245,7 @@ public class HTTPServer extends AbstractService {
           closeOnDone = true;
         }
         responseSent = true;
-        lastWriteFuture = client.write(hr.getByteBuffer());
-        return lastWriteFuture;
+        return client.write(hr.getByteBuffer());
       } else if (responseSent) {
         throw new IllegalStateException("HTTPResponse already sent!");
       } else {
@@ -290,8 +288,7 @@ public class HTTPServer extends AbstractService {
      */
     public ListenableFuture<?> writeBody(ByteBuffer bb) {
       if(responseSent && !done) {
-        lastWriteFuture = client.write(bb);
-        return lastWriteFuture;
+        return client.write(bb);
       } else if(responseSent){
         throw new IllegalStateException("Can not send body before HTTPResponse!");
       } else {
@@ -306,7 +303,7 @@ public class HTTPServer extends AbstractService {
     public void done() {
       done = true;
       if(closeOnDone && !client.isClosed()) {
-        lastWriteFuture.addListener(new Runnable(){
+        client.lastWriteFuture().addListener(new Runnable(){
           @Override
           public void run() {
             client.close();
