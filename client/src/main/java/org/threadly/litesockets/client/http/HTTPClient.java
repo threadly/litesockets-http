@@ -91,7 +91,6 @@ public class HTTPClient extends AbstractService {
     this.ssi = sts;
     ntse = new NoThreadSocketExecuter();
     sei = ntse;
-    ntse.start();
   }
 
 
@@ -375,17 +374,24 @@ public class HTTPClient extends AbstractService {
 
   @Override
   protected void startupService() {
-    // TODO Auto-generated method stub
-    
+    if (ntse != null) {
+      ntse.start();
+    }
   }
 
   @Override
   protected void shutdownService() {
     if(ntse != null) {
-      ntse.stopIfRunning();
+      ntse.stop();
     }
     if(sts != null) {
       sts.shutdownNow();
+      try {
+        sts.awaitTermination();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
     }
   }
 
