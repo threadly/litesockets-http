@@ -25,6 +25,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
+import org.threadly.litesockets.utils.IOUtils;
 
 
 /**
@@ -38,8 +39,6 @@ public class WebSocketClient implements StreamingClient{
   public static final String WS_STRING = "ws";
   public static final int WSS_PORT = 443;
   public static final int WS_PORT = 80;
-  
-  private static final ByteBuffer ZERO_BYTE_BUFFER = ByteBuffer.allocate(0);
   
   private final AtomicBoolean sentRequest = new AtomicBoolean(false);
   private final SettableListenableFuture<Boolean> connectFuture = new SettableListenableFuture<Boolean>();
@@ -378,7 +377,7 @@ public class WebSocketClient implements StreamingClient{
                 data = lastFrame.unmaskPayload(data);
               }
               if(autoReplyPings && lastFrame.getOpCode() == WebSocketOpCode.Ping.getValue()) {
-                write(ZERO_BYTE_BUFFER, WebSocketOpCode.Pong.getValue(), false);
+                write(IOUtils.EMPTY_BYTEBUFFER, WebSocketOpCode.Pong.getValue(), false);
               } else {
                 onData.onData(lastFrame, data);
               }

@@ -35,6 +35,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
@@ -48,7 +49,6 @@ import org.threadly.util.Clock;
 public class HTTPClient extends AbstractService {
   public static final int DEFAULT_CONCURRENT = 2;
   public static final int DEFAULT_TIMEOUT = 15000;
-  public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
 
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -176,7 +176,7 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
-    return request(url, RequestType.GET, EMPTY_BUFFER);
+    return request(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
@@ -213,7 +213,7 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
-    return request(ha, request, EMPTY_BUFFER);
+    return request(ha, request, IOUtils.EMPTY_BYTEBUFFER);
   }
 
   /**
@@ -267,7 +267,7 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
-    return requestAsync(url, RequestType.GET, EMPTY_BUFFER);
+    return requestAsync(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
@@ -304,7 +304,7 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
-    return requestAsync(ha, request, EMPTY_BUFFER);
+    return requestAsync(ha, request, IOUtils.EMPTY_BYTEBUFFER);
   }
 
   /**

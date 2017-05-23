@@ -33,6 +33,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
 
@@ -320,7 +321,7 @@ public class HTTPClientTests {
     httpClient.start();
     long start = Clock.accurateForwardProgressingMillis();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 30);
+      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 30);
       fail();
     } catch(HTTPParsingException hp) {
 
@@ -416,7 +417,7 @@ public class HTTPClientTests {
 
     long start = System.currentTimeMillis();
     try{
-      httpClient.request(new HTTPAddress("localhost", port, false), hr, HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 100);
+      httpClient.request(new HTTPAddress("localhost", port, false), hr, IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 100);
     } catch(Exception e) {
       System.out.println(System.currentTimeMillis() - start);
       assertTrue(System.currentTimeMillis() - start < 300);
