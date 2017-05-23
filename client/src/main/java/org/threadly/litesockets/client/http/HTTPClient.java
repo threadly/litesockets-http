@@ -9,11 +9,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
@@ -51,7 +51,6 @@ public class HTTPClient extends AbstractService {
   public static final int DEFAULT_TIMEOUT = 15000;
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
 
-  private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
@@ -60,6 +59,7 @@ public class HTTPClient extends AbstractService {
   private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>>();
   private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<TCPClient>();
   private final MainClientProcessor mcp = new MainClientProcessor();
+  private final RunSocket runSocketTask;
   private final int maxConcurrent;
   private volatile int defaultTimeout = DEFAULT_TIMEOUT;
   private volatile SSLContext sslContext = SSLUtils.OPEN_SSL_CTX;
@@ -91,6 +91,7 @@ public class HTTPClient extends AbstractService {
     this.ssi = sts;
     ntse = new NoThreadSocketExecuter();
     sei = ntse;
+    runSocketTask = new RunSocket(ssi);
   }
 
 
@@ -107,6 +108,7 @@ public class HTTPClient extends AbstractService {
     this.maxResponseSize = maxResponseSize;
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
+    runSocketTask = new RunSocket(ssi);
   }
  
   /**
@@ -338,9 +340,7 @@ public class HTTPClient extends AbstractService {
     queue.add(hrw);
     if(ntse != null) {
       ntse.wakeup();
-      if(isRunning.compareAndSet(false, true)) {
-        ssi.execute(new RunSocket());
-      }
+      runSocketTask.signalToRun();
     } else {
       processQueue();
     }
@@ -349,8 +349,8 @@ public class HTTPClient extends AbstractService {
 
   private void processQueue() {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
-    while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
-      HTTPRequestWrapper hrw = queue.poll();
+    HTTPRequestWrapper hrw;
+    while(maxConcurrent > inProcess.size() && (hrw = queue.poll()) != null) {
       process(hrw);
     }
   }
@@ -444,17 +444,21 @@ public class HTTPClient extends AbstractService {
   /**
    * Used to run the NoThreadSocketExecuter.
    */
-  private class RunSocket implements Runnable {
+  private class RunSocket extends ReschedulingOperation {
+    protected RunSocket(SubmitterScheduler scheduler) {
+      super(scheduler, 0);
+    }
+
     @Override
     public void run() {
       if(ntse.isRunning()) {
         ntse.select(100);
       }
-      if(ntse.isRunning() && queue.size() + inProcess.size() > 0) {
+      if(ntse.isRunning()) {
         processQueue();
-        ssi.execute(this);
-      } else {
-        isRunning.set(false);
+        if (! queue.isEmpty() || ! inProcess.isEmpty()) {
+          signalToRun();  // still more to run
+        }
       }
     }
   }
