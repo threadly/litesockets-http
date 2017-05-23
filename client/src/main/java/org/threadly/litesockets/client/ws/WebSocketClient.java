@@ -41,7 +41,7 @@ public class WebSocketClient implements StreamingClient{
   public static final int WS_PORT = 80;
   
   private final AtomicBoolean sentRequest = new AtomicBoolean(false);
-  private final SettableListenableFuture<Boolean> connectFuture = new SettableListenableFuture<Boolean>();
+  private final SettableListenableFuture<Boolean> connectFuture = new SettableListenableFuture<>();
   private final HTTPRequestBuilder hrb = new HTTPRequestBuilder();
   private final LocalStreamReader lsr = new LocalStreamReader();
   private final HTTPStreamClient hsc;
@@ -308,7 +308,6 @@ public class WebSocketClient implements StreamingClient{
     if(sentRequest.compareAndSet(false, true)) {
       hsc.connect();
       hsc.writeRequest(hrb.build()).addCallback(new FutureCallback<HTTPResponse>() {
-
         @Override
         public void handleResult(HTTPResponse result) {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
@@ -358,7 +357,6 @@ public class WebSocketClient implements StreamingClient{
    *
    */
   private class LocalStreamReader implements HTTPStreamReader {
-
     private final ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     private WebSocketFrame lastFrame;
 

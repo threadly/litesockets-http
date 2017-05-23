@@ -37,7 +37,7 @@ public class HTTPServer extends AbstractService {
   public static final HTTPResponse NOT_FOUND_RESPONSE = new HTTPResponseBuilder().setResponseCode(HTTPResponseCode.NotFound).build();
   private static final Logger LOG = Logger.getLogger(HTTPServer.class.getSimpleName());
   
-  private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<TCPClient, HTTPRequestProcessor>();
+  private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<>();
   private final ClientListener clientListener = new ClientListener();
   private final SSLContext sslc;
   private final SocketExecuter se;
@@ -46,7 +46,6 @@ public class HTTPServer extends AbstractService {
   private final int port;
   
   private volatile HTTPServerHandler handler;
-  
   
   /**
    * Constructs an {@link HTTPServer} without SSL support.
@@ -158,7 +157,6 @@ public class HTTPServer extends AbstractService {
    *
    */
   private class HTTPRequestListener implements HTTPRequestCallback {
-    
     final TCPClient client;
     BodyFuture bodyFuture;
     ResponseWriter responseWriter;
@@ -221,7 +219,6 @@ public class HTTPServer extends AbstractService {
     protected ResponseWriter(Client client) {
       this.client = client;
       this.client.addCloseListener(new CloseListener() {
-
         @Override
         public void onClose(Client client) {
           closeListener.callListeners();
@@ -324,8 +321,6 @@ public class HTTPServer extends AbstractService {
       done = true;
       client.close();
     }
-    
-    
   }
   
   /**
@@ -336,7 +331,7 @@ public class HTTPServer extends AbstractService {
    *
    */
   public static class BodyFuture {
-    private final ListenerHelper<BodyListener> listener = new ListenerHelper<BodyListener>(BodyListener.class);
+    private final ListenerHelper<BodyListener> listener = new ListenerHelper<>(BodyListener.class);
     
     /**
      * Sets the BodyListener to be used/called back on.

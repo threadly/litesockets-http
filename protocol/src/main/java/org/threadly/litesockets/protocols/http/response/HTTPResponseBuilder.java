@@ -15,7 +15,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
  *
  */
 public class HTTPResponseBuilder {
-  private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+  private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
   private HTTPResponseHeader rHeader = HTTPConstants.OK_RESPONSE_HEADER;
   
   public HTTPResponseBuilder() {

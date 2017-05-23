@@ -50,7 +50,7 @@ public class HTTPRequestHeader {
   
   public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this.requestType = requestType;
-    final HashMap<String, String> rqm = new HashMap<String, String>();
+    final HashMap<String, String> rqm = new HashMap<>();
     if(requestPath.contains("?")) {
       int pos = requestPath.indexOf("?");
       this.requestPath = requestPath.substring(0, pos);

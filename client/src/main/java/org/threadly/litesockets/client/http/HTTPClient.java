@@ -54,10 +54,10 @@ public class HTTPClient extends AbstractService {
   private final int maxResponseSize;
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
-  private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
-  private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
-  private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>>();
-  private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<TCPClient>();
+  private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<>();
+  private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<>();
+  private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<>();
   private final MainClientProcessor mcp = new MainClientProcessor();
   private final RunSocket runSocketTask;
   private final int maxConcurrent;
@@ -432,7 +432,7 @@ public class HTTPClient extends AbstractService {
     if(!client.isClosed()) {
       ArrayDeque<TCPClient> ll = sockets.get(ha);  
       if(ll == null) {
-        sockets.put(ha, new ArrayDeque<TCPClient>());
+        sockets.put(ha, new ArrayDeque<>(8));
         ll = sockets.get(ha);
       }
       synchronized(ll) {
@@ -469,7 +469,6 @@ public class HTTPClient extends AbstractService {
    *
    */
   private class MainClientProcessor implements Reader, CloseListener {
-
     @Override
     public void onClose(Client client) {
       HTTPRequestWrapper hrw = inProcess.get(client);
@@ -498,7 +497,6 @@ public class HTTPClient extends AbstractService {
         client.close();
       }
     }
-
   }
 
   /**
@@ -507,7 +505,7 @@ public class HTTPClient extends AbstractService {
    *
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
-    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<HTTPResponseData>(false);
+    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
     private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
     private final HTTPRequest hr;
     private final HTTPAddress ha;
@@ -590,5 +588,4 @@ public class HTTPClient extends AbstractService {
       return body.duplicate().getAsString(body.remaining());
     }
   }
-
 }
