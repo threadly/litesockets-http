@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.threadly.util.StringUtils;
+
 /**
  * This is an immutable object of http headers.  These are the key/value pairs
  * separated by a colon. 
@@ -62,15 +64,15 @@ public class HTTPHeaders {
     return headers.get(header);
   }
 
-  public int getContentLength() {
+  public long getContentLength() {
     String scl = headers.get(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
-    int cl = -1;
-    try {
-      if(scl != null) {
-        cl =  Integer.parseInt(scl);
+    long cl = -1;
+    if (! StringUtils.isNullOrEmpty(scl)) {
+      try {
+        cl = Long.parseLong(scl);
+      } catch (NumberFormatException e) {
+        cl = -1;
       }
-    } catch(Exception e) {
-      cl = -1;
     }
     return cl;
   }

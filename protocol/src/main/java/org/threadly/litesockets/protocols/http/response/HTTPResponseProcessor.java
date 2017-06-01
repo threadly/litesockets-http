@@ -77,7 +77,7 @@ public class HTTPResponseProcessor {
       processChunks();
     } else {
       if(response.getHeaders().getContentLength() != -1 && currentBodySize < response.getHeaders().getContentLength()) {
-        int pull = Math.min(response.getHeaders().getContentLength(), buffers.remaining());
+        int pull = (int)Math.min(response.getHeaders().getContentLength(), buffers.remaining());
         sendDuplicateBBtoListeners(buffers.pullBuffer(pull));
         currentBodySize+=pull;
         if(currentBodySize >= response.getHeaders().getContentLength()) {

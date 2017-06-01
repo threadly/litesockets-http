@@ -26,7 +26,7 @@ public class HTTPRequestProcessor {
   private int maxRowLength = MAX_HEADER_ROW_LENGTH;
   private HTTPRequest request;
   private int currentBodySize = 0;
-  private int bodySize = 0;
+  private long bodySize = 0;
   private ByteBuffer chunkedBB;
   private boolean isChunked = false;
 
@@ -126,7 +126,7 @@ public class HTTPRequestProcessor {
       return false;
     } else {
       if(currentBodySize < bodySize) {
-        ByteBuffer bb = pendingBuffers.pullBuffer(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
+        ByteBuffer bb = pendingBuffers.pullBuffer((int)Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
         currentBodySize+=bb.remaining();
         sendDuplicateBBtoListeners(bb);
         if(currentBodySize == bodySize) {
@@ -152,7 +152,7 @@ public class HTTPRequestProcessor {
               reset();
               return false;
             } else {
-              chunkedBB = ByteBuffer.allocate(bodySize);
+              chunkedBB = ByteBuffer.allocate((int)bodySize); // we can int cast safely due to int parse above
               return true;
             }
           } else {
@@ -173,7 +173,7 @@ public class HTTPRequestProcessor {
         } else if(currentBodySize == bodySize && pendingBuffers.remaining() < 2) {
           return false;
         } else {
-          ByteBuffer bb = pendingBuffers.pullBuffer(Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
+          ByteBuffer bb = pendingBuffers.pullBuffer((int)Math.min(pendingBuffers.remaining(), bodySize - currentBodySize));
           currentBodySize+=bb.remaining();
           chunkedBB.put(bb);
         }
