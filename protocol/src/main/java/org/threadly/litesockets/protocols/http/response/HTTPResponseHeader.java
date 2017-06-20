@@ -20,7 +20,7 @@ public class HTTPResponseHeader {
     try {
       httpVersion = tmp[0].trim();
       if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
-        throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
+        throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
       }
       hrc = HTTPResponseCode.findResponseCode(Integer.parseInt(tmp[1].trim()));
     } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
@@ -30,7 +30,7 @@ public class HTTPResponseHeader {
   
   public HTTPResponseHeader(HTTPResponseCode rCode, String httpVersion) {
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
     hrc = rCode;
     this.httpVersion = httpVersion;

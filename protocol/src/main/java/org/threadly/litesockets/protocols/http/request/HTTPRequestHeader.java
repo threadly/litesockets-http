@@ -40,7 +40,7 @@ public class HTTPRequestHeader {
     
     httpVersion = tmp[2].trim().toUpperCase();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
   }
   
@@ -74,7 +74,7 @@ public class HTTPRequestHeader {
     sb.append(this.httpVersion);
     rawRequest = sb.toString();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
   }
   
