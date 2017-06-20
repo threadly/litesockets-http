@@ -9,11 +9,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
@@ -35,6 +35,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
@@ -48,18 +49,17 @@ import org.threadly.util.Clock;
 public class HTTPClient extends AbstractService {
   public static final int DEFAULT_CONCURRENT = 2;
   public static final int DEFAULT_TIMEOUT = 15000;
-  public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0); 
   public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
 
-  private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private final int maxResponseSize;
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
-  private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<HTTPRequestWrapper>();
-  private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<TCPClient, HTTPRequestWrapper>();
-  private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>>();
-  private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<TCPClient>();
+  private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<>();
+  private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<HTTPAddress, ArrayDeque<TCPClient>> sockets = new ConcurrentHashMap<>();
+  private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<>();
   private final MainClientProcessor mcp = new MainClientProcessor();
+  private final RunSocket runSocketTask;
   private final int maxConcurrent;
   private volatile int defaultTimeout = DEFAULT_TIMEOUT;
   private volatile SSLContext sslContext = SSLUtils.OPEN_SSL_CTX;
@@ -91,7 +91,7 @@ public class HTTPClient extends AbstractService {
     this.ssi = sts;
     ntse = new NoThreadSocketExecuter();
     sei = ntse;
-    ntse.start();
+    runSocketTask = new RunSocket(ssi);
   }
 
 
@@ -108,6 +108,7 @@ public class HTTPClient extends AbstractService {
     this.maxResponseSize = maxResponseSize;
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
+    runSocketTask = new RunSocket(ssi);
   }
  
   /**
@@ -177,7 +178,7 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
-    return request(url, RequestType.GET, EMPTY_BUFFER);
+    return request(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
@@ -214,7 +215,7 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
-    return request(ha, request, EMPTY_BUFFER);
+    return request(ha, request, IOUtils.EMPTY_BYTEBUFFER);
   }
 
   /**
@@ -268,7 +269,7 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
-    return requestAsync(url, RequestType.GET, EMPTY_BUFFER);
+    return requestAsync(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
@@ -305,7 +306,7 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
-    return requestAsync(ha, request, EMPTY_BUFFER);
+    return requestAsync(ha, request, IOUtils.EMPTY_BYTEBUFFER);
   }
 
   /**
@@ -339,9 +340,7 @@ public class HTTPClient extends AbstractService {
     queue.add(hrw);
     if(ntse != null) {
       ntse.wakeup();
-      if(isRunning.compareAndSet(false, true)) {
-        ssi.execute(new RunSocket());
-      }
+      runSocketTask.signalToRun();
     } else {
       processQueue();
     }
@@ -350,8 +349,8 @@ public class HTTPClient extends AbstractService {
 
   private void processQueue() {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
-    while(maxConcurrent > inProcess.size()  && !queue.isEmpty()) {
-      HTTPRequestWrapper hrw = queue.poll();
+    HTTPRequestWrapper hrw;
+    while(maxConcurrent > inProcess.size() && (hrw = queue.poll()) != null) {
       process(hrw);
     }
   }
@@ -375,17 +374,24 @@ public class HTTPClient extends AbstractService {
 
   @Override
   protected void startupService() {
-    // TODO Auto-generated method stub
-    
+    if (ntse != null) {
+      ntse.start();
+    }
   }
 
   @Override
   protected void shutdownService() {
     if(ntse != null) {
-      ntse.stopIfRunning();
+      ntse.stop();
     }
     if(sts != null) {
       sts.shutdownNow();
+      try {
+        sts.awaitTermination();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
     }
   }
 
@@ -426,7 +432,7 @@ public class HTTPClient extends AbstractService {
     if(!client.isClosed()) {
       ArrayDeque<TCPClient> ll = sockets.get(ha);  
       if(ll == null) {
-        sockets.put(ha, new ArrayDeque<TCPClient>());
+        sockets.put(ha, new ArrayDeque<>(8));
         ll = sockets.get(ha);
       }
       synchronized(ll) {
@@ -438,17 +444,21 @@ public class HTTPClient extends AbstractService {
   /**
    * Used to run the NoThreadSocketExecuter.
    */
-  private class RunSocket implements Runnable {
+  private class RunSocket extends ReschedulingOperation {
+    protected RunSocket(SubmitterScheduler scheduler) {
+      super(scheduler, 0);
+    }
+
     @Override
     public void run() {
       if(ntse.isRunning()) {
         ntse.select(100);
       }
-      if(ntse.isRunning() && queue.size() + inProcess.size() > 0) {
+      if(ntse.isRunning()) {
         processQueue();
-        ssi.execute(this);
-      } else {
-        isRunning.set(false);
+        if (! queue.isEmpty() || ! inProcess.isEmpty()) {
+          signalToRun();  // still more to run
+        }
       }
     }
   }
@@ -459,7 +469,6 @@ public class HTTPClient extends AbstractService {
    *
    */
   private class MainClientProcessor implements Reader, CloseListener {
-
     @Override
     public void onClose(Client client) {
       HTTPRequestWrapper hrw = inProcess.get(client);
@@ -488,7 +497,6 @@ public class HTTPClient extends AbstractService {
         client.close();
       }
     }
-
   }
 
   /**
@@ -497,7 +505,7 @@ public class HTTPClient extends AbstractService {
    *
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
-    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<HTTPResponseData>(false);
+    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
     private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
     private final HTTPRequest hr;
     private final HTTPAddress ha;
@@ -580,5 +588,4 @@ public class HTTPClient extends AbstractService {
       return body.duplicate().getAsString(body.remaining());
     }
   }
-
 }

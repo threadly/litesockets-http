@@ -15,7 +15,6 @@ import org.threadly.concurrent.future.ListenableFuture;
  *
  */
 public interface StreamingClient {
-  
   /**
    * This is called to enable ssl on this connection.  This can only be done before connect is called.
    * This is the default ssl handler meaning there is no server side certificate validation done.
@@ -78,5 +77,4 @@ public interface StreamingClient {
    * @return the {@link Executor} for this client.
    */
   public Executor getClientsThreadExecutor();
-
 }

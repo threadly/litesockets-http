@@ -37,7 +37,7 @@ public class HTTPServer extends AbstractService {
   public static final HTTPResponse NOT_FOUND_RESPONSE = new HTTPResponseBuilder().setResponseCode(HTTPResponseCode.NotFound).build();
   private static final Logger LOG = Logger.getLogger(HTTPServer.class.getSimpleName());
   
-  private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<TCPClient, HTTPRequestProcessor>();
+  private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<>();
   private final ClientListener clientListener = new ClientListener();
   private final SSLContext sslc;
   private final SocketExecuter se;
@@ -46,7 +46,6 @@ public class HTTPServer extends AbstractService {
   private final int port;
   
   private volatile HTTPServerHandler handler;
-  
   
   /**
    * Constructs an {@link HTTPServer} without SSL support.
@@ -158,7 +157,6 @@ public class HTTPServer extends AbstractService {
    *
    */
   private class HTTPRequestListener implements HTTPRequestCallback {
-    
     final TCPClient client;
     BodyFuture bodyFuture;
     ResponseWriter responseWriter;
@@ -216,12 +214,10 @@ public class HTTPServer extends AbstractService {
     private boolean responseSent = false;
     private boolean done = false;
     private boolean closeOnDone = false;
-    private ListenableFuture<?> lastWriteFuture;
     
     protected ResponseWriter(Client client) {
       this.client = client;
       this.client.addCloseListener(new CloseListener() {
-
         @Override
         public void onClose(Client client) {
           closeListener.callListeners();
@@ -249,8 +245,7 @@ public class HTTPServer extends AbstractService {
           closeOnDone = true;
         }
         responseSent = true;
-        lastWriteFuture = client.write(hr.getByteBuffer());
-        return lastWriteFuture;
+        return client.write(hr.getByteBuffer());
       } else if (responseSent) {
         throw new IllegalStateException("HTTPResponse already sent!");
       } else {
@@ -293,8 +288,7 @@ public class HTTPServer extends AbstractService {
      */
     public ListenableFuture<?> writeBody(ByteBuffer bb) {
       if(responseSent && !done) {
-        lastWriteFuture = client.write(bb);
-        return lastWriteFuture;
+        return client.write(bb);
       } else if(responseSent){
         throw new IllegalStateException("Can not send body before HTTPResponse!");
       } else {
@@ -309,7 +303,7 @@ public class HTTPServer extends AbstractService {
     public void done() {
       done = true;
       if(closeOnDone && !client.isClosed()) {
-        lastWriteFuture.addListener(new Runnable(){
+        client.lastWriteFuture().addListener(new Runnable(){
           @Override
           public void run() {
             client.close();
@@ -324,8 +318,6 @@ public class HTTPServer extends AbstractService {
       done = true;
       client.close();
     }
-    
-    
   }
   
   /**
@@ -336,7 +328,7 @@ public class HTTPServer extends AbstractService {
    *
    */
   public static class BodyFuture {
-    private final ListenerHelper<BodyListener> listener = new ListenerHelper<BodyListener>(BodyListener.class);
+    private final ListenerHelper<BodyListener> listener = new ListenerHelper<>(BodyListener.class);
     
     /**
      * Sets the BodyListener to be used/called back on.

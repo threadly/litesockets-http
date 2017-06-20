@@ -159,7 +159,7 @@ public class HTTPUtilsTests {
     assertEquals(RequestType.POST.toString(), hrh1.getRequestType());
   }
   
-  @Test(expected=IllegalStateException.class)
+  @Test(expected=UnsupportedOperationException.class)
   public void HTTPRequestHeaderBad1() {
     String req = "GET / HTTP/1.4";
     new HTTPRequestHeader(req);
@@ -208,7 +208,7 @@ public class HTTPUtilsTests {
     assertEquals(map, hrh1.getRequestQuery());
   }
   
-  @Test(expected=IllegalStateException.class)
+  @Test(expected=UnsupportedOperationException.class)
   public void HTTPRequestHeaderTest6() {
     new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
   }

@@ -33,6 +33,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
 
@@ -252,6 +253,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, false), hrb.build()).getBodyAsString());
   }
 
@@ -261,6 +263,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, "", false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     HTTPResponseData hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     assertEquals("", hrs.getBodyAsString());
   }
@@ -271,6 +274,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     HTTPResponseData hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
     System.out.println(hrs.getResponse());
     assertEquals("TEST123", hrs.getBodyAsString());
@@ -314,9 +318,10 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     long start = Clock.accurateForwardProgressingMillis();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 30);
+      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 30);
       fail();
     } catch(HTTPParsingException hp) {
 
@@ -330,6 +335,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, true, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, true), hrb.build()).getBodyAsString());
   }
 
@@ -339,6 +345,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     try {
       httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
       fail();
@@ -353,6 +360,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, LARGE_CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     try {
       httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
       fail();
@@ -403,12 +411,13 @@ public class HTTPClientTests {
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
 
     HTTPRequest hr = hrb.build();
 
     long start = System.currentTimeMillis();
     try{
-      httpClient.request(new HTTPAddress("localhost", port, false), hr, HTTPClient.EMPTY_BUFFER, TimeUnit.MILLISECONDS, 100);
+      httpClient.request(new HTTPAddress("localhost", port, false), hr, IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 100);
     } catch(Exception e) {
       System.out.println(System.currentTimeMillis() - start);
       assertTrue(System.currentTimeMillis() - start < 300);
@@ -423,6 +432,7 @@ public class HTTPClientTests {
     int port = TestUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
     HTTPResponseData hrd = httpClient.request(new URL("http://localhost:"+port));
     assertEquals(CONTENT, hrd.getBodyAsString());
   }

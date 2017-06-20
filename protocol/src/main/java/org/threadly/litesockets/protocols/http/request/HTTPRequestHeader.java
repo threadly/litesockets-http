@@ -40,7 +40,7 @@ public class HTTPRequestHeader {
     
     httpVersion = tmp[2].trim().toUpperCase();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
   }
   
@@ -50,7 +50,7 @@ public class HTTPRequestHeader {
   
   public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this.requestType = requestType;
-    final HashMap<String, String> rqm = new HashMap<String, String>();
+    final HashMap<String, String> rqm = new HashMap<>();
     if(requestPath.contains("?")) {
       int pos = requestPath.indexOf("?");
       this.requestPath = requestPath.substring(0, pos);
@@ -74,7 +74,7 @@ public class HTTPRequestHeader {
     sb.append(this.httpVersion);
     rawRequest = sb.toString();
     if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new IllegalStateException("Unknown HTTP Version!:"+httpVersion);
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
   }
   

@@ -84,7 +84,7 @@ public class ResponseHeaderTests {
       fail("Should not make it this far");
     } catch(IllegalArgumentException e) {
       System.out.println(e.getMessage());
-      assertTrue(e.getMessage().contains("Invalide Response Header!"));
+      assertTrue(e.getMessage().contains("Invalid Response Header!"));
     }
   }
   
@@ -93,7 +93,7 @@ public class ResponseHeaderTests {
     try {
       new HTTPResponseHeader("HTTP/3.1 404 Not Found");
       fail("Should not make it this far");
-    } catch(IllegalArgumentException e) {
+    } catch(UnsupportedOperationException e) {
       System.out.println(e.getMessage());
       assertEquals("Unknown HTTP Version!:HTTP/3.1", e.getMessage());
     }
@@ -104,7 +104,7 @@ public class ResponseHeaderTests {
     try {
       new HTTPResponseHeader(HTTPResponseCode.Accepted, "HTTP/3.1");
       fail("Should not make it this far");
-    } catch(IllegalArgumentException e) {
+    } catch(UnsupportedOperationException e) {
       System.out.println(e.getMessage());
       assertEquals("Unknown HTTP Version!:HTTP/3.1", e.getMessage());
     }
@@ -115,7 +115,7 @@ public class ResponseHeaderTests {
     try {
       new HTTPResponseHeader(HTTPResponseCode.NotFound, "HTTP/3.1");
       fail("Should not make it this far");
-    } catch(IllegalArgumentException e) {
+    } catch(UnsupportedOperationException e) {
       System.out.println(e.getMessage());
       assertEquals("Unknown HTTP Version!:HTTP/3.1", e.getMessage());
     }

@@ -98,6 +98,7 @@ uploadArchives {
           developer {
             id 'jent'
             name 'Mike Jensen'
+            email 'jent@threadly.org'
           }
         }
       }

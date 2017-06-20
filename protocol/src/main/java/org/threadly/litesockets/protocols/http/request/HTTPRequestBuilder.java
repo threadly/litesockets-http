@@ -18,7 +18,7 @@ import org.threadly.util.ArgumentVerifier;
  *
  */
 public class HTTPRequestBuilder {
-  private final Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+  private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
   private HTTPRequestHeader request = HTTPConstants.DEFAULT_REQUEST_HEADER;
   private String host = "localhost";
   private int port = HTTPConstants.DEFAULT_HTTP_PORT;

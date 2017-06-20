@@ -150,7 +150,7 @@ public class HTTPStreamClient implements StreamingClient {
    */
   public ListenableFuture<HTTPResponse> writeRequest(HTTPRequest request) {
     if(slfResponse != null && !slfResponse.isDone()) {
-      slfResponse.setFailure(new Exception("New request came in!"));
+      slfResponse.setFailure(new IllegalStateException("New request came in!"));
     }
     currentHttpRequest = request;
     slfResponse = new SettableListenableFuture<HTTPResponse>();
@@ -252,7 +252,6 @@ public class HTTPStreamClient implements StreamingClient {
    *
    */
   private class RequestCallback implements HTTPResponseCallback {
-
     @Override
     public void headersFinished(HTTPResponse hr) {
       slfResponse.setResult(hr);
@@ -275,7 +274,6 @@ public class HTTPStreamClient implements StreamingClient {
       slfResponse.setFailure(t);
       client.close();
     }
-    
   }
   
   /**
@@ -285,7 +283,6 @@ public class HTTPStreamClient implements StreamingClient {
    *
    */
   public interface HTTPStreamReader {
-    
     /**
      * This is called when body reads come in from the client.
      * 

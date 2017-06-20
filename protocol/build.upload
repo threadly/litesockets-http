@@ -56,10 +56,7 @@ signing {
   sign configurations.archives
 }
 
-
-
 uploadArchives {
-
   repositories {
     mavenDeployer {
       beforeDeployment {
@@ -101,6 +98,7 @@ uploadArchives {
           developer {
             id 'jent'
             name 'Mike Jensen'
+            email 'jent@threadly.org'
           }
         }
       }

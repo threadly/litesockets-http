@@ -15,7 +15,6 @@ import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
  *
  */
 public class HTTPUtils {
-  
   public static String leftTrim(String value) {
     int count = 0;
     while(Character.isWhitespace(value.charAt(count))) {
@@ -84,7 +83,7 @@ public class HTTPUtils {
   }
   
   public static Map<String, String> queryToMap(String query) {
-    Map<String, String> map = new HashMap<String, String>();
+    Map<String, String> map = new HashMap<>();
     if(query.startsWith("?")) {
       query = query.substring(1);
     }
@@ -101,5 +100,4 @@ public class HTTPUtils {
     }
     return Collections.unmodifiableMap(map);
   }
-
 }

@@ -16,7 +16,7 @@ public class HTTPHeaders {
   private final Map<String, String> headers;
   
   public HTTPHeaders(String headerString) {
-    TreeMap<String, String> map = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+    TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     if(headerString.endsWith(HTTPConstants.HTTP_DOUBLE_NEWLINE_DELIMINATOR)) {
       this.rawHeaders = headerString.substring(0, headerString.length()-2);
     } else if(!headerString.endsWith(HTTPConstants.HTTP_NEWLINE_DELIMINATOR)) { 
@@ -38,7 +38,7 @@ public class HTTPHeaders {
   }
   
   public HTTPHeaders(final Map<String, String> headerMap) {
-    TreeMap<String, String> lheaders = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+    TreeMap<String, String> lheaders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     StringBuilder sb = new StringBuilder();
     for(Entry<String, String> kv: headerMap.entrySet()) {
       lheaders.put(kv.getKey().trim(), kv.getValue().trim());
