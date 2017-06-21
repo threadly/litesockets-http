@@ -10,7 +10,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 import org.threadly.util.ArgumentVerifier;
 
 /**
@@ -141,7 +141,7 @@ public class HTTPRequestBuilder {
     return this;
   }
   
-  public HTTPRequestBuilder setRequestType(RequestType rt) {
+  public HTTPRequestBuilder setRequestType(HTTPRequestType rt) {
     this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
     return this;
   }

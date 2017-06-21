@@ -6,6 +6,6 @@ package org.threadly.litesockets.protocols.http.shared;
  * @author lwahlmeier
  *
  */
-public enum RequestType {
+public enum HTTPRequestType {
   OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, CONNECT
 }

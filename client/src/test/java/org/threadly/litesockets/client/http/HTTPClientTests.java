@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -24,6 +25,8 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
@@ -36,11 +39,15 @@ import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
+import org.w3c.dom.Element;
+import org.xml.sax.SAXException;
 
 public class HTTPClientTests {
   static String CONTENT = "TEST123";
+  static String XML_CONTENT = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note><to>John</to><from>Jane</from><heading>XML Test</heading><body>This is a test, please discard</body></note>";
   static String LARGE_CONTENT;
   static HTTPResponse RESPONSE_CL;
+  static HTTPResponse RESPONSE_CL_XML;
   static HTTPResponse RESPONSE_NO_CL;
   static HTTPResponse RESPONSE_HUGE;
   static HTTPResponse RESPONSE_HUGE_NOCL;
@@ -51,6 +58,7 @@ public class HTTPClientTests {
     }
     LARGE_CONTENT = sb.toString();
     RESPONSE_CL = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(CONTENT.length())).build();
+    RESPONSE_CL_XML = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(XML_CONTENT.length())).build();
     RESPONSE_NO_CL = new HTTPResponseBuilder().setHeaders(new HTTPHeaders(new HashMap<String,String>())).build();
     RESPONSE_HUGE = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(LARGE_CONTENT.length())).build();
   }
@@ -127,6 +135,34 @@ public class HTTPClientTests {
         }
       }.blockTillTrue(10000);
       httpClient.stop();
+  }
+  
+  
+  @Test
+  public void xmlTest() throws IOException, InterruptedException, ExecutionException, SAXException {
+    final int port = TestUtils.findTCPPort();
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL_XML, XML_CONTENT, false, false);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
+    final HTTPClient httpClient = new HTTPClient();
+    httpClient.start(); 
+    final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hrb.build());
+    HTTPResponseData hrd = lf.get();
+    assertEquals(XML_CONTENT, hrd.getBodyAsString());
+    MergedByteBuffers ombb = hrd.getBody();
+    InputStream is = ombb.asInputStream();
+    System.out.println(hrd.getBodyAsString());
+    int i = 0;
+    byte[] ba = new byte[10];
+    ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers(false);
+    while((i=is.read(ba)) >= 0) {
+      mbb.add(ba);
+      ba = new byte[10];
+    }
+    System.out.println(mbb.getAsString(mbb.remaining()));
+    System.out.println(ombb.remaining());
+    
+    Element xml = hrd.getBodyAsXml();
+    httpClient.stop();
   }
 
   @Test

@@ -16,8 +16,9 @@ import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
  * This is a simple HTTP Response parser.  It takes in Bytes and builds up an {@link HTTPResponse} object. 
  */
 public class HTTPResponseProcessor {
-  public static final int MAX_RESPONSE_HEADER_SIZE = 500;
+  public static final int MAX_RESPONSE_HEADER_SIZE = 5000;
   public static final int MAX_HEADER_SIZE = 50000;
+  
   private final ReuseableMergedByteBuffers buffers = new ReuseableMergedByteBuffers();
   private final ListenerHelper<HTTPResponseCallback> listeners = new ListenerHelper<>(HTTPResponseCallback.class);
   private HTTPResponse response;
