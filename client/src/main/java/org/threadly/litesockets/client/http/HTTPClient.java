@@ -1,6 +1,7 @@
 package org.threadly.litesockets.client.http;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -600,12 +601,14 @@ public class HTTPClient extends AbstractService {
       try {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
-        System.out.println("-------"+body.duplicate().asInputStream());
-        System.out.println("-------"+builder.parse(body.duplicate().asInputStream()));
         return builder.parse(body.duplicate().asInputStream()).getDocumentElement();
       } catch(Exception e) {
         throw new SAXException(e);
       }
+    }
+    
+    public InputStream getBodyAsInputStream() {
+      return body.duplicate().asInputStream();
     }
     
     @Override
