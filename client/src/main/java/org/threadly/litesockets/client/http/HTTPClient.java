@@ -597,16 +597,6 @@ public class HTTPClient extends AbstractService {
       return body.duplicate().getAsString(body.remaining());
     }
     
-    public Element getBodyAsXml() throws SAXException {
-      try {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        return builder.parse(body.duplicate().asInputStream()).getDocumentElement();
-      } catch(Exception e) {
-        throw new SAXException(e);
-      }
-    }
-    
     public InputStream getBodyAsInputStream() {
       return body.duplicate().asInputStream();
     }

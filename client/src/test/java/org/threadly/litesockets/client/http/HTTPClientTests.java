@@ -136,34 +136,6 @@ public class HTTPClientTests {
       }.blockTillTrue(10000);
       httpClient.stop();
   }
-  
-  
-  @Test
-  public void xmlTest() throws IOException, InterruptedException, ExecutionException, SAXException {
-    final int port = TestUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_CL_XML, XML_CONTENT, false, false);
-    final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
-    final HTTPClient httpClient = new HTTPClient();
-    httpClient.start(); 
-    final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hrb.build());
-    HTTPResponseData hrd = lf.get();
-    assertEquals(XML_CONTENT, hrd.getBodyAsString());
-    MergedByteBuffers ombb = hrd.getBody();
-    InputStream is = ombb.asInputStream();
-    System.out.println(hrd.getBodyAsString());
-    int i = 0;
-    byte[] ba = new byte[10];
-    ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers(false);
-    while((i=is.read(ba)) >= 0) {
-      mbb.add(ba);
-      ba = new byte[10];
-    }
-    System.out.println(mbb.getAsString(mbb.remaining()));
-    System.out.println(ombb.remaining());
-    
-    Element xml = hrd.getBodyAsXml();
-    httpClient.stop();
-  }
 
   @Test
   public void manyRequestsConcurrentJavaExecutor() throws IOException, InterruptedException {
