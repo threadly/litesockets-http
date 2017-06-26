@@ -13,8 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
@@ -37,14 +35,12 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HT
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
 
 /**
  * <p>This is a HTTPClient for doing many simple HTTPRequests.  Every request will be make a new connection and requests
