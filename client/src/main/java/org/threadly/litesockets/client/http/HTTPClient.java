@@ -1,6 +1,7 @@
 package org.threadly.litesockets.client.http;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -12,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
@@ -34,11 +37,14 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HT
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
 import org.threadly.util.Clock;
+import org.w3c.dom.Element;
+import org.xml.sax.SAXException;
 
 /**
  * <p>This is a HTTPClient for doing many simple HTTPRequests.  Every request will be make a new connection and requests
@@ -178,19 +184,19 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
-    return request(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
+    return request(url, HTTPRequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
    * Sends a blocking HTTP request.
    * 
    * @param url the url to send the request too.
-   * @param rt the {@link RequestType} to use on the request.
+   * @param rt the {@link HTTPRequestType} to use on the request.
    * @param bb the data to put in the body for this request.
    * @return an {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
-  public HTTPResponseData request(final URL url, final RequestType rt, final ByteBuffer bb) throws HTTPParsingException {
+  public HTTPResponseData request(final URL url, final HTTPRequestType rt, final ByteBuffer bb) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
       hr = requestAsync(url, rt, bb).get();
@@ -269,19 +275,19 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
-    return requestAsync(url, RequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
+    return requestAsync(url, HTTPRequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
    * Sends an asynchronous HTTP request.
    * 
    * @param url the {@link URL} to send the request too.
-   * @param rt the {@link RequestType} to use on the request.
+   * @param rt the {@link HTTPRequestType} to use on the request.
    * @param bb the data to put in the body for this request.
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
-  public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final RequestType rt, final ByteBuffer bb) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final HTTPRequestType rt, final ByteBuffer bb) {
     boolean ssl = false;
     int port = HTTPConstants.DEFAULT_HTTP_PORT;
     String host = url.getHost();
@@ -465,7 +471,6 @@ public class HTTPClient extends AbstractService {
 
   /**
    * 
-   * @author lwahlmeier
    *
    */
   private class MainClientProcessor implements Reader, CloseListener {
@@ -501,8 +506,7 @@ public class HTTPClient extends AbstractService {
 
   /**
    * 
-   * @author lwahlmeier
-   *
+   *    
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
@@ -562,10 +566,7 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * This is returned when a request finishes.  
-   * 
-   * @author lwahlmeier
-   *
+   * This is a simple, full HttpResponse with data  
    */
   public static class HTTPResponseData {
     private final HTTPResponse hr;
@@ -579,6 +580,14 @@ public class HTTPClient extends AbstractService {
     public HTTPResponse getResponse() {
       return hr;
     }
+    
+    public HTTPResponseCode getResponseCode() {
+      return hr.getResponseHeader().getResponseCode();
+    }
+        
+    public long getContentLength() {
+      return body.remaining();
+    }
 
     public MergedByteBuffers getBody() {
       return body.duplicate();
@@ -586,6 +595,15 @@ public class HTTPClient extends AbstractService {
 
     public String getBodyAsString() {
       return body.duplicate().getAsString(body.remaining());
+    }
+    
+    public InputStream getBodyAsInputStream() {
+      return body.duplicate().asInputStream();
+    }
+    
+    @Override
+    public String toString() {
+      return hr.toString().replaceAll("\r\n", "\\r\\n")+"BodySize:"+body.remaining();
     }
   }
 }

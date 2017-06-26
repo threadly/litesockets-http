@@ -13,7 +13,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestHeader;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 
 public class HTTPUtilsTests {
   
@@ -140,7 +140,7 @@ public class HTTPUtilsTests {
     HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
     HTTPRequestHeader hrh2 = new HTTPRequestHeader(hrh1.toString());
     HTTPRequestHeader hrh3 = new HTTPRequestHeader(req2);
-    assertEquals(RequestType.GET.toString(), hrh1.getRequestType());
+    assertEquals(HTTPRequestType.GET.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/", hrh1.getRequestPath());
     assertEquals(req, hrh1.toString());
@@ -156,7 +156,7 @@ public class HTTPUtilsTests {
     String req = "POST / HTTP/1.0";
     HTTPRequestHeader hrh1 = new HTTPRequestHeader(req);
     assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh1.getHttpVersion());
-    assertEquals(RequestType.POST.toString(), hrh1.getRequestType());
+    assertEquals(HTTPRequestType.POST.toString(), hrh1.getRequestType());
   }
   
   @Test(expected=UnsupportedOperationException.class)
@@ -179,8 +179,8 @@ public class HTTPUtilsTests {
   
   @Test
   public void HTTPRequestHeaderTest3() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), HTTPConstants.HTTP_VERSION_1_1);
-    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), HTTPConstants.HTTP_VERSION_1_1);
+    assertEquals(HTTPRequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/ HTTP/1.1", hrh1.toString());
@@ -189,8 +189,8 @@ public class HTTPUtilsTests {
   
   @Test
   public void HTTPRequestHeaderTest4() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", null, HTTPConstants.HTTP_VERSION_1_1);
-    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestType.DELETE, "/ds/sds/ds/", null, HTTPConstants.HTTP_VERSION_1_1);
+    assertEquals(HTTPRequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/ HTTP/1.1", hrh1.toString());
@@ -200,8 +200,8 @@ public class HTTPUtilsTests {
   public void HTTPRequestHeaderTest5() {
     HashMap<String, String> map = new HashMap<String, String>();
     map.put("test", "te");
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", map, HTTPConstants.HTTP_VERSION_1_0);
-    assertEquals(RequestType.DELETE.toString(), hrh1.getRequestType());
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestType.DELETE, "/ds/sds/ds/", map, HTTPConstants.HTTP_VERSION_1_0);
+    assertEquals(HTTPRequestType.DELETE.toString(), hrh1.getRequestType());
     assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
     assertEquals("DELETE /ds/sds/ds/?test=te HTTP/1.0", hrh1.toString());
@@ -210,6 +210,6 @@ public class HTTPUtilsTests {
   
   @Test(expected=UnsupportedOperationException.class)
   public void HTTPRequestHeaderTest6() {
-    new HTTPRequestHeader(RequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
+    new HTTPRequestHeader(HTTPRequestType.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
   }
 }

@@ -57,7 +57,7 @@ public class HTTPConstants {
   public static final HTTPHeaders DEFAULT_HEADERS = 
       new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
   public static final HTTPRequestHeader DEFAULT_REQUEST_HEADER = 
-      new HTTPRequestHeader(RequestType.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
+      new HTTPRequestHeader(HTTPRequestType.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
   public static final HTTPResponseHeader OK_RESPONSE_HEADER = 
       new HTTPResponseHeader(HTTPResponseCode.OK, HTTPConstants.HTTP_VERSION_1_1);
   public static final HTTPResponseHeader NOT_FOUND_RESPONSE_HEADER = 

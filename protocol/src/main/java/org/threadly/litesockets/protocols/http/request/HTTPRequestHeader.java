@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
-import org.threadly.litesockets.protocols.http.shared.RequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 
 
 /**
@@ -44,7 +44,7 @@ public class HTTPRequestHeader {
     }
   }
   
-  public HTTPRequestHeader(RequestType requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
+  public HTTPRequestHeader(HTTPRequestType requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this(requestType.toString(), requestPath, requestQuery, httpVersion);
   }
   
