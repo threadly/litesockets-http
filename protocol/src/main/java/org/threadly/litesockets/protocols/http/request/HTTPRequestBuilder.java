@@ -23,7 +23,7 @@ public class HTTPRequestBuilder {
   private String host = "localhost";
   private int port = HTTPConstants.DEFAULT_HTTP_PORT;
   
-  public HTTPRequestBuilder(){
+  public HTTPRequestBuilder() {
     headers.putAll(HTTPConstants.DEFAULT_HEADERS_MAP);
     setHeader(HTTPConstants.HTTP_KEY_HOST, host);
   }
@@ -34,7 +34,6 @@ public class HTTPRequestBuilder {
   }
   
   public HTTPRequestBuilder setURL(URL url) {
-    
     host = url.getHost();
     port = url.getPort();
     if(port <= 0) {

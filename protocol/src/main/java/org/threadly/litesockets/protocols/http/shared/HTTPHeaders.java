@@ -29,7 +29,7 @@ public class HTTPHeaders {
     String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
       int delim = h.indexOf(':');
-      map.put(h.substring(0, delim), h.substring(delim + 1));
+      map.put(h.substring(0, delim), h.substring(delim + 1).trim());
     }
     
     headers = Collections.unmodifiableMap(map);
