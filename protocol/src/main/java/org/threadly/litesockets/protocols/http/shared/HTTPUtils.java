@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.util.StringUtils;
 
 /**
  * 
@@ -83,19 +84,20 @@ public class HTTPUtils {
   }
   
   public static Map<String, String> queryToMap(String query) {
+    if (StringUtils.isNullOrEmpty(query)) {
+      return Collections.emptyMap();
+    }
     Map<String, String> map = new HashMap<>();
     if(query.startsWith("?")) {
       query = query.substring(1);
     }
-    if(!query.equals("")){
-      String[] tmpQ = query.trim().split("&");
-      for(String kv: tmpQ) {
-        String[] tmpkv = kv.split("=");
-        if(tmpkv.length == 1) {
-          map.put(tmpkv[0].trim(), "");
-        } else {
-          map.put(tmpkv[0].trim(), tmpkv[1].trim());
-        }
+    String[] tmpQ = query.trim().split("&");
+    for(String kv: tmpQ) {
+      String[] tmpkv = kv.split("=");
+      if(tmpkv.length == 1) {
+        map.put(tmpkv[0].trim(), "");
+      } else {
+        map.put(tmpkv[0].trim(), tmpkv[1].trim());
       }
     }
     return Collections.unmodifiableMap(map);
