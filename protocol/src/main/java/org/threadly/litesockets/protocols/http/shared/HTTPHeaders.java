@@ -28,10 +28,8 @@ public class HTTPHeaders {
     
     String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
-      String[] kv = h.split(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
-      String key = kv[0].trim();
-      String value = kv[1].trim();
-      map.put(key, value);
+      int delim = h.indexOf(':');
+      map.put(h.substring(0, delim), h.substring(delim + 1));
     }
     
     headers = Collections.unmodifiableMap(map);
