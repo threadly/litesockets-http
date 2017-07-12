@@ -11,7 +11,7 @@ import org.threadly.concurrent.event.ListenerHelper;
 import org.threadly.concurrent.event.RunnableListenerHelper;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Client.CloseListener;
+import org.threadly.litesockets.Client.ClientCloseListener;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
@@ -123,7 +123,7 @@ public class HTTPServer extends AbstractService {
    * @author lwahlmeier
    *
    */
-  private class ClientListener implements ClientAcceptor, Reader, CloseListener {
+  private class ClientListener implements ClientAcceptor, Reader, ClientCloseListener {
 
     @Override
     public void accept(Client client) {
@@ -217,7 +217,7 @@ public class HTTPServer extends AbstractService {
     
     protected ResponseWriter(Client client) {
       this.client = client;
-      this.client.addCloseListener(new CloseListener() {
+      this.client.addCloseListener(new ClientCloseListener() {
         @Override
         public void onClose(Client client) {
           closeListener.callListeners();

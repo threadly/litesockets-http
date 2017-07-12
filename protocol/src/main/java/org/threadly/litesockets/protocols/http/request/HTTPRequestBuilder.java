@@ -9,13 +9,12 @@ import java.util.TreeMap;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
-import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.util.ArgumentVerifier;
 
 /**
- * A builder object for HTTPRequests.  This helps construct different types of httpRequests. 
- *
+ * A builder object for HTTPRequests.  This helps construct different types of httpRequests.
  */
 public class HTTPRequestBuilder {
   private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

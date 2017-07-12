@@ -6,9 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
-
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
 /**
  * This is an immutable HTTP Request Header.  Basically the first line of the http request.  

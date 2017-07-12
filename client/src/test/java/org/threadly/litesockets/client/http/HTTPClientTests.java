@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -25,8 +24,6 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.buffers.MergedByteBuffers;
-import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
@@ -37,10 +34,9 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.IOUtils;
+import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.Clock;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
 
 public class HTTPClientTests {
   static String CONTENT = "TEST123";
@@ -86,7 +82,7 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrent() throws IOException {
     final int number = 500;
-    final int port = TestUtils.findTCPPort();
+    final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
     final HTTPClient httpClient = new HTTPClient();
@@ -140,7 +136,7 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrentJavaExecutor() throws IOException, InterruptedException {
     final int number = 500;
-    final int port = TestUtils.findTCPPort();
+    final int port = PortUtils.findTCPPort();
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
@@ -200,7 +196,7 @@ public class HTTPClientTests {
   @Test
   public void manyRequestsConcurrentOnPool() throws IOException {
     final int number = 500;
-    final int port = TestUtils.findTCPPort();
+    final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
@@ -257,7 +253,7 @@ public class HTTPClientTests {
 
   @Test
   public void blockingRequest() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -267,7 +263,7 @@ public class HTTPClientTests {
 
   @Test
   public void noContentLengthNoBody() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, "", false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -278,7 +274,7 @@ public class HTTPClientTests {
 
   @Test
   public void noContentLengthWithBody() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -290,7 +286,7 @@ public class HTTPClientTests {
 
   @Test
   public void closeBeforeLength() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -306,7 +302,7 @@ public class HTTPClientTests {
   
   @Test
   public void timeoutRequest() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     TCPServer server = SEI.createTCPServer("localhost", port);
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
@@ -322,7 +318,7 @@ public class HTTPClientTests {
 
   @Test
   public void expireRequest() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -339,7 +335,7 @@ public class HTTPClientTests {
 
   @Test
   public void sslRequest() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, true, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -349,7 +345,7 @@ public class HTTPClientTests {
 
   @Test
   public void toLargeRequest() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -364,7 +360,7 @@ public class HTTPClientTests {
 
   @Test
   public void toLargeRequestNoContentLength() throws IOException, HTTPParsingException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, LARGE_CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
@@ -409,7 +405,7 @@ public class HTTPClientTests {
 
   @Test
   public void timeOut() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     TCPServer server =  SEI.createTCPServer("localhost", port);
     server.setClientAcceptor(new ClientAcceptor() {
       @Override
@@ -437,7 +433,7 @@ public class HTTPClientTests {
 
   @Test
   public void urlRequest() throws HTTPParsingException, IOException {
-    int port = TestUtils.findTCPPort();
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();

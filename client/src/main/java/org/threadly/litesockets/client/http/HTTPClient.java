@@ -20,7 +20,7 @@ import org.threadly.concurrent.SubmitterScheduler;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Client.CloseListener;
+import org.threadly.litesockets.Client.ClientCloseListener;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.NoThreadSocketExecuter;
 import org.threadly.litesockets.SocketExecuter;
@@ -45,8 +45,7 @@ import org.threadly.util.Clock;
 /**
  * <p>This is a HTTPClient for doing many simple HTTPRequests.  Every request will be make a new connection and requests
  * can be done in parallel.  This is mainly used for doing many smaller Request and Response messages as the full Request/Response 
- * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>   
- * 
+ * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>
  */
 public class HTTPClient extends AbstractService {
   public static final int DEFAULT_CONCURRENT = 2;
@@ -466,10 +465,9 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * 
-   *
+   * Class for accepting data into the request processor as well handling the close event.
    */
-  private class MainClientProcessor implements Reader, CloseListener {
+  private class MainClientProcessor implements Reader, ClientCloseListener {
     @Override
     public void onClose(Client client) {
       HTTPRequestWrapper hrw = inProcess.get(client);
@@ -502,7 +500,6 @@ public class HTTPClient extends AbstractService {
 
   /**
    * 
-   *    
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
@@ -562,7 +559,7 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * This is a simple, full HttpResponse with data  
+   * This is a simple, full HttpResponse with data.
    */
   public static class HTTPResponseData {
     private final HTTPResponse hr;

@@ -11,7 +11,7 @@ import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
-import org.threadly.litesockets.Client.CloseListener;
+import org.threadly.litesockets.Client.ClientCloseListener;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
@@ -44,7 +44,7 @@ import org.threadly.litesockets.utils.SSLUtils;
 public class HTTPStreamClient implements StreamingClient {
   private static final int DEFAULT_TIMEOUT = 20000;
   private final Reader classReader = new HTTPReader();
-  private final CloseListener classCloser = new HTTPCloser();
+  private final ClientCloseListener classCloser = new HTTPCloser();
   private final RunnableListenerHelper closeListener = new RunnableListenerHelper(true);
   private final RequestCallback requestCB = new RequestCallback();
   private final TCPClient client;
@@ -238,7 +238,7 @@ public class HTTPStreamClient implements StreamingClient {
    * @author lwahlmeier
    *
    */
-  private class HTTPCloser implements CloseListener {
+  private class HTTPCloser implements ClientCloseListener {
     @Override
     public void onClose(Client client) {
       isConnected = false;

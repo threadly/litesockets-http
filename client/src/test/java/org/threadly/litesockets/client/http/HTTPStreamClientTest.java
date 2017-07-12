@@ -23,6 +23,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
 
 public class HTTPStreamClientTest {
@@ -50,7 +51,7 @@ public class HTTPStreamClientTest {
   
   @Test
   public void chunkRecvTest() throws IOException, InterruptedException, ExecutionException {
-    final int port = TestUtils.findTCPPort();
+    final int port = PortUtils.findTCPPort();
     final int number = 300;
     fakeServer = new FakeHTTPStreamingServer(port, RESPONSE_CHUNKED, "", number, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
@@ -91,8 +92,7 @@ public class HTTPStreamClientTest {
   
   @Test
   public void CLRecvTest() throws IOException, InterruptedException, ExecutionException {
-    final int port = TestUtils.findTCPPort();
-    final int number = 300;
+    final int port = PortUtils.findTCPPort();
     fakeServer = new FakeHTTPStreamingServer(port, HTTPClientTests.RESPONSE_HUGE, HTTPClientTests.LARGE_CONTENT, 0, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost/dl.php"));//.setChunked();
     final HTTPStreamClient hsc = new HTTPStreamClient(SEI, "localhost", port);
