@@ -16,7 +16,7 @@ public class HTTPResponseHeader {
   
   public HTTPResponseHeader(String stringResponse) {
     this.rawResponse = stringResponse.trim();
-    String[] tmp = stringResponse.trim().split(" ", MAX_RESPONSE_ITEMS);
+    String[] tmp = rawResponse.split(" ", MAX_RESPONSE_ITEMS);
     try {
       httpVersion = tmp[0].trim();
       if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
@@ -72,6 +72,4 @@ public class HTTPResponseHeader {
   public String toString() {
     return rawResponse;
   }
-  
-
 }

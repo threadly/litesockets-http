@@ -22,19 +22,19 @@ public class HTTPRequestHeader {
   
   public HTTPRequestHeader(final String requestHeader) {
     this.rawRequest = requestHeader.trim();
-    String[] tmp = requestHeader.trim().split(" ");
+    String[] tmp = rawRequest.split(" ");
     if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+requestHeader);
     }
     requestType = tmp[0].trim().toUpperCase();
     String ptmp = tmp[1].trim();
-    if(ptmp.indexOf("?") >= 0) {
-      int pos = tmp[1].indexOf("?");
-      requestPath = ptmp.substring(0, pos);
-      requestQuery = HTTPUtils.queryToMap(ptmp.substring(pos+1));
+    int queryParamPos = ptmp.indexOf('?');
+    if(queryParamPos >= 0) {
+      requestPath = ptmp.substring(0, queryParamPos);
+      requestQuery = HTTPUtils.queryToMap(ptmp.substring(queryParamPos+1));
     } else {
       requestPath = ptmp;
-      requestQuery = HTTPUtils.queryToMap("");
+      requestQuery = Collections.emptyMap();
     }
     
     httpVersion = tmp[2].trim().toUpperCase();
@@ -50,10 +50,10 @@ public class HTTPRequestHeader {
   public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this.requestType = requestType;
     final HashMap<String, String> rqm = new HashMap<>();
-    if(requestPath.contains("?")) {
-      int pos = requestPath.indexOf("?");
-      this.requestPath = requestPath.substring(0, pos);
-      rqm.putAll(HTTPUtils.queryToMap(requestPath.substring(pos+1)));
+    int queryParamPos = requestPath.indexOf("?");
+    if(queryParamPos >= 0) {
+      this.requestPath = requestPath.substring(0, queryParamPos);
+      rqm.putAll(HTTPUtils.queryToMap(requestPath.substring(queryParamPos+1)));
     } else {
       this.requestPath = requestPath;
     }
@@ -61,20 +61,20 @@ public class HTTPRequestHeader {
       rqm.putAll(requestQuery);
     }
     this.requestQuery = Collections.unmodifiableMap(rqm);
+    if(!HTTPConstants.HTTP_VERSION_1_1.equals(httpVersion) && !HTTPConstants.HTTP_VERSION_1_0.equals(httpVersion)) {
+      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
+    }
     this.httpVersion = httpVersion.trim().toUpperCase();
     StringBuilder sb = new StringBuilder();
     sb.append(requestType.toString());
     sb.append(HTTPConstants.SPACE);
     sb.append(requestPath);
-    if(requestQuery != null && requestQuery.size() > 0) {
+    if(requestQuery != null && ! requestQuery.isEmpty()) {
       sb.append(HTTPUtils.queryToString(requestQuery));
     }
     sb.append(HTTPConstants.SPACE);
     sb.append(this.httpVersion);
     rawRequest = sb.toString();
-    if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
-      throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
-    }
   }
   
   public String getRequestType() {
@@ -113,7 +113,9 @@ public class HTTPRequestHeader {
   
   @Override
   public boolean equals(Object o) {
-    if(o instanceof HTTPRequestHeader) {
+    if(o == this) {
+      return true;
+    } else if(o instanceof HTTPRequestHeader) {
       HTTPRequestHeader hrh = (HTTPRequestHeader)o;
       if(hrh.toString().equals(this.toString())) {
         return true;
@@ -121,5 +123,4 @@ public class HTTPRequestHeader {
     }
     return false;
   }
-  
 }

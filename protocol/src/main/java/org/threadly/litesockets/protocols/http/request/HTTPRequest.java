@@ -69,5 +69,4 @@ public class HTTPRequest {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder().replaceHTTPHeaders(headers).setHTTPRequestHeader(request);
     return hrb;
   }
-  
 }

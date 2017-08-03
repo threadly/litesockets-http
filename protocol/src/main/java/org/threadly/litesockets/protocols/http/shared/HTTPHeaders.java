@@ -26,10 +26,13 @@ public class HTTPHeaders {
       this.rawHeaders = headerString;
     }
     
-    String[] rows = headerString.trim().split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
+    String[] rows = headerString.split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
       int delim = h.indexOf(':');
-      map.put(h.substring(0, delim), h.substring(delim + 1).trim());
+      if (delim < 0) {
+        throw new IllegalArgumentException("Header is missing key value delim: " + h);
+      }
+      map.put(h.substring(0, delim).trim(), h.substring(delim + 1).trim());
     }
     
     headers = Collections.unmodifiableMap(map);
