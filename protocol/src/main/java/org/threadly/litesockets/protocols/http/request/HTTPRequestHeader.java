@@ -60,7 +60,11 @@ public class HTTPRequestHeader {
     if(requestQuery != null) {
       rqm.putAll(requestQuery);
     }
-    this.requestQuery = Collections.unmodifiableMap(rqm);
+    if (rqm.isEmpty()) {
+      this.requestQuery = Collections.emptyMap();
+    } else {
+      this.requestQuery = Collections.unmodifiableMap(rqm);
+    }
     if(!HTTPConstants.HTTP_VERSION_1_1.equals(httpVersion) && !HTTPConstants.HTTP_VERSION_1_0.equals(httpVersion)) {
       throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }

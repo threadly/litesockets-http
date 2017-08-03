@@ -28,14 +28,21 @@ public class HTTPHeaders {
     
     String[] rows = headerString.split(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     for(String h: rows) {
+      if (h.isEmpty()) {
+        continue;
+      }
       int delim = h.indexOf(':');
       if (delim < 0) {
         throw new IllegalArgumentException("Header is missing key value delim: " + h);
       }
       map.put(h.substring(0, delim).trim(), h.substring(delim + 1).trim());
     }
-    
-    headers = Collections.unmodifiableMap(map);
+   
+    if (map.isEmpty()) {
+      headers = Collections.emptyMap();
+    } else {
+      headers = Collections.unmodifiableMap(map);
+    }
   }
   
   public HTTPHeaders(final Map<String, String> headerMap) {
