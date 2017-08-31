@@ -112,7 +112,7 @@ public class HTTPUtilsTests {
     assertTrue(hh2.equals(hh1));
     assertTrue(hh2.equals(hh2));
     assertFalse(hh2.equals(map));
-    assertFalse(hh2.hashCode() == hh1.hashCode());
+    assertTrue(hh2.hashCode() == hh1.hashCode());
     assertFalse(hh2.isChunked());
     assertEquals("*/*", hh2.getHeader(HTTPConstants.HTTP_KEY_ACCEPT));
     assertEquals(-1, hh2.getContentLength());
