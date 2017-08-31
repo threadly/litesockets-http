@@ -24,10 +24,6 @@ public class HTTPHeaders {
       sb.append(kv.getValue());
       sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
     }
-    if (headerMap.isEmpty()) {
-      // should end with a new line delim, even if empty
-      sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-    }
     return sb.toString();
   }
   
