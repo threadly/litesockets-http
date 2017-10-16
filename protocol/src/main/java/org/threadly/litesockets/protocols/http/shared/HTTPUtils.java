@@ -24,12 +24,6 @@ public class HTTPUtils {
     return value.substring(count);
   }
   
-  public static String bbToString(ByteBuffer bb) {
-    byte[] ba = new byte[bb.remaining()];
-    bb.get(ba);
-    return new String(ba);
-  }
-  
   public static int getNextChunkLength(final ByteBuffer bb) {
     MergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     mbb.add(bb);
@@ -57,30 +51,25 @@ public class HTTPUtils {
     return newBB;
   }
   
-  public static byte[] wrapInChunk(byte[] ba) {
-    return wrapInChunk(ByteBuffer.wrap(ba)).array();
-  }
-  
   public static String queryToString(Map<String,String> map) {
-    if(map.size() > 0) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("?");
-      int count = 0;
-      for(String k: map.keySet()) {
-        if(count > 0) {
-          sb.append("&");  
-        }
-        sb.append(k);
-        String v = map.get(k);
-        if(v != null && ! v.equals("")) {
-          sb.append("=");
-          sb.append(v);
-        }
-        count++;
-      }
-      return sb.toString();
+    if(map.isEmpty()) {
+      return "";
     }
-    return "";
+    
+    StringBuilder sb = new StringBuilder();
+    sb.append('?');
+    for(String k: map.keySet()) {
+      if(sb.length() > 1) {
+        sb.append('&');  
+      }
+      sb.append(k);
+      String v = map.get(k);
+      if(! StringUtils.isNullOrEmpty(v)) {
+        sb.append('=');
+        sb.append(v);
+      }
+    }
+    return sb.toString();
   }
   
   public static Map<String, String> queryToMap(String query) {
@@ -94,6 +83,10 @@ public class HTTPUtils {
     String[] tmpQ = query.trim().split("&");
     for(String kv: tmpQ) {
       String[] tmpkv = kv.split("=");
+      if (tmpkv.length == 0) {
+        // case where either no `=` or empty key string
+        continue;
+      }
       if(tmpkv.length == 1) {
         map.put(tmpkv[0].trim(), "");
       } else {

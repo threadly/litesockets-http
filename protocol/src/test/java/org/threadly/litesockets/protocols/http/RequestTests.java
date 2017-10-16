@@ -150,7 +150,7 @@ public class RequestTests {
     hrp.processData(DATA_BA);
     assertTrue(cb.finished);
     assertEquals(1, cb.bbs.size());
-    assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(0).duplicate()));
+    assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));
     System.out.println("-----\n"+hr.toString()+"-----");
     System.out.println("-----\n"+cb.request.toString()+"-----");
     assertEquals(hr.toString(), cb.request.toString());
@@ -226,7 +226,7 @@ public class RequestTests {
     hrp.processData(hr.getByteBuffer());
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
-    byte[] ba = HTTPUtils.wrapInChunk(DATA_BA);
+    byte[] ba = wrapInChunk(DATA_BA);
     for(int i = 0; i<ba.length; i++) {
       byte[] nba = new byte[1];
       nba[0] = ba[i];
@@ -252,13 +252,13 @@ public class RequestTests {
     assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
     assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
     assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
-    hrp.processData(HTTPUtils.wrapInChunk(DATA_BA));
+    hrp.processData(wrapInChunk(DATA_BA));
     assertEquals(1, cb.bbs.size());
-    assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(0).duplicate()));
-    hrp.processData(HTTPUtils.wrapInChunk(DATA_BA));
+    assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));
+    hrp.processData(wrapInChunk(DATA_BA));
     assertFalse(cb.finished);
     assertEquals(2, cb.bbs.size());
-    assertEquals(DATA, HTTPUtils.bbToString(cb.bbs.get(1).duplicate()));
+    assertEquals(DATA, bbToString(cb.bbs.get(1).duplicate()));
     hrp.processData(HTTPUtils.wrapInChunk(ByteBuffer.allocate(0)));
     
     assertTrue(cb.finished);
@@ -283,8 +283,18 @@ public class RequestTests {
     assertEquals(10, cb.finishedHeadersCalls);
     assertEquals(10, cb.bbs.size());
     for(ByteBuffer bb2: cb.bbs) {
-      assertEquals(DATA, HTTPUtils.bbToString(bb2));
+      assertEquals(DATA, bbToString(bb2));
     }
+  }
+  
+  private static String bbToString(ByteBuffer bb) {
+    byte[] ba = new byte[bb.remaining()];
+    bb.get(ba);
+    return new String(ba);
+  }
+  
+  private static byte[] wrapInChunk(byte[] ba) {
+    return HTTPUtils.wrapInChunk(ByteBuffer.wrap(ba)).array();
   }
   
   public static class HTTPCB implements HTTPRequestCallback {
