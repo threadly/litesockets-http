@@ -107,7 +107,8 @@ public class HTTPResponseProcessor {
         int pos = buffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
         try {
           if(pos > 0) {
-            nextChunkSize = Integer.parseInt(buffers.getAsString(pos), HTTPConstants.HEX_SIZE);
+            String len = buffers.getAsString(pos);
+            nextChunkSize = Integer.parseInt(len.trim(), HTTPConstants.HEX_SIZE);
             buffers.discard(2);
             if(nextChunkSize == 0) {
               buffers.discard(2);
