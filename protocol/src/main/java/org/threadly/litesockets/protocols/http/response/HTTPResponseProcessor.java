@@ -10,6 +10,7 @@ import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 
 
 /**
@@ -61,7 +62,10 @@ public class HTTPResponseProcessor {
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
         if(!response.getHeaders().isChunked() && response.getHeaders().getContentLength() == 0) {
-          reset(null);
+          if(response.getResponseCode() != HTTPResponseCode.SwitchingProtocols ) {
+            System.out.println(response);
+            reset(null);
+          }
         }
       } catch(Exception e) {
         reset(e);
@@ -84,7 +88,7 @@ public class HTTPResponseProcessor {
         if(currentBodySize >= response.getHeaders().getContentLength()) {
           reset(null);
         }
-      } else if (response.getHeaders().getContentLength() == -1) {
+      } else if (response.getHeaders().getContentLength() == -1 || response.getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
         sendDuplicateBBtoListeners(buffers.pullBuffer(buffers.remaining()));
       }
     }

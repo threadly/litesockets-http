@@ -35,6 +35,10 @@ public class HTTPResponse {
     return headers;
   }
   
+  public HTTPResponseCode getResponseCode() {
+    return rHeader.getResponseCode();
+  }
+  
   public ByteBuffer getByteBuffer() {
     ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + rHeader.length() + 
         HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
@@ -72,6 +76,10 @@ public class HTTPResponse {
   
   public HTTPResponseBuilder makeBuilder() {
     return new HTTPResponseBuilder().setResponseHeader(rHeader).setHeaders(headers);
+  }
+  
+  public static HTTPResponseBuilder builder() {
+    return new HTTPResponseBuilder();
   }
 
 }

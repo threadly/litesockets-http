@@ -69,4 +69,8 @@ public class HTTPRequest {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder().replaceHTTPHeaders(headers).setHTTPRequestHeader(request);
     return hrb;
   }
+  
+  public static HTTPRequestBuilder builder() {
+    return new HTTPRequestBuilder();
+  }
 }

@@ -10,6 +10,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -18,9 +21,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.concurrent.future.FutureCallback;
+import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.Server.ClientAcceptor;
+import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.client.ws.WebSocketClient.WebSocketDataReader;
@@ -84,6 +89,57 @@ public class WebSocketClientTest {
         t.printStackTrace();
         fail(ExceptionUtils.stackToString(t));        
       }});
+
+    new TestCondition(){
+      @Override
+      public boolean get() {
+        return response.get() != null;
+      }
+    }.blockTillTrue(3000);
+    assertEquals("ECHO", response.get());
+    assertTrue(wsc.isConnected());
+    response.set(null);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), true);
+    new TestCondition(){
+      @Override
+      public boolean get() {
+        return response.get() != null;
+      }
+    }.blockTillTrue(3000);
+    assertEquals("ECHO", response.get());
+    wsc.close();
+    assertFalse(wsc.isConnected());
+
+  }
+  
+  
+  
+  @Test
+  public void preConnectTest() throws IOException, URISyntaxException, InterruptedException, ExecutionException, TimeoutException {
+    httpServer.setClientAcceptor(new WSEchoHandler());
+    final AtomicReference<String> response = new AtomicReference<String>(null);
+    final SettableListenableFuture<MergedByteBuffers> slf = new SettableListenableFuture<>();
+    TCPClient WSclient = TSE.createTCPClient("localhost", port);
+    WSclient.setReader((c)->{
+      slf.setResult(c.getRead());
+    });
+    WSclient.connect().get(10, TimeUnit.SECONDS);
+    WSclient.write(WebSocketClient.DEFAULT_WS_REQUEST.getByteBuffer());
+    slf.get(10, TimeUnit.SECONDS);
+    
+    final WebSocketClient wsc = new WebSocketClient(WSclient);
+    
+    wsc.setRequestResponseHeaders(WebSocketClient.DEFAULT_WS_REQUEST, WebSocketClient.DEFAULT_WS_RESPONSE, false);
+    
+    wsc.setWebSocketDataReader(new WebSocketDataReader() {
+      @Override
+      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
+        ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
+        mbb.add(bb);
+        response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
+      }});
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), false);
+
 
     new TestCondition(){
       @Override

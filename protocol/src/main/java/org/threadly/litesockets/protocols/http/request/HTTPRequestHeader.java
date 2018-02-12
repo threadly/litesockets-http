@@ -2,7 +2,7 @@ package org.threadly.litesockets.protocols.http.request;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
@@ -49,7 +49,7 @@ public class HTTPRequestHeader {
   
   public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
     this.requestType = requestType;
-    final HashMap<String, String> rqm = new HashMap<>();
+    final LinkedHashMap<String, String> rqm = new LinkedHashMap<>();
     int queryParamPos = requestPath.indexOf("?");
     if(queryParamPos >= 0) {
       this.requestPath = requestPath.substring(0, queryParamPos);
@@ -60,6 +60,7 @@ public class HTTPRequestHeader {
     if(requestQuery != null) {
       rqm.putAll(requestQuery);
     }
+    System.out.println(rqm);
     if (rqm.isEmpty()) {
       this.requestQuery = Collections.emptyMap();
     } else {

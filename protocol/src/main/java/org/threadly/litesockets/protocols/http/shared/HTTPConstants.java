@@ -40,6 +40,7 @@ public class HTTPConstants {
   public static final String HTTP_KEY_HOST = "Host";
   public static final String HTTP_VERSION_1_1 = "HTTP/1.1";
   public static final String HTTP_VERSION_1_0 = "HTTP/1.0";
+  public static final String WEBSOCKET = "websocket";
   
   public static final int DEFAULT_READ_TIMEOUT = 30000;
   public static final int DEFAULT_HTTP_PORT = 80;

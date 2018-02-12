@@ -17,6 +17,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTP
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 
 public class RequestTests {
@@ -335,6 +336,12 @@ public class RequestTests {
     public void hasError(Throwable t) {
       error = t;
       this.errorCalls++;
+    }
+
+    @Override
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      // TODO Auto-generated method stub
+      
     }
     
   }

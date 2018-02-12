@@ -18,9 +18,12 @@ import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPStreamClient;
 import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.client.http.StreamingClient;
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
+import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
@@ -34,7 +37,20 @@ import org.threadly.litesockets.utils.IOUtils;
  * @author lwahlmeier
  *
  */
-public class WebSocketClient implements StreamingClient{
+public class WebSocketClient implements StreamingClient {
+  public static final HTTPResponse DEFAULT_WS_RESPONSE = new HTTPResponseBuilder()
+      .setResponseCode(HTTPResponseCode.SwitchingProtocols)
+      .setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
+      .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, "Upgrade")
+      .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT, "123456")
+      .build();
+  public static final HTTPRequest DEFAULT_WS_REQUEST = new HTTPRequestBuilder()
+      .setRequestType(HTTPRequestType.GET)
+      .setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
+      .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, "Upgrade")
+      .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
+      .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, "")
+      .build(); 
   public static final String WSS_STRING = "wss";
   public static final String WS_STRING = "ws";
   public static final int WSS_PORT = 443;
@@ -57,17 +73,13 @@ public class WebSocketClient implements StreamingClient{
    * @param client the TCPClient to use for this connection.
    * @param alreadyUpgraded true if the connection has already upgraded to do websockets false if the http upgrade is still required.
    */
-  public WebSocketClient(final TCPClient client, final boolean alreadyUpgraded) {
+  public WebSocketClient(final TCPClient client) {
     if(client.isClosed()) {
       throw new IllegalStateException("TCPClient is closed! Can only use an Open TCPClient");
     }
     
-    hsc = new HTTPStreamClient(client, alreadyUpgraded);
-    
-    if(alreadyUpgraded) {
-      sentRequest.set(true);
-      connectFuture.setResult(true);
-    }
+    hsc = new HTTPStreamClient(client);
+    connectFuture.setResult(true);
   }
   
   /**
@@ -266,6 +278,13 @@ public class WebSocketClient implements StreamingClient{
     hsc.setHTTPStreamReader(lsr);
   }
   
+
+  @Override
+  public void setRequestResponseHeaders(HTTPRequest httpRequest, HTTPResponse httpResponse, boolean writeRequest) {
+    hsc.setRequestResponseHeaders(httpRequest, httpResponse, writeRequest);
+    sentRequest.set(true);
+  }
+  
   @Override
   public ListenableFuture<?> write(final ByteBuffer bb) {
     return write(bb, this.wsoc.getValue(), defaultMask);
@@ -301,6 +320,10 @@ public class WebSocketClient implements StreamingClient{
     } else {
       throw new IllegalStateException("Must be connected first!");
     }
+  }
+  
+  public ListenableFuture<?> getLastWriteFuture() {
+    return hsc.getLastWriteFuture();
   }
 
   @Override
@@ -406,5 +429,6 @@ public class WebSocketClient implements StreamingClient{
      */
     public void onData(WebSocketFrame wsf, ByteBuffer bb);
   }
+
 
 }

@@ -1,6 +1,7 @@
 package org.threadly.litesockets.protocols.http.request;
 
 import java.nio.ByteBuffer;
+import java.text.ParseException;
 
 import org.threadly.concurrent.event.ListenerHelper;
 import org.threadly.litesockets.buffers.MergedByteBuffers;
@@ -8,6 +9,8 @@ import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 
 /**
  * This processes byte data and turns it into HTTPrequests.  It does this through callbacks to a {@link HTTPRequestCallback} interface.  
@@ -29,6 +32,8 @@ public class HTTPRequestProcessor {
   private long bodySize = 0;
   private ByteBuffer chunkedBB;
   private boolean isChunked = false;
+  private boolean isWebsocket = false;
+  private WebSocketFrame lastFrame = null;
 
   public HTTPRequestProcessor() {
 
@@ -89,9 +94,13 @@ public class HTTPRequestProcessor {
             request = new HTTPRequest(hrh, hh);
             listeners.call().headersFinished(request);
             bodySize = hh.getContentLength();
+            String upgrade = hh.getHeader(HTTPConstants.HTTP_KEY_UPGRADE);
             if(hh.isChunked()) {
               bodySize = -1;
-              isChunked = true;              
+              isChunked = true;  
+            } else if(upgrade != null && upgrade.equals(HTTPConstants.WEBSOCKET)) {
+              bodySize = -1;
+              isWebsocket = true;
             } else {
               if(bodySize <= 0) {
                 reset();
@@ -115,9 +124,32 @@ public class HTTPRequestProcessor {
   private boolean processBody() {
     if(isChunked) {
       return parseChunkData();
+    } else if(isWebsocket) {
+      return parseWebsocketData();
     } else {
       return parseStreamBody();
     }
+  }
+  
+  private boolean parseWebsocketData() {
+    if(lastFrame == null) {
+      try {
+        lastFrame = WebSocketFrameParser.parseWebSocketFrame(pendingBuffers);
+      } catch(ParseException e) {
+        return false;
+      }
+    }
+    if(lastFrame.getPayloadDataLength() <= pendingBuffers.remaining()) {
+      ByteBuffer bb = pendingBuffers.pullBuffer((int)lastFrame.getPayloadDataLength());
+      for(HTTPRequestCallback hrc: listeners.getSubscribedListeners()) {
+        hrc.websocketData(lastFrame, bb.duplicate());
+      }
+      lastFrame = null;
+    }
+    if(pendingBuffers.remaining() >= 2) {
+      return true;
+    }
+    return false;
   }
   
   private boolean parseStreamBody() {
@@ -216,6 +248,7 @@ public class HTTPRequestProcessor {
   public interface HTTPRequestCallback {
     public void headersFinished(HTTPRequest hr);
     public void bodyData(ByteBuffer bb);
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb);
     public void finished();
     public void hasError(Throwable t);
   }

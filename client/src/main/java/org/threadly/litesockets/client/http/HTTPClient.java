@@ -545,7 +545,7 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
-      slf.setResult(new HTTPResponseData(response, responseMBB.duplicateAndClean()));
+      slf.setResult(new HTTPResponseData(HTTPClient.this, hr, response, responseMBB.duplicateAndClean()));
       hrp.removeHTTPRequestCallback(this);
       inProcess.remove(client);
       addBackTCPClient(ha, client);
@@ -563,11 +563,23 @@ public class HTTPClient extends AbstractService {
    */
   public static class HTTPResponseData {
     private final HTTPResponse hr;
+    private final HTTPRequest origRequest;
     private final MergedByteBuffers body;
+    private final HTTPClient client;
 
-    public HTTPResponseData(HTTPResponse hr, MergedByteBuffers bb) {
+    public HTTPResponseData(HTTPClient client, HTTPRequest origRequest, HTTPResponse hr, MergedByteBuffers bb) {
+      this.client = client;
       this.hr = hr;
       this.body = bb;
+      this.origRequest = origRequest;
+    }
+    
+    public HTTPClient getHTTPClient() {
+      return client;
+    }
+    
+    public HTTPRequest getHTTPRequest() {
+      return origRequest;
     }
 
     public HTTPResponse getResponse() {
