@@ -79,6 +79,9 @@ public class HTTPUtils {
     Map<String, String> map = new HashMap<>();
     if(query.startsWith("?")) {
       query = query.substring(1);
+    } else if (query.contains("?")){
+      int qpos = query.indexOf("?");
+      query = query.substring(qpos+1);
     }
     String[] tmpQ = query.trim().split("&");
     for(String kv: tmpQ) {

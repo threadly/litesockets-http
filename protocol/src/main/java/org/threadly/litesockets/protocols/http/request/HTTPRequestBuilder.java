@@ -22,17 +22,31 @@ public class HTTPRequestBuilder {
   private String host = "localhost";
   private int port = HTTPConstants.DEFAULT_HTTP_PORT;
   
+  /**
+   * Creates a new HTTPRequestBuilder object.
+   */
   public HTTPRequestBuilder() {
     headers.putAll(HTTPConstants.DEFAULT_HEADERS_MAP);
     setHeader(HTTPConstants.HTTP_KEY_HOST, host);
   }
-  
-  public HTTPRequestBuilder(URL url) {
+    
+  /**
+   * Creates a new HTTPRequestBuilder object from a {@link URL}.  The Path and query will be set from it.
+   * 
+   * @param url the {@link URL} to use to create the {@link HTTPRequestBuilder} object with.
+   */
+  public HTTPRequestBuilder(final URL url) {
     headers.putAll(HTTPConstants.DEFAULT_HEADERS_MAP);
     setURL(url);
   }
   
-  public HTTPRequestBuilder setURL(URL url) {
+  /**
+   * Uses a {@link URL} to set the path and query on this HTTPRequestBuilder object.
+   * 
+   * @param url the {@link URL} to use to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setURL(final URL url) {
     host = url.getHost();
     port = url.getPort();
     if(port <= 0) {
@@ -53,12 +67,24 @@ public class HTTPRequestBuilder {
     return this;
   }
   
-  public HTTPRequestBuilder setHTTPRequestHeader(HTTPRequestHeader hrh) {
+  /**
+   * Set the {@link HTTPRequestHeader} object for this HTTPRequestBuilder.
+   * 
+   * @param hrh the {@link HTTPRequestHeader} object to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setHTTPRequestHeader(final HTTPRequestHeader hrh) {
     request = hrh;
     return this;
   }
   
-  public HTTPRequestBuilder replaceHTTPHeaders(HTTPHeaders hh) {
+  /**
+   * Replaces all the {@link HTTPHeaders} for this HTTPRequestBuilder with the ones provided.
+   * 
+   * @param hh the {@link HTTPHeaders} object to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder replaceHTTPHeaders(final HTTPHeaders hh) {
     this.headers.clear();
     for(Entry<String, String> head: hh.getHeadersMap().entrySet()) {
       setHeader(head.getKey(), head.getValue());
@@ -66,28 +92,46 @@ public class HTTPRequestBuilder {
     return this;
   }
   
-  public HTTPRequestBuilder setHTTPAddress(HTTPAddress ha) {
-    this.host = ha.getHost();
+  /**
+   * Sets the {@link HTTPAddress} for this builder.  This will add a Host header into the headers of this builder
+   * when this object it built.  This is also used with the {@link #buildHTTPAddress(boolean)} method.
+   * 
+   * @param ha the {@link HTTPAddress} to be set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setHTTPAddress(final HTTPAddress ha) {
+    setHost(ha.getHost());
     this.port = ha.getPort();
     return this;
   }
   
-  public HTTPRequestBuilder duplicate() {
-    HTTPRequestBuilder hrb = new HTTPRequestBuilder();
-    hrb.request = request;
-    for(Entry<String, String> entry: headers.entrySet()) {
-      hrb.setHeader(entry.getKey(), entry.getValue());
-    }
-    return hrb;
-  }
-  
-  public HTTPRequestBuilder setHost(String host) {
+  /**
+   * Sets the Host: header in the client.  This is also used with the {@link #buildHTTPAddress(boolean)} method.
+   * Setting to null will remove this header.
+   * 
+   * 
+   * @param host the host name or ip to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setHost(final String host) {
     this.host = host;
-    setHeader(HTTPConstants.HTTP_KEY_HOST, host);
+    if(host != null) {
+      setHeader(HTTPConstants.HTTP_KEY_HOST, host);
+    } else {
+      this.removeHeader(HTTPConstants.HTTP_KEY_HOST);
+    }
     return this;
   }
   
-  public HTTPRequestBuilder setPort(int port) {
+  
+  /**
+   * This sets the port to use in the {@link #buildHTTPAddress(boolean)} method.  If not set the default port
+   * for the protocol type (http or https) will be used.
+   * 
+   * @param port port number to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setPort(final int port) {
     if(port < 1 || port > Short.MAX_VALUE*2) {
       throw new IllegalArgumentException("Not a valid port number: "+port);
     }
@@ -95,53 +139,100 @@ public class HTTPRequestBuilder {
     return this;
   }
   
-  public HTTPAddress buildHTTPAddress(boolean doSSL) {
-    ArgumentVerifier.assertNotNull(this.headers.get(HTTPConstants.HTTP_KEY_HOST), "Must set Host Header!");
-    return new HTTPAddress(this.headers.get(HTTPConstants.HTTP_KEY_HOST), port, doSSL);
+  /**
+   * Creates an independent copy of this {@link HTTPRequestBuilder}.
+   * 
+   * @return a new {@link HTTPRequestBuilder} object with all the same values set.
+   */
+  public HTTPRequestBuilder duplicate() {
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder();
+    hrb.request = request;
+    for(Entry<String, String> entry: headers.entrySet()) {
+      hrb.setHeader(entry.getKey(), entry.getValue());
+    }
+    hrb.setHost(host);
+    hrb.setPort(port);
+    return hrb;
   }
   
-  public HTTPRequestBuilder setPath(String path) {
-    this.request = new HTTPRequestHeader(request.getRequestType(), path, request.getRequestQuery(), request.getHttpVersion());
+  /**
+   * This sets the request path for the {@link HTTPRequestBuilder}.  If a query is on this path it will replace the current query
+   * in this builder. 
+   * 
+   * @param path the path to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setPath(final String path) {
+    if(path.contains("?")) {
+      this.request = new HTTPRequestHeader(request.getRequestType(), path, HTTPUtils.queryToMap(path), request.getHttpVersion());
+    } else {
+      this.request = new HTTPRequestHeader(request.getRequestType(), path, request.getRequestQuery(), request.getHttpVersion());
+    }
     return this;
   }
   
-  public HTTPRequestBuilder setQueryString(String query) {
+  /**
+   * Set the query on this {@link HTTPRequestBuilder}.  If there are currently any query params they will be removed before this is set.
+   * 
+   * @param query the query string to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setQueryString(final String query) {
     this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), HTTPUtils.queryToMap(query), request.getHttpVersion());
     return this;
   }
   
-  public HTTPRequestBuilder appedQuery(String key, String value) {
+  
+  /**
+   * Adds a query key/value to this {@link HTTPRequestBuilder}.  Duplicate keys can be added.
+   * 
+   * @param key the query key to set.
+   * @param value the query value for the set key.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder appendQuery(final String key, final String value) {
     HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
     map.put(key, value);
     this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
   
-  public HTTPRequestBuilder removeQuery(String key) {
+  public HTTPRequestBuilder removeQuery(final String key) {
     HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
     map.remove(key);
     this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
   
-  public HTTPRequestBuilder setHeader(String key, String value) {
+  public HTTPRequestBuilder setHeader(final String key, final String value) {
     headers.put(key, value);
     return this;
   }
   
-  public HTTPRequestBuilder removeHeader(String key) {
+  public HTTPRequestBuilder removeHeader(final String key) {
     headers.remove(key);
     return this;
   }
   
-  public HTTPRequestBuilder setRequestType(String rt) {
+  public HTTPRequestBuilder setRequestType(final String rt) {
     this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
     return this;
   }
   
-  public HTTPRequestBuilder setRequestType(HTTPRequestType rt) {
+  public HTTPRequestBuilder setRequestType(final HTTPRequestType rt) {
     this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
     return this;
+  }
+  
+  /**
+   * Builds an {@link HTTPAddress} object from the set host/port name.  
+   * 
+   * @param doSSL Should this {@link HTTPAddress} do ssl or not.
+   * @return a new {@link HTTPAddress} object with host/port/ssl arguments set. 
+   */
+  public HTTPAddress buildHTTPAddress(final boolean doSSL) {
+    ArgumentVerifier.assertNotNull(this.headers.get(HTTPConstants.HTTP_KEY_HOST), "Must set Host Header!");
+    return new HTTPAddress(this.headers.get(HTTPConstants.HTTP_KEY_HOST), port, doSSL);
   }
   
   public HTTPRequest build() {

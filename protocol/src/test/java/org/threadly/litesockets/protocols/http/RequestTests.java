@@ -54,7 +54,7 @@ public class RequestTests {
     hr2 = hrb.setHeader("X-Custom", "blah").build();
     assertNotEquals(hr1, hr2);
     assertNotEquals(hr1.hashCode(), hr2.hashCode());
-    assertEquals(hr1.getHTTPRequestHeaders(), hr2.getHTTPRequestHeaders());
+    assertEquals(hr1.getHTTPRequestHeader(), hr2.getHTTPRequestHeader());
     assertNotEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
     hr1 = hrb.setHeader("X-Custom", "blah").build();
     assertEquals(hr1, hr2);
@@ -63,7 +63,7 @@ public class RequestTests {
     assertNotEquals(hr1, hr2);
     assertNotEquals(hr1.hashCode(), hr2.hashCode());
     assertNotEquals(hr1.toString(), hr2.toString());
-    assertNotEquals(hr1.getHTTPRequestHeaders(), hr2.getHTTPRequestHeaders());
+    assertNotEquals(hr1.getHTTPRequestHeader(), hr2.getHTTPRequestHeader());
     assertEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
     hr2 = hr1.makeBuilder().build();
     assertEquals(hr1, hr2);
@@ -75,9 +75,9 @@ public class RequestTests {
   public void builderQueryCheck() {
     for(int i=0; i<20; i++) {
       String nq = "query"+i;
-      hrb.appedQuery(nq, Integer.toString(i));
+      hrb.appendQuery(nq, Integer.toString(i));
       HTTPRequest hr = hrb.build();
-      assertEquals(Integer.toString(i), hr.getHTTPRequestHeaders().getRequestQuery().get(nq));
+      assertEquals(Integer.toString(i), hr.getHTTPRequestHeader().getRequestQuery().get(nq));
     }
     for(int i=0; i<20; i++) {
       String nq = "query"+i;
@@ -92,11 +92,11 @@ public class RequestTests {
     for(HTTPRequestType rt: HTTPRequestType.values()) {
       hrb.setRequestType(rt);
       HTTPRequest hr = hrb.build();
-      assertEquals(rt.toString(), hr.getHTTPRequestHeaders().getRequestType());
+      assertEquals(rt.toString(), hr.getHTTPRequestHeader().getRequestType());
     }
     hrb.setRequestType("BLAH");
     HTTPRequest hr = hrb.build();
-    assertEquals("BLAH", hr.getHTTPRequestHeaders().getRequestType());
+    assertEquals("BLAH", hr.getHTTPRequestHeader().getRequestType());
   }
   
   @Test
@@ -125,10 +125,10 @@ public class RequestTests {
     assertEquals(0, cb.bbs.size());
     assertEquals(hr, cb.request);
     assertTrue(cb.error == null);
-    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeaders().getHttpVersion());
-    assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
-    assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
+    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
+    assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
+    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
   }
@@ -144,10 +144,10 @@ public class RequestTests {
     assertEquals(0, cb.bbs.size());
     assertFalse(cb.request == null);
     assertTrue(cb.error == null);
-    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeaders().getHttpVersion());
-    assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
-    assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
+    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
+    assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
+    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     hrp.processData(DATA_BA);
     assertTrue(cb.finished);
     assertEquals(1, cb.bbs.size());
@@ -168,10 +168,10 @@ public class RequestTests {
     assertEquals(0, cb.bbs.size());
     assertFalse(cb.request == null);
     assertTrue(cb.error == null);
-    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeaders().getHttpVersion());
-    assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
-    assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
+    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
+    assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
+    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
   }
 
   
@@ -184,7 +184,7 @@ public class RequestTests {
       sb.append("A");
     }
     sb.append("A");
-    hrb.appedQuery("X-CUSTOM", sb.toString());
+    hrb.appendQuery("X-CUSTOM", sb.toString());
     HTTPRequest hr = hrb.build();
     hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
@@ -249,10 +249,10 @@ public class RequestTests {
     assertEquals(0, cb.bbs.size());
     assertFalse(cb.request == null);
     assertTrue(cb.error == null);
-    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeaders().getHttpVersion());
-    assertEquals("/test12334", cb.request.getHTTPRequestHeaders().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeaders().getRequestType());
-    assertEquals("1", cb.request.getHTTPRequestHeaders().getRequestQuery().get("query"));
+    assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
+    assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
+    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     hrp.processData(wrapInChunk(DATA_BA));
     assertEquals(1, cb.bbs.size());
     assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));

@@ -110,15 +110,34 @@ public class WebSocketFrameParser {
   }
 
   /**
-   * Gets the length of a the WebSocket frame from a passed in MergedByteBuffers object.
-   * This does not modify the MergedByteBuffer.
+   * Gives the total length of the next Frame in the provided {@link MergedByteBuffers}.
+   * This does not modify the {@link MergedByteBuffers}.
    * 
-   * @param mbb MergedByteBuffer to get the Frame length from.
+   * @param mbb {@link MergedByteBuffers} to get the Frame length from.
    * @return size of the frame in bytes, or -1 is there is not enough data to make figure out the frame length.
    */
   public static int getFrameLength(final MergedByteBuffers mbb) {
     final MergedByteBuffers nmbb = mbb.duplicate();
     return getFrameLength(nmbb.pullBuffer(Math.min(nmbb.remaining(), MAX_WS_FRAME_SIZE)));
+  }
+  
+  /**
+   * Gives the total length of the next Frame in the provided {@link ByteBuffer}.
+   * This does not modify the {@link ByteBuffer}.
+   * 
+   * @param bb the {@link ByteBuffer} to find the frame length on.
+   * @return the size of the frame in this {@link ByteBuffer}.
+   */
+  public static int getFrameLength(final ByteBuffer bb) {
+    if(bb.remaining() < MIN_WS_FRAME_SIZE) {
+      return -1;
+    }
+
+    int size = MIN_WS_FRAME_SIZE + getLengthSize(bb);
+    if(hasMask(bb)) {
+      size += MASK_SIZE;
+    } 
+    return size;
   }
 
   /**
@@ -145,24 +164,7 @@ public class WebSocketFrameParser {
     }
   }
 
-  /**
-   * Gives the total length of the Frame in the provided {@link ByteBuffer}.
-   * It will not shift any data in the provided {@link ByteBuffer}.
-   * 
-   * @param bb the {@link ByteBuffer} to find the frame length on.
-   * @return the size of the frame in this {@link ByteBuffer}.
-   */
-  public static int getFrameLength(final ByteBuffer bb) {
-    if(bb.remaining() < MIN_WS_FRAME_SIZE) {
-      return -1;
-    }
 
-    int size = MIN_WS_FRAME_SIZE + getLengthSize(bb);
-    if(hasMask(bb)) {
-      size += MASK_SIZE;
-    } 
-    return size;
-  }
   
   /**
    * Creates a {@link WebSocketFrame} object with the provided parameters.

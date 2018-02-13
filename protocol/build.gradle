@@ -18,9 +18,9 @@ jacocoTestReport {
   reports {
     csv.enabled false
     xml.enabled true
-    xml.destination "${buildDir}/reports/jacoco/jacoco.xml"
+    xml.destination file("${buildDir}/reports/jacoco/jacoco.xml")
     html.enabled true
-    html.destination "${buildDir}/reports/jacoco/html"
+    html.destination file("${buildDir}/reports/jacoco/html")
   }
   doLast {
     println "Test results available at:"
