@@ -14,18 +14,6 @@ import org.threadly.util.StringUtils;
 public class HTTPHeaders {
   private final String rawHeaders;
   private final Map<String, String> headers;
-
-  public static String formatHeaderMap(Map<String, String> headerMap) {
-    StringBuilder sb = new StringBuilder();
-    for(Entry<String, String> kv: headerMap.entrySet()) {
-      sb.append(kv.getKey());
-      sb.append(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
-      sb.append(HTTPConstants.SPACE);
-      sb.append(kv.getValue());
-      sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
-    }
-    return sb.toString();
-  }
   
   public HTTPHeaders(String headerString) {
     TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -64,6 +52,19 @@ public class HTTPHeaders {
     }
     rawHeaders = formatHeaderMap(lheaders);
     this.headers = Collections.unmodifiableMap(lheaders);
+  }
+  
+
+  public static String formatHeaderMap(Map<String, String> headerMap) {
+    StringBuilder sb = new StringBuilder();
+    for(Entry<String, String> kv: headerMap.entrySet()) {
+      sb.append(kv.getKey());
+      sb.append(HTTPConstants.HTTP_HEADER_VALUE_DELIMINATOR);
+      sb.append(HTTPConstants.SPACE);
+      sb.append(kv.getValue());
+      sb.append(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
+    }
+    return sb.toString();
   }
   
   public Map<String, String> getHeadersMap() {

@@ -186,6 +186,7 @@ public class RequestTests {
     sb.append("A");
     hrb.appendQuery("X-CUSTOM", sb.toString());
     HTTPRequest hr = hrb.build();
+    System.out.println(hr.toString());
     hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);

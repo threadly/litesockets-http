@@ -20,6 +20,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.utils.SSLUtils;
 
 /**
@@ -73,7 +74,7 @@ public class HTTPStreamClient implements StreamingClient {
     port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
-    httpProcessor.addHTTPRequestCallback(requestCB);
+    httpProcessor.addHTTPResponseCallback(requestCB);
     slfResponse = new SettableListenableFuture<HTTPResponse>();
     isConnected = true;
   }
@@ -95,7 +96,7 @@ public class HTTPStreamClient implements StreamingClient {
     client.setConnectionTimeout(DEFAULT_TIMEOUT);
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
-    httpProcessor.addHTTPRequestCallback(requestCB);
+    httpProcessor.addHTTPResponseCallback(requestCB);
   }
   
   @Override
@@ -284,6 +285,13 @@ public class HTTPStreamClient implements StreamingClient {
     public void hasError(Throwable t) {
       slfResponse.setFailure(t);
       client.close();
+    }
+
+    @Override
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      if(httpReader != null) {
+        httpReader.handle(bb);
+      }
     }
   }
   
