@@ -127,7 +127,6 @@ public class HTTPResponseProcessor {
         listeners.call().headersFinished(response);
         if(!response.getHeaders().isChunked() && response.getHeaders().getContentLength() == 0) {
           if(response.getResponseCode() != HTTPResponseCode.SwitchingProtocols ) {
-            System.out.println(response);
             reset(null);
           }
         }

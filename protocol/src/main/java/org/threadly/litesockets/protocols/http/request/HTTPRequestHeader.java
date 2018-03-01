@@ -84,7 +84,6 @@ public class HTTPRequestHeader {
     if(requestQuery != null) {
       rqm.putAll(requestQuery);
     }
-    System.out.println(rqm);
     if (rqm.isEmpty()) {
       this.requestQuery = Collections.emptyMap();
     } else {
