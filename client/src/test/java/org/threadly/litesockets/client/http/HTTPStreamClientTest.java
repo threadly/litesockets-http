@@ -65,7 +65,7 @@ public class HTTPStreamClientTest {
       }});
     hsc.connect();
 
-    final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.build());
+    final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.buildHTTPRequest());
     lf.addCallback(new FutureCallback<HTTPResponse>() {
 
       @Override
@@ -106,7 +106,7 @@ public class HTTPStreamClientTest {
       }});
     hsc.connect();
     
-    final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.build());
+    final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.buildHTTPRequest());
     
     lf.addCallback(new FutureCallback<HTTPResponse>() {
 

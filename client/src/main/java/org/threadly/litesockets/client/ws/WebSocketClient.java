@@ -50,7 +50,7 @@ public class WebSocketClient implements StreamingClient {
       .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, "Upgrade")
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, "")
-      .build(); 
+      .buildHTTPRequest(); 
   public static final String WSS_STRING = "wss";
   public static final String WS_STRING = "ws";
   public static final int WSS_PORT = 443;
@@ -330,11 +330,11 @@ public class WebSocketClient implements StreamingClient {
   public ListenableFuture<Boolean> connect() {
     if(sentRequest.compareAndSet(false, true)) {
       hsc.connect();
-      hsc.writeRequest(hrb.build()).addCallback(new FutureCallback<HTTPResponse>() {
+      hsc.writeRequest(hrb.buildHTTPRequest()).addCallback(new FutureCallback<HTTPResponse>() {
         @Override
         public void handleResult(HTTPResponse result) {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
-            String orig = hrb.build().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
+            String orig = hrb.buildHTTPRequest().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
             String resp = result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT);
               if(WebSocketFrameParser.validateKeyResponse(orig, resp)) {
                 connectFuture.setResult(true);
