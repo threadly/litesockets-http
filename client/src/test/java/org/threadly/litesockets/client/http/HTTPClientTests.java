@@ -132,7 +132,7 @@ public class HTTPClientTests {
       }.blockTillTrue(10000);
       httpClient.stop();
   }
-
+  
   @Test
   public void manyRequestsConcurrentJavaExecutor() throws IOException, InterruptedException {
     final int number = 500;

@@ -40,6 +40,7 @@ public class HTTPConstants {
   public static final String HTTP_KEY_HOST = "Host";
   public static final String HTTP_VERSION_1_1 = "HTTP/1.1";
   public static final String HTTP_VERSION_1_0 = "HTTP/1.0";
+  public static final String WEBSOCKET = "websocket";
   
   public static final int DEFAULT_READ_TIMEOUT = 30000;
   public static final int DEFAULT_HTTP_PORT = 80;
@@ -56,12 +57,16 @@ public class HTTPConstants {
   }
   public static final HTTPHeaders DEFAULT_HEADERS = 
       new HTTPHeaders(HTTPConstants.DEFAULT_HEADERS_MAP);
+  
   public static final HTTPRequestHeader DEFAULT_REQUEST_HEADER = 
       new HTTPRequestHeader(HTTPRequestType.GET, "/", null, HTTPConstants.HTTP_VERSION_1_1);
+  
   public static final HTTPResponseHeader OK_RESPONSE_HEADER = 
       new HTTPResponseHeader(HTTPResponseCode.OK, HTTPConstants.HTTP_VERSION_1_1);
+  
   public static final HTTPResponseHeader NOT_FOUND_RESPONSE_HEADER = 
       new HTTPResponseHeader(HTTPResponseCode.NotFound, HTTPConstants.HTTP_VERSION_1_1);
+  
   public static final HTTPResponseHeader SERVER_ERROR_RESPONSE_HEADER = 
       new HTTPResponseHeader(HTTPResponseCode.InternalServerError, HTTPConstants.HTTP_VERSION_1_1);
 }

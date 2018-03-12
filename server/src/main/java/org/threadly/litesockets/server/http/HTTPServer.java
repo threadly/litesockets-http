@@ -17,6 +17,8 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.TCPServer;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
@@ -24,6 +26,9 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
 import org.threadly.util.AbstractService;
 import org.threadly.util.ExceptionUtils;
 
@@ -200,6 +205,11 @@ public class HTTPServer extends AbstractService {
       responseWriter = new ResponseWriter(this.client);
       
     }
+
+    @Override
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      bodyFuture.onWebsocketFrame(hr, wsf, bb, responseWriter);
+    }
   }
   
   /**
@@ -208,7 +218,7 @@ public class HTTPServer extends AbstractService {
    * @author lwahlmeier
    *
    */
-  public static class ResponseWriter { 
+  public static class ResponseWriter {
     private final Client client;
     private final RunnableListenerHelper closeListener = new RunnableListenerHelper(false);
     private boolean responseSent = false;
@@ -296,6 +306,21 @@ public class HTTPServer extends AbstractService {
       }
     }
     
+    public ListenableFuture<?> writeBody(MergedByteBuffers mbb) {
+      if(responseSent && !done) {
+        return client.write(mbb);
+      } else if(responseSent){
+        throw new IllegalStateException("Can not send body before HTTPResponse!");
+      } else {
+        throw new IllegalStateException("Cant write body, Response is already finished!");
+      }
+    }
+    
+    public ListenableFuture<?> writeWebsocketFrame(WebSocketOpCode wsoc, MergedByteBuffers mbb, boolean mask) {
+      ByteBuffer bb = mbb.pullBuffer(mbb.remaining());
+      return writeBody(new SimpleMergedByteBuffers(false, WebSocketFrameParser.makeWebSocketFrame(mbb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
+    }
+    
     /**
      * This is called once you are done handling this HTTPRequest.  If the connection is not closed
      * the client can send a new HTTPRequest that will call back on the {@link HTTPServerHandler} again.
@@ -347,6 +372,10 @@ public class HTTPServer extends AbstractService {
     protected void completed(HTTPRequest httpRequest, ResponseWriter responseWriter) {
       listener.call().bodyComplete(httpRequest, responseWriter);
     }
+    
+    protected void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, ResponseWriter responseWriter) {
+      listener.call().onWebsocketFrame(httpRequest, wsf, bb, responseWriter);
+    }
   }
   
   /**
@@ -381,6 +410,8 @@ public class HTTPServer extends AbstractService {
      * @param responseWriter the {@link ResponseWriter} for this client.
      */
     public void onBody(HTTPRequest httpRequest, ByteBuffer bb, ResponseWriter responseWriter);
+    
+    public void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, ResponseWriter responseWriter);
     
     /**
      * This is called when the body has completed.

@@ -16,11 +16,11 @@ import org.threadly.litesockets.Client.Reader;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
-import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.utils.SSLUtils;
 
 /**
@@ -54,7 +54,6 @@ public class HTTPStreamClient implements StreamingClient {
   private final HTTPResponseProcessor httpProcessor;
   
   private volatile boolean isConnected = false;
-  private volatile boolean headersSent = false;
   private volatile HTTPStreamReader httpReader;
   private volatile SettableListenableFuture<HTTPResponse> slfResponse;
   private volatile HTTPRequest currentHttpRequest;
@@ -65,21 +64,19 @@ public class HTTPStreamClient implements StreamingClient {
    * @param client the {@link TCPClient} to use for this connection.
    * @param headerSent true if the http headers have already been sent, false if they still need to be sent.
    */
-  public HTTPStreamClient(TCPClient client, boolean headerSent) {
-    this(client, client.getRemoteSocketAddress().getHostName(), headerSent);
+  public HTTPStreamClient(TCPClient client) {
+    this(client, client.getRemoteSocketAddress().getHostName());
   }
   
-  public HTTPStreamClient(TCPClient client, String host, boolean headerSent) {
+  public HTTPStreamClient(TCPClient client, String host) {
     this.client = client;
     this.host = host;
-    if(headersSent) {
-      currentHttpRequest = new HTTPRequestBuilder().build();
-    }
     port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
-    httpProcessor.addHTTPRequestCallback(requestCB);
-
+    httpProcessor.addHTTPResponseCallback(requestCB);
+    slfResponse = new SettableListenableFuture<HTTPResponse>();
+    isConnected = true;
   }
 
   /**
@@ -99,7 +96,7 @@ public class HTTPStreamClient implements StreamingClient {
     client.setConnectionTimeout(DEFAULT_TIMEOUT);
     client.addCloseListener(classCloser);
     httpProcessor = new HTTPResponseProcessor();
-    httpProcessor.addHTTPRequestCallback(requestCB);
+    httpProcessor.addHTTPResponseCallback(requestCB);
   }
   
   @Override
@@ -137,6 +134,17 @@ public class HTTPStreamClient implements StreamingClient {
     return port;
   }
 
+  @Override
+  public void setRequestResponseHeaders(HTTPRequest httpRequest, HTTPResponse httpResponse, boolean writeResponse) {
+    if(!slfResponse.isDone()) {
+      currentHttpRequest = httpRequest;
+      httpProcessor.processData(httpResponse.getByteBuffer());
+      if(writeResponse) {
+        client.write(httpResponse.getByteBuffer());
+      }
+    }
+  }
+
   /**
    * <p>Tell the client to write an HTTPRequest to the server.  This can technically be done
    * whenever you want to but obviously use only when you know you can sent a request, right after
@@ -169,7 +177,11 @@ public class HTTPStreamClient implements StreamingClient {
       return client.write(bb);
     }
   }
-
+  
+  public ListenableFuture<?> getLastWriteFuture() {
+    return client.lastWriteFuture();
+  }
+  
   /**
    * Sets the HTTPStreamReader for this client.
    * 
@@ -273,6 +285,13 @@ public class HTTPStreamClient implements StreamingClient {
     public void hasError(Throwable t) {
       slfResponse.setFailure(t);
       client.close();
+    }
+
+    @Override
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      if(httpReader != null) {
+        httpReader.handle(bb);
+      }
     }
   }
   

@@ -6,6 +6,8 @@ import java.util.concurrent.Executor;
 import javax.net.ssl.SSLEngine;
 
 import org.threadly.concurrent.future.ListenableFuture;
+import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 
 
 /**
@@ -38,12 +40,24 @@ public interface StreamingClient {
   public void setConnectionTimeout(int timeout);
   
   /**
+   * Sets the HTTPRequest and HTTPResponse allowing the streaming client to start streaming
+   * w/o sending these in itself.  This is used for the server side of streaming.
+   * 
+   * @param httpRequest
+   * @param httpResponse
+   * @param writeResponse
+   */
+  public void setRequestResponseHeaders(HTTPRequest httpRequest, HTTPResponse httpResponse, boolean writeResponse);
+  
+  /**
    * This performs a write to the connection.
    * 
    * @param bb the {@link ByteBuffer} to write to socket.
    * @return a {@link ListenableFuture} that will be completed once the frame has been fully written to the socket.
    */
   public ListenableFuture<?> write(ByteBuffer bb);
+  
+  public ListenableFuture<?> getLastWriteFuture();
   
   /**
    * This is called to connect this client to the server.  

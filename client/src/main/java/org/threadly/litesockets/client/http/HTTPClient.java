@@ -37,6 +37,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
+import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
@@ -514,7 +515,7 @@ public class HTTPClient extends AbstractService {
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
     public HTTPRequestWrapper(HTTPRequest hr, HTTPAddress ha, ByteBuffer body, long timeout) {
-      hrp.addHTTPRequestCallback(this);
+      hrp.addHTTPResponseCallback(this);
       this.hr = hr;
       this.ha = ha;
       this.body = body;
@@ -545,8 +546,8 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
-      slf.setResult(new HTTPResponseData(response, responseMBB.duplicateAndClean()));
-      hrp.removeHTTPRequestCallback(this);
+      slf.setResult(new HTTPResponseData(HTTPClient.this, hr, response, responseMBB.duplicateAndClean()));
+      hrp.removeHTTPResponseCallback(this);
       inProcess.remove(client);
       addBackTCPClient(ha, client);
       processQueue();
@@ -555,6 +556,13 @@ public class HTTPClient extends AbstractService {
     @Override
     public void hasError(Throwable t) {
       slf.setFailure(t);
+      client.close();
+    }
+
+    @Override
+    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      slf.setFailure(new Exception("HTTPClient does not currently support websockets!"));
+      client.close();
     }
   }
 
@@ -563,11 +571,23 @@ public class HTTPClient extends AbstractService {
    */
   public static class HTTPResponseData {
     private final HTTPResponse hr;
+    private final HTTPRequest origRequest;
     private final MergedByteBuffers body;
+    private final HTTPClient client;
 
-    public HTTPResponseData(HTTPResponse hr, MergedByteBuffers bb) {
+    public HTTPResponseData(HTTPClient client, HTTPRequest origRequest, HTTPResponse hr, MergedByteBuffers bb) {
+      this.client = client;
       this.hr = hr;
       this.body = bb;
+      this.origRequest = origRequest;
+    }
+    
+    public HTTPClient getHTTPClient() {
+      return client;
+    }
+    
+    public HTTPRequest getHTTPRequest() {
+      return origRequest;
     }
 
     public HTTPResponse getResponse() {
