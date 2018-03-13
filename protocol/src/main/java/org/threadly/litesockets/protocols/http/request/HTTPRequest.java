@@ -36,18 +36,6 @@ public class HTTPRequest {
   /**
    * Returns the {@link HTTPRequestHeader} object for this request.
    * 
-   * @deprecated Please use {@link #getHTTPRequestHeader()} instead.
-   * 
-   * @return the {@link HTTPRequestHeader} object for this request.
-   */
-  @Deprecated
-  public HTTPRequestHeader getHTTPRequestHeaders() {
-    return request;
-  }
-
-  /**
-   * Returns the {@link HTTPRequestHeader} object for this request.
-   * 
    * @return the {@link HTTPRequestHeader} object for this request.
    */
   public HTTPRequestHeader getHTTPRequestHeader() {

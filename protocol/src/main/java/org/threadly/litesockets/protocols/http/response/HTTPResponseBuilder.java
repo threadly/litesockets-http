@@ -91,23 +91,6 @@ public class HTTPResponseBuilder {
   /**
    * Replaces all the {@link HTTPHeaders} for this HTTPResponseBuilder with the ones provided.
    * 
-   * @deprecated Please use {@link #replaceHTTPHeaders(HTTPHeaders)} instead.
-   * 
-   * @param hh the {@link HTTPHeaders} object to set.
-   * @return the current {@link HTTPResponseBuilder} object.
-   */
-  @Deprecated
-  public HTTPResponseBuilder setHeaders(HTTPHeaders hh) {
-    this.headers.clear();
-    for(Entry<String, String> head: hh.getHeadersMap().entrySet()) {
-      setHeader(head.getKey(), head.getValue());
-    }
-    return this;
-  }
-  
-  /**
-   * Replaces all the {@link HTTPHeaders} for this HTTPResponseBuilder with the ones provided.
-   * 
    * @param hh the {@link HTTPHeaders} object to set.
    * @return the current {@link HTTPResponseBuilder} object.
    */

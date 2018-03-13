@@ -81,7 +81,7 @@ public class WebSocketClientTest {
     wsc.connect().addCallback(new FutureCallback<Boolean>(){
       @Override
       public void handleResult(Boolean result) {
-        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), false);
+        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, false);
       }
 
       @Override
@@ -99,7 +99,7 @@ public class WebSocketClientTest {
     assertEquals("ECHO", response.get());
     assertTrue(wsc.isConnected());
     response.set(null);
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), true);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, true);
     new TestCondition(){
       @Override
       public boolean get() {
@@ -138,7 +138,7 @@ public class WebSocketClientTest {
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
       }});
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), false);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, false);
 
 
     new TestCondition(){
@@ -150,7 +150,7 @@ public class WebSocketClientTest {
     assertEquals("ECHO", response.get());
     assertTrue(wsc.isConnected());
     response.set(null);
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text.getValue(), true);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, true);
     new TestCondition(){
       @Override
       public boolean get() {

@@ -22,10 +22,10 @@ Here are some simple examples of using the HTTPClient call.
 ```java
     HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("www.google.com").setPort(80);
-    ListenableFuture<HTTPResponseData> lfr1 = httpClient.requestAsync(hrb.buildHTTPAddress(false), hrb.build());
-    ListenableFuture<HTTPResponseData> lfr2 = httpClient.requestAsync(hrb.buildHTTPAddress(false), hrb.build());
-    ListenableFuture<HTTPResponseData> lfr3 = httpClient.requestAsync(hrb.buildHTTPAddress(false), hrb.build());
+    HTTPRequestBuilder hrb = new HTTPRequestBuilder().setHost("www.google.com").setPort(80).setSSL(false);
+    ListenableFuture<HTTPResponseData> lfr1 = httpClient.requestAsync(hrb.buildClientHTTPRequest());
+    ListenableFuture<HTTPResponseData> lfr2 = httpClient.requestAsync(hrb.buildClientHTTPRequest());
+    ListenableFuture<HTTPResponseData> lfr3 = httpClient.requestAsync(hrb.buildClientHTTPRequest());
     FutureCallback<HTTPResponseData> fc = new FutureCallback<HTTPResponseData>() {
       @Override
       public void handleResult(HTTPResponseData result) {

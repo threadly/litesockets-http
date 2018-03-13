@@ -143,20 +143,6 @@ public class HTTPRequestBuilder {
   /**
    * Adds a query key/value to this {@link HTTPRequestBuilder}.  Duplicate keys can be added.
    * 
-   * @deprecated Please use {@link #appendQuery(String, String)} instead.
-   * 
-   * @param key the query key to set.
-   * @param value the query value for the set key.
-   * @return the current {@link HTTPRequestBuilder} object.
-   */
-  @Deprecated
-  public HTTPRequestBuilder appedQuery(String key, String value) {
-    return appendQuery(key, value);
-  }
-
-  /**
-   * Adds a query key/value to this {@link HTTPRequestBuilder}.  Duplicate keys can be added.
-   * 
    * @param key the query key to set.
    * @param value the query value for the set key.
    * @return the current {@link HTTPRequestBuilder} object.
