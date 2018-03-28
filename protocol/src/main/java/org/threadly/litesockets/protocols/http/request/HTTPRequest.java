@@ -11,6 +11,10 @@ import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
  * HTTPRequest.  This object is created via {@link HTTPRequestBuilder}. 
  */
 public class HTTPRequest {
+  public static final int DEFAULT_TIMEOUT_MS = 20000;
+  public static final int MIN_TIMEOUT_MS = 500;
+  public static final int MAX_TIMEOUT_MS = 300000;
+  
   private final HTTPRequestHeader request;
   private final HTTPHeaders headers;
   private transient volatile ByteBuffer cachedBuffer;
@@ -27,18 +31,6 @@ public class HTTPRequest {
    */
   public HTTPHeaders getHTTPHeaders() {
     return headers;
-  }
-
-  /**
-   * Returns the {@link HTTPRequestHeader} object for this request.
-   * 
-   * @deprecated Please use {@link #getHTTPRequestHeader()} instead.
-   * 
-   * @return the {@link HTTPRequestHeader} object for this request.
-   */
-  @Deprecated
-  public HTTPRequestHeader getHTTPRequestHeaders() {
-    return request;
   }
 
   /**

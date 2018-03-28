@@ -47,25 +47,25 @@ public class RequestTests {
   @Test
   public void requestCompareTest1() {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder();
-    HTTPRequest hr1 = hrb.build();
-    HTTPRequest hr2 = hrb.build();
+    HTTPRequest hr1 = hrb.buildHTTPRequest();
+    HTTPRequest hr2 = hrb.buildHTTPRequest();
     assertEquals(hr1, hr2);
     assertEquals(hr1.hashCode(), hr2.hashCode());
-    hr2 = hrb.setHeader("X-Custom", "blah").build();
+    hr2 = hrb.setHeader("X-Custom", "blah").buildHTTPRequest();
     assertNotEquals(hr1, hr2);
     assertNotEquals(hr1.hashCode(), hr2.hashCode());
     assertEquals(hr1.getHTTPRequestHeader(), hr2.getHTTPRequestHeader());
     assertNotEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
-    hr1 = hrb.setHeader("X-Custom", "blah").build();
+    hr1 = hrb.setHeader("X-Custom", "blah").buildHTTPRequest();
     assertEquals(hr1, hr2);
     assertEquals(hr1.hashCode(), hr2.hashCode());
-    hr2 = hrb.setPath("/test/1").build();
+    hr2 = hrb.setPath("/test/1").buildHTTPRequest();
     assertNotEquals(hr1, hr2);
     assertNotEquals(hr1.hashCode(), hr2.hashCode());
     assertNotEquals(hr1.toString(), hr2.toString());
     assertNotEquals(hr1.getHTTPRequestHeader(), hr2.getHTTPRequestHeader());
     assertEquals(hr1.getHTTPHeaders(), hr2.getHTTPHeaders());
-    hr2 = hr1.makeBuilder().build();
+    hr2 = hr1.makeBuilder().buildHTTPRequest();
     assertEquals(hr1, hr2);
     assertEquals(hr1.hashCode(), hr2.hashCode());
     assertEquals(hr1.toString(), hr2.toString());
@@ -76,13 +76,13 @@ public class RequestTests {
     for(int i=0; i<20; i++) {
       String nq = "query"+i;
       hrb.appendQuery(nq, Integer.toString(i));
-      HTTPRequest hr = hrb.build();
+      HTTPRequest hr = hrb.buildHTTPRequest();
       assertEquals(Integer.toString(i), hr.getHTTPRequestHeader().getRequestQuery().get(nq));
     }
     for(int i=0; i<20; i++) {
       String nq = "query"+i;
       hrb.removeQuery(nq);
-      HTTPRequest hr = hrb.build();
+      HTTPRequest hr = hrb.buildHTTPRequest();
       assertTrue(hr.getHTTPHeaders().getHeader(nq) == null);
     }
   }
@@ -91,11 +91,11 @@ public class RequestTests {
   public void builderRequestTypeCheck() {
     for(HTTPRequestType rt: HTTPRequestType.values()) {
       hrb.setRequestType(rt);
-      HTTPRequest hr = hrb.build();
+      HTTPRequest hr = hrb.buildHTTPRequest();
       assertEquals(rt.toString(), hr.getHTTPRequestHeader().getRequestType());
     }
     hrb.setRequestType("BLAH");
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     assertEquals("BLAH", hr.getHTTPRequestHeader().getRequestType());
   }
   
@@ -104,13 +104,13 @@ public class RequestTests {
     for(int i=0; i<20; i++) {
       String nh = "X-NewHeader-"+i;
       hrb.setHeader(nh, Integer.toString(i));
-      HTTPRequest hr = hrb.build();
+      HTTPRequest hr = hrb.buildHTTPRequest();
       assertEquals(Integer.toString(i), hr.getHTTPHeaders().getHeader(nh));
     }
     for(int i=0; i<20; i++) {
       String nh = "X-NewHeader-"+i;
       hrb.removeHeader(nh);
-      HTTPRequest hr = hrb.build();
+      HTTPRequest hr = hrb.buildHTTPRequest();
       assertTrue(hr.getHTTPHeaders().getHeader(nh) == null);
     }
   }
@@ -119,7 +119,7 @@ public class RequestTests {
   public void basicBuildAndParsingTest() throws MalformedURLException {
     hrb = hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "0").duplicate();
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     assertTrue(cb.finished);
     assertEquals(0, cb.bbs.size());
@@ -137,7 +137,7 @@ public class RequestTests {
   public void basicBuildAndParsingWithDataTest() throws MalformedURLException {
     hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "10");
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     
     assertFalse(cb.finished);
@@ -161,7 +161,7 @@ public class RequestTests {
   public void basicBuildAndParsingNoCL() throws MalformedURLException {
     hrb.setURL(new URL("https://test.com/test12334?query=1"));
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     
     assertTrue(cb.finished);
@@ -185,7 +185,7 @@ public class RequestTests {
     }
     sb.append("A");
     hrb.appendQuery("X-CUSTOM", sb.toString());
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     System.out.println(hr.toString());
     hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
@@ -203,7 +203,7 @@ public class RequestTests {
     }
     sb.append("A");
     hrb.setHeader("X-CUSTOM", sb.toString());
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);
@@ -213,7 +213,7 @@ public class RequestTests {
   public void basicParsingChunkedBadChunkSize() throws MalformedURLException {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     hrp.processData("TRE\r\n".getBytes());
     assertTrue(cb.error != null);
@@ -224,7 +224,7 @@ public class RequestTests {
   public void basicParsingChunkedManyReads() throws MalformedURLException {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
@@ -242,7 +242,7 @@ public class RequestTests {
   public void basicBuildAndParsingChunked() throws MalformedURLException {
     hrb.setURL(new URL("https://test.com/test12334?query=1")).setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getByteBuffer());
     
     
@@ -272,7 +272,7 @@ public class RequestTests {
     hrb.setURL(new URL("https://test.com"));
     hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, "10");
     hrp.addHTTPRequestCallback(cb);
-    HTTPRequest hr = hrb.build();
+    HTTPRequest hr = hrb.buildHTTPRequest();
     
     ByteBuffer bb = ByteBuffer.allocate((hr.getByteBuffer().remaining()*10) + 10*10);
     for(int i=0;i <10; i++) {

@@ -27,13 +27,13 @@ import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
-import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
@@ -63,7 +63,7 @@ public class HTTPClient extends AbstractService {
   private final MainClientProcessor mcp = new MainClientProcessor();
   private final RunSocket runSocketTask;
   private final int maxConcurrent;
-  private volatile int defaultTimeout = DEFAULT_TIMEOUT;
+  private volatile int defaultTimeoutMS = HTTPRequest.DEFAULT_TIMEOUT_MS;
   private volatile SSLContext sslContext = SSLUtils.OPEN_SSL_CTX;
 
   private NoThreadSocketExecuter ntse = null;
@@ -168,8 +168,8 @@ public class HTTPClient extends AbstractService {
    * 
    * @param timeout time in milliseconds to wait for HTTPRequests to finish.
    */
-  public void setTimeout(int timeout) {
-    this.defaultTimeout = timeout;
+  public void setTimeout(TimeUnit unit, int timeout) {
+    this.defaultTimeoutMS = (int)Math.min(Math.max(unit.toMillis(timeout),HTTPRequest.MIN_TIMEOUT_MS), HTTPRequest.MAX_TIMEOUT_MS);
   }
 
   /**
@@ -213,42 +213,16 @@ public class HTTPClient extends AbstractService {
    * 
    * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
    * @param request the {@link HTTPRequest} to send the server once connected.
-   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
-   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
-   */
-  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request) throws HTTPParsingException{
-    return request(ha, request, IOUtils.EMPTY_BYTEBUFFER);
-  }
-
-  /**
-   * Sends a blocking HTTP request.
-   * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
-   * @param request the {@link HTTPRequest} to send the server once connected.
-   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body. 
-   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
-   * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
-   */
-  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) throws HTTPParsingException {
-    return request(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
-  }
-
-  /**
-   * Sends a blocking HTTP request.
-   * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
-   * @param request the {@link HTTPRequest} to send the server once connected.
    * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body.
    * @param unit the time unit of the timeout argument 
    * @param timeout the maximum time to wait
    * @return an {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
-  public HTTPResponseData request(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) 
-      throws HTTPParsingException {
+  public HTTPResponseData request(final ClientHTTPRequest request) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
-      hr = requestAsync(ha, request, body, unit, timeout).get();
+      hr = requestAsync(request).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
@@ -284,45 +258,12 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final HTTPRequestType rt, final ByteBuffer bb) {
-    boolean ssl = false;
-    int port = HTTPConstants.DEFAULT_HTTP_PORT;
-    String host = url.getHost();
-    if(url.getProtocol().equalsIgnoreCase("https")) {
-      port = HTTPConstants.DEFAULT_HTTPS_PORT;
-      ssl = true;
-    }
-    if(url.getPort() != -1) {
-      port = url.getPort();
-    }
     HTTPRequestBuilder hrb = new HTTPRequestBuilder(url);
     hrb.setRequestType(rt);
-    return requestAsync(new HTTPAddress(host, port, ssl), hrb.build(), bb);
+    hrb.setTimeout(TimeUnit.MILLISECONDS, this.defaultTimeoutMS);
+    return requestAsync(hrb.buildClientHTTPRequest());
   }
 
-  /**
-   * Sends an asynchronous HTTP request.
-   * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
-   * @param request the {@link HTTPRequest} to send the server once connected.
-   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
-   * successfully or with errors.
-   */
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request) {
-    return requestAsync(ha, request, IOUtils.EMPTY_BYTEBUFFER);
-  }
-
-  /**
-   * Sends an asynchronous HTTP request.
-   * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
-   * @param request the {@link HTTPRequest} to send the server once connected.
-   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body. 
-   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
-   * successfully or with errors.
-   */
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, final HTTPRequest request, final ByteBuffer body) {
-    return requestAsync(ha, request, body, TimeUnit.MILLISECONDS, defaultTimeout);
-  }
 
   /**
    * Sends an asynchronous HTTP request.
@@ -335,9 +276,8 @@ public class HTTPClient extends AbstractService {
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
-  public ListenableFuture<HTTPResponseData> requestAsync(final HTTPAddress ha, 
-      final HTTPRequest request, final ByteBuffer body, final TimeUnit unit, final long timeout) {
-    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request, ha, body, unit.toMillis(timeout));
+  public ListenableFuture<HTTPResponseData> requestAsync(final ClientHTTPRequest request) {
+    HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
     final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
     if(ntse != null) {
@@ -363,10 +303,10 @@ public class HTTPClient extends AbstractService {
         sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
         
         hrw.updateReadTime();
-        hrw.client = getTCPClient(hrw.ha);
+        hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
         inProcess.put(hrw.client, hrw);
-        hrw.client.write(hrw.hr.getByteBuffer());
-        hrw.client.write(hrw.body.duplicate());
+        hrw.client.write(hrw.chr.getHTTPRequest().getByteBuffer());
+        hrw.client.write(hrw.chr.getBodyBuffer().duplicate());
       } catch (Exception e) {
         //Have to catch all here or we dont keep processing if NoThreadSE is in use
         //hrw.slf.setFailure(e);
@@ -505,21 +445,15 @@ public class HTTPClient extends AbstractService {
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
     private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
-    private final HTTPRequest hr;
-    private final HTTPAddress ha;
-    private final long timeout;
-    private final ByteBuffer body;
+    private final ClientHTTPRequest chr;
     private HTTPResponse response;
     private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
     private TCPClient client;
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
-    public HTTPRequestWrapper(HTTPRequest hr, HTTPAddress ha, ByteBuffer body, long timeout) {
+    public HTTPRequestWrapper(ClientHTTPRequest chr) {
       hrp.addHTTPResponseCallback(this);
-      this.hr = hr;
-      this.ha = ha;
-      this.body = body;
-      this.timeout = timeout;
+      this.chr = chr;
     }
 
     public void updateReadTime() {
@@ -527,7 +461,7 @@ public class HTTPClient extends AbstractService {
     }
 
     public long timeTillExpired() {
-      return timeout - (Clock.lastKnownForwardProgressingMillis() - lastRead);
+      return chr.getTimeoutMS() - (Clock.lastKnownForwardProgressingMillis() - lastRead);
     }
 
     @Override
@@ -546,10 +480,10 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
-      slf.setResult(new HTTPResponseData(HTTPClient.this, hr, response, responseMBB.duplicateAndClean()));
+      slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, responseMBB.duplicateAndClean()));
       hrp.removeHTTPResponseCallback(this);
       inProcess.remove(client);
-      addBackTCPClient(ha, client);
+      addBackTCPClient(chr.getHTTPAddress(), client);
       processQueue();
     }
 

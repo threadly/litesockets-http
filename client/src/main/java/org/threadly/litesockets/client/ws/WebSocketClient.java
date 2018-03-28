@@ -50,7 +50,7 @@ public class WebSocketClient implements StreamingClient {
       .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, "Upgrade")
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, "")
-      .build(); 
+      .buildHTTPRequest(); 
   public static final String WSS_STRING = "wss";
   public static final String WS_STRING = "ws";
   public static final int WSS_PORT = 443;
@@ -287,7 +287,7 @@ public class WebSocketClient implements StreamingClient {
   
   @Override
   public ListenableFuture<?> write(final ByteBuffer bb) {
-    return write(bb, this.wsoc.getValue(), defaultMask);
+    return write(bb, this.wsoc, defaultMask);
   }
   
   @Override
@@ -306,7 +306,7 @@ public class WebSocketClient implements StreamingClient {
    * @param mask sets whether or not to mask the websocket data. true to mask, false to not.
    * @return a {@link ListenableFuture} that will be completed once the frame has been fully written to the socket.
    */
-  public ListenableFuture<?> write(final ByteBuffer bb, final byte opCode, final boolean mask) {
+  public ListenableFuture<?> write(final ByteBuffer bb, final WebSocketOpCode opCode, final boolean mask) {
     if(connectFuture.isDone()) {
       WebSocketFrame wsFrame = WebSocketFrameParser.makeWebSocketFrame(bb.remaining(), opCode, mask);
       ByteBuffer data = bb;
@@ -330,11 +330,11 @@ public class WebSocketClient implements StreamingClient {
   public ListenableFuture<Boolean> connect() {
     if(sentRequest.compareAndSet(false, true)) {
       hsc.connect();
-      hsc.writeRequest(hrb.build()).addCallback(new FutureCallback<HTTPResponse>() {
+      hsc.writeRequest(hrb.buildHTTPRequest()).addCallback(new FutureCallback<HTTPResponse>() {
         @Override
         public void handleResult(HTTPResponse result) {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
-            String orig = hrb.build().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
+            String orig = hrb.buildHTTPRequest().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
             String resp = result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT);
               if(WebSocketFrameParser.validateKeyResponse(orig, resp)) {
                 connectFuture.setResult(true);
@@ -398,7 +398,7 @@ public class WebSocketClient implements StreamingClient {
                 data = lastFrame.unmaskPayload(data);
               }
               if(autoReplyPings && lastFrame.getOpCode() == WebSocketOpCode.Ping.getValue()) {
-                write(IOUtils.EMPTY_BYTEBUFFER, WebSocketOpCode.Pong.getValue(), false);
+                write(IOUtils.EMPTY_BYTEBUFFER, WebSocketOpCode.Pong, false);
               } else {
                 onData.onData(lastFrame, data);
               }

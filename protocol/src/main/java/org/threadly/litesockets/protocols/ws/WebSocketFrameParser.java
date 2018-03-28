@@ -164,7 +164,9 @@ public class WebSocketFrameParser {
     }
   }
 
-
+  public static WebSocketFrame makeWebSocketFrame(final int size, final WebSocketOpCode opCode, final boolean mask) {
+    return makeWebSocketFrame(size, true, opCode.getValue(), mask);
+  }
   
   /**
    * Creates a {@link WebSocketFrame} object with the provided parameters.
@@ -174,10 +176,14 @@ public class WebSocketFrameParser {
    * @param mask true if a mask should be added to this frame, false if not.
    * @return a {@link WebSocketFrame} object created with the provided params.
    */
-  public static WebSocketFrame makeWebSocketFrame(final int size, byte opCode, final boolean mask) {
+  public static WebSocketFrame makeWebSocketFrame(final int size, final byte opCode, final boolean mask) {
     return makeWebSocketFrame(size, true, opCode, mask);
   }
   
+  
+  public static WebSocketFrame makeWebSocketFrame(final int size, boolean isFinished, WebSocketOpCode opCode, final boolean mask) {
+    return makeWebSocketFrame(size, isFinished, opCode.getValue(), mask);
+  }
   /**
    * Creates a {@link WebSocketFrame} object with the provided parameters.
    * 

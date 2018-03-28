@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -24,8 +25,11 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
-import org.threadly.litesockets.protocols.http.request.HTTPRequest;
+import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
+import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
@@ -55,7 +59,7 @@ public class HTTPClientTests {
     LARGE_CONTENT = sb.toString();
     RESPONSE_CL = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(CONTENT.length())).build();
     RESPONSE_CL_XML = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(XML_CONTENT.length())).build();
-    RESPONSE_NO_CL = new HTTPResponseBuilder().setHeaders(new HTTPHeaders(new HashMap<String,String>())).build();
+    RESPONSE_NO_CL = new HTTPResponseBuilder().replaceHTTPHeaders(new HTTPHeaders(new HashMap<String,String>())).build();
     RESPONSE_HUGE = new HTTPResponseBuilder().setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(LARGE_CONTENT.length())).build();
   }
 
@@ -85,6 +89,7 @@ public class HTTPClientTests {
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
     final HTTPClient httpClient = new HTTPClient();
     final AtomicInteger count = new AtomicInteger(0);
     httpClient.start(); 
@@ -93,9 +98,9 @@ public class HTTPClientTests {
     Runnable run = new Runnable() {
       @Override
       public void run() {
-        HTTPRequest hr = hrb.build();
+        ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
+        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.addCallback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
@@ -141,6 +146,7 @@ public class HTTPClientTests {
     TSE.start();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
     final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     httpClient.start();
     final AtomicInteger count = new AtomicInteger(0);
@@ -149,9 +155,9 @@ public class HTTPClientTests {
     Runnable run = new Runnable() {
       @Override
       public void run() {
-        HTTPRequest hr = hrb.build();
+        ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
+        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.addCallback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
@@ -199,6 +205,7 @@ public class HTTPClientTests {
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
@@ -209,10 +216,10 @@ public class HTTPClientTests {
     Runnable run = new Runnable() {
       @Override
       public void run() {
-        HTTPRequest hr = hrb.build();
+        ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
 
-        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(new HTTPAddress("localhost", port, false), hr);
+        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.addCallback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
@@ -256,9 +263,10 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, false), hrb.build()).getBodyAsString());
+    assertEquals("TEST123", httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
   }
 
   @Test
@@ -266,9 +274,10 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, "", false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    HTTPResponseData hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+    HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
     assertEquals("", hrs.getBodyAsString());
   }
 
@@ -277,9 +286,10 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    HTTPResponseData hrs = httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+    HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
     System.out.println(hrs.getResponse());
     assertEquals("TEST123", hrs.getBodyAsString());
   }
@@ -289,10 +299,12 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
+    hrb.setTimeout(TimeUnit.MILLISECONDS, 10000);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try{
-      httpClient.request(hrb.buildHTTPAddress(false), hrb.build(), ByteBuffer.allocate(0), TimeUnit.MILLISECONDS, 10000);
+      httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException e) {
       e.printStackTrace();
@@ -306,10 +318,12 @@ public class HTTPClientTests {
     TCPServer server = SEI.createTCPServer("localhost", port);
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
+    hrb.setTimeout(TimeUnit.MILLISECONDS, 500);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try{
-      httpClient.request(hrb.buildHTTPAddress(false), hrb.build(), ByteBuffer.allocate(0), TimeUnit.MILLISECONDS, 500);
+      httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException e) {
       assertEquals("HTTP Timeout!", e.getMessage());
@@ -321,11 +335,13 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
+    hrb.setTimeout(TimeUnit.MILLISECONDS, 30);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     long start = Clock.accurateForwardProgressingMillis();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build(), IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 30);
+      httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException hp) {
 
@@ -340,7 +356,7 @@ public class HTTPClientTests {
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    assertEquals("TEST123", httpClient.request(new HTTPAddress("localhost", port, true), hrb.build()).getBodyAsString());
+    assertEquals("TEST123", httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
   }
 
   @Test
@@ -351,7 +367,7 @@ public class HTTPClientTests {
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+      httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException e) {
       assertEquals("Response Body to large!", e.getMessage());
@@ -366,7 +382,7 @@ public class HTTPClientTests {
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try {
-      httpClient.request(new HTTPAddress("localhost", port, false), hrb.build());
+      httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException e) {
       assertEquals("Response Body to large!", e.getMessage());
@@ -414,17 +430,19 @@ public class HTTPClientTests {
       }});
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setTimeout(TimeUnit.MILLISECONDS, 500);
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
 
-    HTTPRequest hr = hrb.build();
+    ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
 
     long start = System.currentTimeMillis();
     try{
-      httpClient.request(new HTTPAddress("localhost", port, false), hr, IOUtils.EMPTY_BYTEBUFFER, TimeUnit.MILLISECONDS, 100);
+      httpClient.request(chr);
     } catch(Exception e) {
       System.out.println(System.currentTimeMillis() - start);
-      assertTrue(System.currentTimeMillis() - start < 300);
+      assertTrue(System.currentTimeMillis() - start < 700);
       return;
     }
     fail();

@@ -34,28 +34,6 @@ public class HTTPResponseProcessor {
   public HTTPResponseProcessor() {}
 
   /**
-   *
-   * @deprecated use {@link #addHTTPResponseCallback(HTTPResponseCallback)}
-   * 
-   * @param hrc the callback to add
-   */
-  @Deprecated
-  public void addHTTPRequestCallback(HTTPResponseCallback hrc) {
-    addHTTPResponseCallback(hrc);
-  }
-
-  /**
-   * 
-   * @deprecated use {@link #removeHTTPResponseCallback(HTTPResponseCallback)}
-   *  
-   * @param hrc the callback to remove
-   */
-  @Deprecated
-  public void removeHTTPRequestCallback(HTTPResponseCallback hrc) {
-    removeHTTPResponseCallback(hrc);
-  }
-
-  /**
    * Adds an {@link HTTPResponseCallback} to this processor that will be called back as
    * a data stream is processed.
    * 
