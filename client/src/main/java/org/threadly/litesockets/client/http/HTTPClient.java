@@ -291,6 +291,9 @@ public class HTTPClient extends AbstractService {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder(url);
     hrb.setRequestType(rt);
     hrb.setTimeout(this.defaultTimeoutMS, TimeUnit.MILLISECONDS);
+    if (bb != null && bb.hasRemaining()) {
+      hrb.setBody(bb);
+    }
     return requestAsync(hrb.buildClientHTTPRequest());
   }
 
