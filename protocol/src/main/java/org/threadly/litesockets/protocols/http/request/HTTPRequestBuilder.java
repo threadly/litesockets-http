@@ -240,7 +240,7 @@ public class HTTPRequestBuilder {
     return setBody(ByteBuffer.wrap(str.getBytes(cs)));
   }
 
-  public HTTPRequestBuilder setTimeout(TimeUnit unit, int size) {
+  public HTTPRequestBuilder setTimeout(long size, TimeUnit unit) {
     this.timeoutMS = (int)Math.min(Math.max(unit.toMillis(size),HTTPRequest.MIN_TIMEOUT_MS), HTTPRequest.MAX_TIMEOUT_MS);
     return this;
   }

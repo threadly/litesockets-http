@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -25,8 +24,6 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.buffers.MergedByteBuffers;
-import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
 import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
@@ -300,7 +297,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
-    hrb.setTimeout(TimeUnit.MILLISECONDS, 10000);
+    hrb.setTimeout(10000, TimeUnit.MILLISECONDS);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try{
@@ -319,7 +316,7 @@ public class HTTPClientTests {
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
-    hrb.setTimeout(TimeUnit.MILLISECONDS, 500);
+    hrb.setTimeout(500, TimeUnit.MILLISECONDS);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try{
@@ -336,7 +333,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
-    hrb.setTimeout(TimeUnit.MILLISECONDS, 30);
+    hrb.setTimeout(30, TimeUnit.MILLISECONDS);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     long start = Clock.accurateForwardProgressingMillis();
@@ -430,7 +427,7 @@ public class HTTPClientTests {
       }});
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-    hrb.setTimeout(TimeUnit.MILLISECONDS, 500);
+    hrb.setTimeout(500, TimeUnit.MILLISECONDS);
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
