@@ -73,7 +73,7 @@ public class HTTPStreamClient implements StreamingClient {
     this.host = host;
     port = client.getRemoteSocketAddress().getPort();
     client.addCloseListener(classCloser);
-    httpProcessor = new HTTPResponseProcessor();
+    httpProcessor = new HTTPResponseProcessor(false);
     httpProcessor.addHTTPResponseCallback(requestCB);
     slfResponse = new SettableListenableFuture<HTTPResponse>();
     isConnected = true;
@@ -95,7 +95,7 @@ public class HTTPStreamClient implements StreamingClient {
     client = se.createTCPClient(host, port);
     client.setConnectionTimeout(DEFAULT_TIMEOUT);
     client.addCloseListener(classCloser);
-    httpProcessor = new HTTPResponseProcessor();
+    httpProcessor = new HTTPResponseProcessor(false);
     httpProcessor.addHTTPResponseCallback(requestCB);
   }
   

@@ -18,7 +18,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 
 public class RequestTests {
   public static final String DATA = "1234567890";
@@ -89,14 +89,14 @@ public class RequestTests {
   
   @Test
   public void builderRequestTypeCheck() {
-    for(HTTPRequestType rt: HTTPRequestType.values()) {
-      hrb.setRequestType(rt);
+    for(HTTPRequestMethod rt: HTTPRequestMethod.values()) {
+      hrb.setRequestMethod(rt);
       HTTPRequest hr = hrb.buildHTTPRequest();
-      assertEquals(rt.toString(), hr.getHTTPRequestHeader().getRequestType());
+      assertEquals(rt.toString(), hr.getHTTPRequestHeader().getRequestMethod());
     }
-    hrb.setRequestType("BLAH");
+    hrb.setRequestMethod("BLAH");
     HTTPRequest hr = hrb.buildHTTPRequest();
-    assertEquals("BLAH", hr.getHTTPRequestHeader().getRequestType());
+    assertEquals("BLAH", hr.getHTTPRequestHeader().getRequestMethod());
   }
   
   @Test
@@ -127,7 +127,7 @@ public class RequestTests {
     assertTrue(cb.error == null);
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
@@ -146,7 +146,7 @@ public class RequestTests {
     assertTrue(cb.error == null);
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     hrp.processData(DATA_BA);
     assertTrue(cb.finished);
@@ -170,7 +170,7 @@ public class RequestTests {
     assertTrue(cb.error == null);
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
   }
 
@@ -252,7 +252,7 @@ public class RequestTests {
     assertTrue(cb.error == null);
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
-    assertEquals(HTTPRequestType.GET.toString(), cb.request.getHTTPRequestHeader().getRequestType());
+    assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
     hrp.processData(wrapInChunk(DATA_BA));
     assertEquals(1, cb.bbs.size());

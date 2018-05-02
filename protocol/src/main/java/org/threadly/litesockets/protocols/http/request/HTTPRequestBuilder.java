@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
-import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.util.ArgumentVerifier;
 
@@ -67,9 +67,9 @@ public class HTTPRequestBuilder {
     }
     String q = url.getQuery();
     if(q != null) {
-      request = new HTTPRequestHeader(request.getRequestType(), tmpPath, HTTPUtils.queryToMap(q), request.getHttpVersion());
+      request = new HTTPRequestHeader(request.getRequestMethod(), tmpPath, HTTPUtils.queryToMap(q), request.getHttpVersion());
     } else {
-      request = new HTTPRequestHeader(request.getRequestType(), tmpPath, null, request.getHttpVersion());
+      request = new HTTPRequestHeader(request.getRequestMethod(), tmpPath, null, request.getHttpVersion());
     }
     if(url.getProtocol().equalsIgnoreCase("https")) {
       doSSL = true;
@@ -91,13 +91,14 @@ public class HTTPRequestBuilder {
   }
 
   /**
-   * Sets the {@link HTTPRequestType} for this request.  This will accept non-stander strings in the for the request.
+   * Sets the {@link HTTPRequestMethod} for this request.  This will accept non-stander strings in the for the request.
    * 
-   * @param rt the RequestType to set this request too.
+   * @param rm the http request method to set this request too.
    * @return the current {@link HTTPRequestBuilder} object.
    */
-  public HTTPRequestBuilder setRequestType(final String rt) {
-    this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
+  public HTTPRequestBuilder setRequestMethod(final String rm) {
+    this.request = new HTTPRequestHeader(rm, request.getRequestPath(), request.getRequestQuery(), 
+                                         request.getHttpVersion());
     return this;
   }
 
@@ -108,7 +109,8 @@ public class HTTPRequestBuilder {
    * @return the current {@link HTTPRequestBuilder} object.
    */
   public HTTPRequestBuilder setHTTPVersion(final String version) {
-    this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), request.getRequestQuery(), version);
+    this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), 
+                                         request.getRequestQuery(), version);
     return this;
   }
 
@@ -122,9 +124,11 @@ public class HTTPRequestBuilder {
    */
   public HTTPRequestBuilder setPath(final String path) {
     if(path.contains("?")) {
-      this.request = new HTTPRequestHeader(request.getRequestType(), path, HTTPUtils.queryToMap(path), request.getHttpVersion());
+      this.request = new HTTPRequestHeader(request.getRequestMethod(), path, 
+                                           HTTPUtils.queryToMap(path), request.getHttpVersion());
     } else {
-      this.request = new HTTPRequestHeader(request.getRequestType(), path, request.getRequestQuery(), request.getHttpVersion());
+      this.request = new HTTPRequestHeader(request.getRequestMethod(), path, 
+                                           request.getRequestQuery(), request.getHttpVersion());
     }
     return this;
   }
@@ -136,7 +140,7 @@ public class HTTPRequestBuilder {
    * @return the current {@link HTTPRequestBuilder} object.
    */
   public HTTPRequestBuilder setQueryString(final String query) {
-    this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), HTTPUtils.queryToMap(query), request.getHttpVersion());
+    this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), HTTPUtils.queryToMap(query), request.getHttpVersion());
     return this;
   }
 
@@ -150,7 +154,7 @@ public class HTTPRequestBuilder {
   public HTTPRequestBuilder appendQuery(final String key, final String value) {
     HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
     map.put(key, value);
-    this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), map, request.getHttpVersion());
+    this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
 
@@ -163,7 +167,7 @@ public class HTTPRequestBuilder {
   public HTTPRequestBuilder removeQuery(final String key) {
     HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
     map.remove(key);
-    this.request = new HTTPRequestHeader(request.getRequestType(), request.getRequestPath(), map, request.getHttpVersion());
+    this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
 
@@ -301,13 +305,14 @@ public class HTTPRequestBuilder {
 
 
   /**
-   * Sets the {@link HTTPRequestType} for this request.  This uses the standard http request types enum.
+   * Sets the {@link HTTPRequestMethod} for this request.  This uses the standard http request methods enum.
    * 
-   * @param rt the RequestType to set this request too.
+   * @param rm the http request method to set this request too.
    * @return the current {@link HTTPRequestBuilder} object.
    */
-  public HTTPRequestBuilder setRequestType(final HTTPRequestType rt) {
-    this.request = new HTTPRequestHeader(rt, request.getRequestPath(), request.getRequestQuery(), request.getHttpVersion());
+  public HTTPRequestBuilder setRequestMethod(final HTTPRequestMethod rm) {
+    this.request = new HTTPRequestHeader(rm, request.getRequestPath(), request.getRequestQuery(), 
+                                         request.getHttpVersion());
     return this;
   }
 

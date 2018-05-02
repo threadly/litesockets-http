@@ -292,6 +292,21 @@ public class HTTPClientTests {
   }
 
   @Test
+  public void contentLengthOnHeadRequest() throws IOException, HTTPParsingException {
+    int port = PortUtils.findTCPPort(); // TODO
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, true);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setRequestMethod("HEAD");
+    
+    final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
+    HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
+    System.out.println(hrs.getResponse());
+    assertEquals(CONTENT.length(), hrs.getContentLength());
+    assertEquals("", hrs.getBodyAsString());
+  }
+
+  @Test
   public void closeBeforeLength() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, CONTENT, false, true);

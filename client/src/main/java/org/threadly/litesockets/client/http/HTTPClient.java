@@ -36,7 +36,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
 import org.threadly.litesockets.utils.IOUtils;
@@ -173,7 +173,8 @@ public class HTTPClient extends AbstractService {
    * @param timeout time in milliseconds to wait for HTTPRequests to finish.
    */
   public void setTimeout(long timeout, TimeUnit unit) {
-    this.defaultTimeoutMS = Math.min(Math.max(unit.toMillis(timeout),HTTPRequest.MIN_TIMEOUT_MS), HTTPRequest.MAX_TIMEOUT_MS);
+    this.defaultTimeoutMS = Math.min(Math.max(unit.toMillis(timeout),HTTPRequest.MIN_TIMEOUT_MS), 
+                                     HTTPRequest.MAX_TIMEOUT_MS);
   }
   
   public long getMaxIdleTimeout() {
@@ -210,22 +211,22 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
-    return request(url, HTTPRequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
+    return request(url, HTTPRequestMethod.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
    * Sends a blocking HTTP request.
    * 
    * @param url the url to send the request too.
-   * @param rt the {@link HTTPRequestType} to use on the request.
+   * @param rm the {@link HTTPRequestMethod} to use on the request.
    * @param bb the data to put in the body for this request.
    * @return an {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
-  public HTTPResponseData request(final URL url, final HTTPRequestType rt, final ByteBuffer bb) throws HTTPParsingException {
+  public HTTPResponseData request(final URL url, final HTTPRequestMethod rm, final ByteBuffer bb) throws HTTPParsingException {
     HTTPResponseData hr = null;
     try {
-      hr = requestAsync(url, rt, bb).get();
+      hr = requestAsync(url, rm, bb).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
@@ -275,21 +276,22 @@ public class HTTPClient extends AbstractService {
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
-    return requestAsync(url, HTTPRequestType.GET, IOUtils.EMPTY_BYTEBUFFER);
+    return requestAsync(url, HTTPRequestMethod.GET, IOUtils.EMPTY_BYTEBUFFER);
   }
   
   /**
    * Sends an asynchronous HTTP request.
    * 
    * @param url the {@link URL} to send the request too.
-   * @param rt the {@link HTTPRequestType} to use on the request.
+   * @param rm the {@link HTTPRequestMethod} to use on the request.
    * @param bb the data to put in the body for this request.
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
-  public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final HTTPRequestType rt, final ByteBuffer bb) {
+  public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final HTTPRequestMethod rm, 
+                                                         final ByteBuffer bb) {
     HTTPRequestBuilder hrb = new HTTPRequestBuilder(url);
-    hrb.setRequestType(rt);
+    hrb.setRequestMethod(rm);
     hrb.setTimeout(this.defaultTimeoutMS, TimeUnit.MILLISECONDS);
     if (bb != null && bb.hasRemaining()) {
       hrb.setBody(bb);
@@ -498,7 +500,7 @@ public class HTTPClient extends AbstractService {
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
-    private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
+    private final HTTPResponseProcessor hrp;
     private final ClientHTTPRequest chr;
     private HTTPResponse response;
     private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
@@ -506,6 +508,9 @@ public class HTTPClient extends AbstractService {
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
     public HTTPRequestWrapper(ClientHTTPRequest chr) {
+      hrp = new HTTPResponseProcessor(chr.getHTTPRequest()
+                                         .getHTTPRequestHeader()
+                                         .getRequestMethod().equals("HEAD"));
       hrp.addHTTPResponseCallback(this);
       this.chr = chr;
     }
@@ -534,7 +539,8 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
-      slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, responseMBB.duplicateAndClean()));
+      slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, 
+                                         responseMBB.duplicateAndClean()));
       hrp.removeHTTPResponseCallback(this);
       inProcess.remove(client);
       addBackTCPClient(chr.getHTTPAddress(), client);
@@ -563,7 +569,8 @@ public class HTTPClient extends AbstractService {
     private final MergedByteBuffers body;
     private final HTTPClient client;
 
-    public HTTPResponseData(HTTPClient client, HTTPRequest origRequest, HTTPResponse hr, MergedByteBuffers bb) {
+    public HTTPResponseData(HTTPClient client, HTTPRequest origRequest, HTTPResponse hr, 
+                            MergedByteBuffers bb) {
       this.client = client;
       this.hr = hr;
       this.body = bb;
@@ -587,7 +594,16 @@ public class HTTPClient extends AbstractService {
     }
         
     public long getContentLength() {
-      return body.remaining();
+      long result = body.remaining();
+      if (result > 0) {
+        return result;
+      }
+      result = hr.getHeaders().getContentLength();
+      if (result > 0) {
+        return result;
+      } else {
+        return 0;
+      }
     }
 
     public MergedByteBuffers getBody() {
