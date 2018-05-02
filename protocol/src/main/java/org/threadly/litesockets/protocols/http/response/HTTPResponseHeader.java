@@ -25,7 +25,8 @@ public class HTTPResponseHeader {
     String[] tmp = rawResponse.split(" ", MAX_RESPONSE_ITEMS);
     try {
       httpVersion = tmp[0].trim();
-      if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
+      if(!httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_1) && 
+         !httpVersion.equalsIgnoreCase(HTTPConstants.HTTP_VERSION_1_0)) {
         throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
       }
       hrc = HTTPResponseCode.findResponseCode(Integer.parseInt(tmp[1].trim()));
@@ -42,7 +43,8 @@ public class HTTPResponseHeader {
    * @throws IllegalArgumentException If the header fails to parse.
    */
   public HTTPResponseHeader(final HTTPResponseCode rCode, final String httpVersion) {
-    if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
+    if(!httpVersion.equals(HTTPConstants.HTTP_VERSION_1_1) && 
+       !httpVersion.equals(HTTPConstants.HTTP_VERSION_1_0)) {
       throw new IllegalArgumentException("Unknown HTTP Version!:"+httpVersion);
     }
     hrc = rCode;

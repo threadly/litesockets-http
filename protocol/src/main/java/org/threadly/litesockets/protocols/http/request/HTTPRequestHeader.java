@@ -6,18 +6,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 
 /**
  * This is an immutable HTTP Request Header.  Basically the first line of the http request.  
  * 
- * This is the first line of an http request formated with spaces "RequestType path?query version".
+ * This is the first line of an http request formated with spaces "RequestMethod path?query version".
  */
 public class HTTPRequestHeader {
   private static final int REQUIRED_REQUEST_ITEMS = 3;
   private final String rawRequest;
-  private final String requestType;
+  private final String requestMethod;
   private final String requestPath;
   private final Map<String, String> requestQuery;
   private final String httpVersion;
@@ -34,7 +34,7 @@ public class HTTPRequestHeader {
     if(tmp.length != REQUIRED_REQUEST_ITEMS) {
       throw new IllegalArgumentException("HTTPRequestHeader can only have 3 arguments! :"+requestHeader);
     }
-    requestType = tmp[0].trim().toUpperCase();
+    requestMethod = tmp[0].trim().toUpperCase();
     String ptmp = tmp[1].trim();
     int queryParamPos = ptmp.indexOf('?');
     if(queryParamPos >= 0) {
@@ -54,25 +54,28 @@ public class HTTPRequestHeader {
   /**
    * Creates a new Immutable {@link HTTPRequest} object from the parts that are in a request.
    * 
-   * @param requestType the {@link HTTPRequestType} to set.
-   * @param requestPath the {@link HTTPRequestType} to set.
+   * @param requestMethod the {@link HTTPRequestMethod} to set.
+   * @param requestPath the {@link HTTPRequestMethod} to set.
    * @param requestQuery the query to set.
    * @param httpVersion the httpVersion to set.
    */
-  public HTTPRequestHeader(HTTPRequestType requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
-    this(requestType.toString(), requestPath, requestQuery, httpVersion);
+  public HTTPRequestHeader(HTTPRequestMethod requestMethod, String requestPath, 
+                           Map<String, String> requestQuery, String httpVersion){
+    this(requestMethod.toString(), requestPath, requestQuery, httpVersion);
   }
   
   /**
-   * Creates a new Immutable {@link HTTPRequest} object from the parts that are in a request.  This can take non-standard RequestTypes
+   * Creates a new Immutable {@link HTTPRequest} object from the parts that are in a request.  
+   * This can take non-standard request methods.
    * 
-   * @param requestType the {@link HTTPRequestType} to set.
-   * @param requestPath the {@link HTTPRequestType} to set.
+   * @param requestMethod the {@link HTTPRequestMethod} to set.
+   * @param requestPath the {@link HTTPRequestMethod} to set.
    * @param requestQuery the query to set.
    * @param httpVersion the httpVersion to set.
    */
-  public HTTPRequestHeader(String requestType, String requestPath, Map<String, String> requestQuery, String httpVersion){
-    this.requestType = requestType;
+  public HTTPRequestHeader(String requestMethod, String requestPath, 
+                           Map<String, String> requestQuery, String httpVersion){
+    this.requestMethod = requestMethod;
     final LinkedHashMap<String, String> rqm = new LinkedHashMap<>();
     int queryParamPos = requestPath.indexOf("?");
     if(queryParamPos >= 0) {
@@ -89,12 +92,13 @@ public class HTTPRequestHeader {
     } else {
       this.requestQuery = Collections.unmodifiableMap(rqm);
     }
-    if(!HTTPConstants.HTTP_VERSION_1_1.equals(httpVersion) && !HTTPConstants.HTTP_VERSION_1_0.equals(httpVersion)) {
+    if(!HTTPConstants.HTTP_VERSION_1_1.equals(httpVersion) && 
+       !HTTPConstants.HTTP_VERSION_1_0.equals(httpVersion)) {
       throw new UnsupportedOperationException("Unknown HTTP Version!:"+httpVersion);
     }
     this.httpVersion = httpVersion.trim().toUpperCase();
     StringBuilder sb = new StringBuilder();
-    sb.append(requestType.toString());
+    sb.append(requestMethod.toString());
     sb.append(HTTPConstants.SPACE);
     sb.append(requestPath);
     if(requestQuery != null && ! requestQuery.isEmpty()) {
@@ -106,12 +110,12 @@ public class HTTPRequestHeader {
   }
   
   /**
-   * Gets the requestType set in this request.
+   * Gets the http request method (ie POST, GET, HEAD, etc).
    * 
-   * @return the request type.
+   * @return the request method.
    */
-  public String getRequestType() {  // TODO - rename to method?
-    return requestType;
+  public String getRequestMethod() {
+    return requestMethod;
   }
   
   /**

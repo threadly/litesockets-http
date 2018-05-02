@@ -23,7 +23,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
-import org.threadly.litesockets.protocols.http.shared.HTTPRequestType;
+import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
 import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
@@ -45,7 +45,7 @@ public class WebSocketClient implements StreamingClient {
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT, "123456")
       .build();
   public static final HTTPRequest DEFAULT_WS_REQUEST = new HTTPRequestBuilder()
-      .setRequestType(HTTPRequestType.GET)
+      .setRequestMethod(HTTPRequestMethod.GET)
       .setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
       .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, "Upgrade")
       .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
