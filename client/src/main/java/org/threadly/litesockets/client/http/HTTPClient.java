@@ -410,29 +410,42 @@ public class HTTPClient extends AbstractService {
       client.close();
       return;
     }
-    if(!client.isClosed()) {
-      ArrayDeque<Pair<Long,TCPClient>> ll = sockets.get(ha);  
+    Pair<Long,TCPClient> p = new Pair<>(Clock.lastKnownForwardProgressingMillis(), client);
+    while (!client.isClosed()) {
+      ArrayDeque<Pair<Long,TCPClient>> ll = sockets.get(ha);
       if(ll == null) {
-        sockets.put(ha, new ArrayDeque<>(8));
-        ll = sockets.get(ha);
-      }
-      synchronized(ll) {
-        ll.add(new Pair<>(Clock.lastKnownForwardProgressingMillis(), client));
+        ll = new ArrayDeque<>(8);
+        ll.add(p);
+        if (sockets.putIfAbsent(ha, ll) == null) {
+          break;
+        }
+      } else {
+        synchronized(ll) {
+          if (sockets.get(ha) == ll) {
+            ll.add(p);
+            break;
+          }
+        }
       }
     }
   }
   
   private void checkIdleSockets() {
     if(maxIdleTime > 0) {
-      for(ArrayDeque<Pair<Long,TCPClient>> adq: sockets.values()) {
+      Iterator<ArrayDeque<Pair<Long,TCPClient>>> hostSocketsIt = sockets.values().iterator();
+      while (hostSocketsIt.hasNext()) {
+        ArrayDeque<Pair<Long,TCPClient>> adq = hostSocketsIt.next();
         synchronized(adq) {
-          Iterator<Pair<Long,TCPClient>> iter = adq.iterator();
-          while(iter.hasNext()) {
-            Pair<Long,TCPClient> c = iter.next();
+          Iterator<Pair<Long,TCPClient>> clientConIt = adq.iterator();
+          while(clientConIt.hasNext()) {
+            Pair<Long,TCPClient> c = clientConIt.next();
             if(Clock.lastKnownForwardProgressingMillis() - c.getLeft() > maxIdleTime) {
-              iter.remove();
+              clientConIt.remove();
               c.getRight().close();
             }
+          }
+          if (adq.isEmpty()) {
+            hostSocketsIt.remove();
           }
         }
       }
