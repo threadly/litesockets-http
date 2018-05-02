@@ -110,7 +110,7 @@ public class HTTPRequestHeader {
    * 
    * @return the request type.
    */
-  public String getRequestType() {
+  public String getRequestType() {  // TODO - rename to method?
     return requestType;
   }
   

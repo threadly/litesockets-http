@@ -51,7 +51,7 @@ public class ResponseTests {
   
   @Test
   public void responseProcessorTest1() throws InterruptedException, ExecutionException, TimeoutException {
-    HTTPResponseProcessor hrp = new HTTPResponseProcessor();
+    HTTPResponseProcessor hrp = new HTTPResponseProcessor(false);
     final SettableListenableFuture<HTTPResponse> header = new SettableListenableFuture<>();
     final SettableListenableFuture<Boolean> finished = new SettableListenableFuture<>();
     hrp.addHTTPResponseCallback(new HTTPResponseCallback() {

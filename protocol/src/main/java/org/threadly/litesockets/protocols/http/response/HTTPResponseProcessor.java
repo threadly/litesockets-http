@@ -24,6 +24,7 @@ public class HTTPResponseProcessor {
 
   private final ReuseableMergedByteBuffers buffers = new ReuseableMergedByteBuffers();
   private final ListenerHelper<HTTPResponseCallback> listeners = new ListenerHelper<>(HTTPResponseCallback.class);
+  private final boolean headRequest;
   private HTTPResponse response;
   private int nextChunkSize = -1;
   private int currentBodySize = 0;
@@ -31,7 +32,9 @@ public class HTTPResponseProcessor {
   /**
    * Creates a new {@link HTTPResponseProcessor}. 
    */
-  public HTTPResponseProcessor() {}
+  public HTTPResponseProcessor(boolean headRequest) {
+    this.headRequest = headRequest;
+  }
 
   /**
    * Adds an {@link HTTPResponseCallback} to this processor that will be called back as
@@ -103,10 +106,11 @@ public class HTTPResponseProcessor {
         }
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
-        if(!response.getHeaders().isChunked() && response.getHeaders().getContentLength() == 0) {
-          if(response.getResponseCode() != HTTPResponseCode.SwitchingProtocols ) {
-            reset(null);
-          }
+        if(!response.getHeaders().isChunked() && 
+            response.getResponseCode() != HTTPResponseCode.SwitchingProtocols && 
+            (headRequest || response.getResponseCode() == HTTPResponseCode.NoContent || 
+             response.getHeaders().getContentLength() == 0)) {
+          reset(null);
         }
       } catch(Exception e) {
         reset(e);
@@ -120,10 +124,10 @@ public class HTTPResponseProcessor {
 
 
   /**
-   * Called when an http response connection is closes.  Some types of responses are only completed when the connection is closed (http1.0).
+   * Called when an http response connection is closes.  Some types of responses are only completed 
+   * when the connection is closed (http1.0).
    * 
    * This will finish all the callback and then reset the processor to be able to be reused if wanted.
-   * 
    */
   public void connectionClosed() {
     if(response != null) {
@@ -216,7 +220,8 @@ public class HTTPResponseProcessor {
         if(currentBodySize >= response.getHeaders().getContentLength()) {
           reset(null);
         }
-      } else if (response.getHeaders().getContentLength() == -1 || response.getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
+      } else if (response.getHeaders().getContentLength() == -1 || 
+                 response.getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
         sendDuplicateBBtoListeners(buffers.pullBuffer(buffers.remaining()));
       }
     }

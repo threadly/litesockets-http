@@ -498,7 +498,7 @@ public class HTTPClient extends AbstractService {
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
-    private final HTTPResponseProcessor hrp = new HTTPResponseProcessor();
+    private final HTTPResponseProcessor hrp;
     private final ClientHTTPRequest chr;
     private HTTPResponse response;
     private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
@@ -506,6 +506,9 @@ public class HTTPClient extends AbstractService {
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
     public HTTPRequestWrapper(ClientHTTPRequest chr) {
+      hrp = new HTTPResponseProcessor(chr.getHTTPRequest()
+                                         .getHTTPRequestHeader()
+                                         .getRequestType().equals("HEAD"));
       hrp.addHTTPResponseCallback(this);
       this.chr = chr;
     }
@@ -534,7 +537,8 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
-      slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, responseMBB.duplicateAndClean()));
+      slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, 
+                                         responseMBB.duplicateAndClean()));
       hrp.removeHTTPResponseCallback(this);
       inProcess.remove(client);
       addBackTCPClient(chr.getHTTPAddress(), client);
