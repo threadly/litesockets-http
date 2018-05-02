@@ -594,15 +594,11 @@ public class HTTPClient extends AbstractService {
     }
         
     public long getContentLength() {
-      long result = body.remaining();
-      if (result > 0) {
-        return result;
-      }
-      result = hr.getHeaders().getContentLength();
-      if (result > 0) {
+      long result = hr.getHeaders().getContentLength();
+      if (result >= 0) {
         return result;
       } else {
-        return 0;
+        return body.remaining();
       }
     }
 
