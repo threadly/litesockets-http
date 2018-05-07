@@ -71,7 +71,6 @@ public class WebSocketClient implements StreamingClient {
    * This takes over an existing TCPClient to do websocket communications. 
    * 
    * @param client the TCPClient to use for this connection.
-   * @param alreadyUpgraded true if the connection has already upgraded to do websockets false if the http upgrade is still required.
    */
   public WebSocketClient(final TCPClient client) {
     if(client.isClosed()) {
@@ -196,7 +195,7 @@ public class WebSocketClient implements StreamingClient {
    * Sets the default {@link WebSocketOpCode} to use when calling {@link #write(ByteBuffer)}.
    * 
    * Only standard WebSocket OpCodes can be used as a "default" to use anything other then the 
-   * standard OpCodes use the {@link #write(ByteBuffer, byte, boolean)} method.
+   * standard OpCodes use the {@link #write(ByteBuffer, WebSocketOpCode, boolean)} method.
    * 
    * @param wsoc the default {@link WebSocketOpCode} to use on this connection.
    */

@@ -62,12 +62,17 @@ public class HTTPStreamClient implements StreamingClient {
    * Creates an HTTPStreaming client from an already existing TCPClient.
    * 
    * @param client the {@link TCPClient} to use for this connection.
-   * @param headerSent true if the http headers have already been sent, false if they still need to be sent.
    */
   public HTTPStreamClient(TCPClient client) {
     this(client, client.getRemoteSocketAddress().getHostName());
   }
-  
+
+  /**
+   * Creates an HTTPStreaming client from an already existing TCPClient.
+   * 
+   * @param client the {@link TCPClient} to use for this connection.
+   * @param host the hostname or ip address to connect to.
+   */
   public HTTPStreamClient(TCPClient client, String host) {
     this.client = client;
     this.host = host;

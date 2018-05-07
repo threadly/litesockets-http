@@ -77,7 +77,7 @@ public class RequestTests {
       String nq = "query"+i;
       hrb.appendQuery(nq, Integer.toString(i));
       HTTPRequest hr = hrb.buildHTTPRequest();
-      assertEquals(Integer.toString(i), hr.getHTTPRequestHeader().getRequestQuery().get(nq));
+      assertEquals(Integer.toString(i), hr.getHTTPRequestHeader().getRequestQueryValue(nq));
     }
     for(int i=0; i<20; i++) {
       String nq = "query"+i;
@@ -128,7 +128,7 @@ public class RequestTests {
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
-    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
     assertEquals(hr, cb.request);
     assertEquals(hr.toString(), cb.request.toString());
   }
@@ -147,7 +147,7 @@ public class RequestTests {
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
-    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
     hrp.processData(DATA_BA);
     assertTrue(cb.finished);
     assertEquals(1, cb.bbs.size());
@@ -171,7 +171,7 @@ public class RequestTests {
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
-    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
   }
 
   
@@ -253,7 +253,7 @@ public class RequestTests {
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, cb.request.getHTTPRequestHeader().getHttpVersion());
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
-    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQuery().get("query"));
+    assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
     hrp.processData(wrapInChunk(DATA_BA));
     assertEquals(1, cb.bbs.size());
     assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));

@@ -3,7 +3,9 @@ package org.threadly.litesockets.protocols.http.request;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
@@ -152,8 +154,8 @@ public class HTTPRequestBuilder {
    * @return the current {@link HTTPRequestBuilder} object.
    */
   public HTTPRequestBuilder appendQuery(final String key, final String value) {
-    HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
-    map.put(key, value);
+    HashMap<String, List<String>> map = new HashMap<>(request.getRequestQuery());
+    map.computeIfAbsent(key, (ignored) -> new ArrayList<>(1)).add(value);
     this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
@@ -165,7 +167,7 @@ public class HTTPRequestBuilder {
    * @return the current {@link HTTPRequestBuilder} object.
    */
   public HTTPRequestBuilder removeQuery(final String key) {
-    HashMap<String, String> map = new HashMap<String, String>(request.getRequestQuery());
+    HashMap<String, List<String>> map = new HashMap<>(request.getRequestQuery());
     map.remove(key);
     this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
@@ -174,7 +176,7 @@ public class HTTPRequestBuilder {
 
   /**
    * Sets the {@link HTTPAddress} for this builder.  This will add a Host header into the headers of this builder
-   * when this object it built.  This is also used with the {@link #buildHTTPAddress(boolean)} method.
+   * when this object it built.  This is also used with the {@link #buildHTTPAddress()} method.
    * 
    * @param ha the {@link HTTPAddress} to be set.
    * @return the current {@link HTTPRequestBuilder} object.
@@ -187,7 +189,7 @@ public class HTTPRequestBuilder {
   }
 
   /**
-   * Sets the Host: header in the client.  This is also used with the {@link #buildHTTPAddress(boolean)} method.
+   * Sets the Host: header in the client.  This is also used with the {@link #buildHTTPAddress()} method.
    * Setting to null will remove this header.
    * 
    * 
@@ -204,14 +206,19 @@ public class HTTPRequestBuilder {
     return this;
   }
 
+  /**
+   * Sets if the request should be made using ssl or not.
+   * 
+   * @param doSSL {@code true} if ssl should be used.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
   public HTTPRequestBuilder setSSL(final boolean doSSL) {
     this.doSSL = doSSL;
     return this;
   }
 
-
   /**
-   * This sets the port to use in the {@link #buildHTTPAddress(boolean)} method.  If not set the default port
+   * This sets the port to use in the {@link #buildHTTPAddress()} method.  If not set the default port
    * for the protocol type (http or https) will be used.
    * 
    * @param port port number to set.

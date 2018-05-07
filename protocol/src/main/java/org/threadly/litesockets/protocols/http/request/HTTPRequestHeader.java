@@ -3,6 +3,7 @@ package org.threadly.litesockets.protocols.http.request;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
@@ -19,7 +20,7 @@ public class HTTPRequestHeader {
   private final String rawRequest;
   private final String requestMethod;
   private final String requestPath;
-  private final Map<String, String> requestQuery;
+  private final Map<String, List<String>> requestQuery;
   private final String httpVersion;
   
   /**
@@ -60,7 +61,7 @@ public class HTTPRequestHeader {
    * @param httpVersion the httpVersion to set.
    */
   public HTTPRequestHeader(HTTPRequestMethod requestMethod, String requestPath, 
-                           Map<String, String> requestQuery, String httpVersion){
+                           Map<String, List<String>> requestQuery, String httpVersion){
     this(requestMethod.toString(), requestPath, requestQuery, httpVersion);
   }
   
@@ -74,9 +75,9 @@ public class HTTPRequestHeader {
    * @param httpVersion the httpVersion to set.
    */
   public HTTPRequestHeader(String requestMethod, String requestPath, 
-                           Map<String, String> requestQuery, String httpVersion){
+                           Map<String, List<String>> requestQuery, String httpVersion){ // TODO
     this.requestMethod = requestMethod;
-    final LinkedHashMap<String, String> rqm = new LinkedHashMap<>();
+    final LinkedHashMap<String, List<String>> rqm = new LinkedHashMap<>();
     int queryParamPos = requestPath.indexOf("?");
     if(queryParamPos >= 0) {
       this.requestPath = requestPath.substring(0, queryParamPos);
@@ -132,8 +133,25 @@ public class HTTPRequestHeader {
    *  
    * @return the request query.
    */
-  public Map<String, String> getRequestQuery() {
+  public Map<String, List<String>> getRequestQuery() {
     return requestQuery;
+  }
+  
+  /**
+   * Gets the value to a given query parameter.  This will throw an exception if there is multiple 
+   * values associated to the key.
+   *  
+   * @return the request parameter value or {@code null} if none is associated
+   */
+  public String getRequestQueryValue(String paramKey) {
+    List<String> values = requestQuery.get(paramKey);
+    if (values == null || values.isEmpty()) {
+      return null;
+    } else if (values.size() > 1) {
+      throw new IllegalStateException("Multiple values for parameter: " + paramKey);
+    } else {
+      return values.get(0);
+    }
   }
   
   /**

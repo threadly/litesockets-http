@@ -2,9 +2,11 @@ package org.threadly.litesockets.protocols.http;
 
 import static org.junit.Assert.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -20,31 +22,31 @@ public class HTTPUtilsTests {
   @Test
   public void queryTest1() {
     String query1 = "?test=test1&343=334&q&5&4&blah=wewew";
-    Map<String, String> map = HTTPUtils.queryToMap(query1);
+    Map<String, List<String>> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
+    Map<String, List<String>> map2 =  HTTPUtils.queryToMap(tmp);
     assertEquals(map, map2);
   }
   
   @Test
   public void queryTest2() {
     String query1 = "test=test1&343=334&q&5&4&blah=wewew";
-    Map<String, String> map = HTTPUtils.queryToMap(query1);
+    Map<String, List<String>> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
+    Map<String, List<String>> map2 =  HTTPUtils.queryToMap(tmp);
     assertEquals(map, map2);
   }
 
   @Test
   public void queryTest3() {
     String query1 = "";
-    Map<String, String> map = HTTPUtils.queryToMap(query1);
-    map = new HashMap<String, String>(map);
+    Map<String, List<String>> map = HTTPUtils.queryToMap(query1);
+    map = new HashMap<>(map);
     map.put("blah", null);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
+    Map<String, List<String>> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
-    Map<String, String> map3 =  HTTPUtils.queryToMap(tmp2);
+    Map<String, List<String>> map3 =  HTTPUtils.queryToMap(tmp2);
     assertEquals(tmp, tmp2);
     assertEquals(map3, map2);
   }
@@ -52,11 +54,11 @@ public class HTTPUtilsTests {
   @Test
   public void queryTest4() {
     String query1 = "";
-    Map<String, String> map = HTTPUtils.queryToMap(query1);
+    Map<String, List<String>> map = HTTPUtils.queryToMap(query1);
     String tmp = HTTPUtils.queryToString(map);
-    Map<String, String> map2 =  HTTPUtils.queryToMap(tmp);
+    Map<String, List<String>> map2 =  HTTPUtils.queryToMap(tmp);
     String tmp2 = HTTPUtils.queryToString(map2);
-    Map<String, String> map3 =  HTTPUtils.queryToMap(tmp2);
+    Map<String, List<String>> map3 =  HTTPUtils.queryToMap(tmp2);
     
     
     assertEquals(tmp, tmp2);
@@ -179,7 +181,7 @@ public class HTTPUtilsTests {
   
   @Test
   public void HTTPRequestHeaderTest3() {
-    HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestMethod.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), HTTPConstants.HTTP_VERSION_1_1);
+    HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestMethod.DELETE, "/ds/sds/ds/", new HashMap<>(), HTTPConstants.HTTP_VERSION_1_1);
     assertEquals(HTTPRequestMethod.DELETE.toString(), hrh1.getRequestMethod());
     assertEquals(HTTPConstants.HTTP_VERSION_1_1, hrh1.getHttpVersion());
     assertEquals("/ds/sds/ds/", hrh1.getRequestPath());
@@ -198,8 +200,8 @@ public class HTTPUtilsTests {
   }
   @Test
   public void HTTPRequestHeaderTest5() {
-    HashMap<String, String> map = new HashMap<String, String>();
-    map.put("test", "te");
+    HashMap<String, List<String>> map = new HashMap<>();
+    map.put("test", Collections.singletonList("te"));
     HTTPRequestHeader hrh1 = new HTTPRequestHeader(HTTPRequestMethod.DELETE, "/ds/sds/ds/", map, HTTPConstants.HTTP_VERSION_1_0);
     assertEquals(HTTPRequestMethod.DELETE.toString(), hrh1.getRequestMethod());
     assertEquals(HTTPConstants.HTTP_VERSION_1_0, hrh1.getHttpVersion());
@@ -210,6 +212,6 @@ public class HTTPUtilsTests {
   
   @Test(expected=UnsupportedOperationException.class)
   public void HTTPRequestHeaderTest6() {
-    new HTTPRequestHeader(HTTPRequestMethod.DELETE, "/ds/sds/ds/", new HashMap<String, String>(), "HTTP/1.2");
+    new HTTPRequestHeader(HTTPRequestMethod.DELETE, "/ds/sds/ds/", new HashMap<>(), "HTTP/1.2");
   }
 }

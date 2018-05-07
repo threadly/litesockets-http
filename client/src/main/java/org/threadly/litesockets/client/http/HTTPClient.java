@@ -171,12 +171,18 @@ public class HTTPClient extends AbstractService {
    * Sets the default timeout in milliseconds to wait for HTTPRequest responses from the server.
    * 
    * @param timeout time in milliseconds to wait for HTTPRequests to finish.
+   * @param unit The unit the {@code timeout} value is represented in
    */
   public void setTimeout(long timeout, TimeUnit unit) {
     this.defaultTimeoutMS = Math.min(Math.max(unit.toMillis(timeout),HTTPRequest.MIN_TIMEOUT_MS), 
                                      HTTPRequest.MAX_TIMEOUT_MS);
   }
   
+  /**
+   * Checks the configured maximum connection idle time.
+   * 
+   * @return The number of milliseconds until an idle connection is closed
+   */
   public long getMaxIdleTimeout() {
     return this.maxIdleTime;
   }
@@ -185,10 +191,11 @@ public class HTTPClient extends AbstractService {
    * Sets the max amount of time we will hold onto idle connections.  A 0 means we close connections when done, less
    * than zero means we will never expire connections.
    * 
-   * @param it the time in milliseconds to wait before timing out a connection.
+   * @param idleTimeout the time in milliseconds to wait before timing out a connection.
+   * @param unit The unit the {@code idleTimeout} value is represented in
    */
-  public void setMaxIdleTimeout(long it, TimeUnit unit) {
-    this.maxIdleTime = unit.toMillis(it);
+  public void setMaxIdleTimeout(long idleTimeout, TimeUnit unit) {
+    this.maxIdleTime = unit.toMillis(idleTimeout);
     if(this.maxIdleTime > 0) {
       this.checkIdle = new Runnable() {
         @Override
@@ -207,7 +214,7 @@ public class HTTPClient extends AbstractService {
    * Sends a blocking HTTP request.
    * 
    * @param url the url to send the request too.
-   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @return A {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url) throws HTTPParsingException {
@@ -220,7 +227,7 @@ public class HTTPClient extends AbstractService {
    * @param url the url to send the request too.
    * @param rm the {@link HTTPRequestMethod} to use on the request.
    * @param bb the data to put in the body for this request.
-   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @return A {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url, final HTTPRequestMethod rm, final ByteBuffer bb) throws HTTPParsingException {
@@ -242,12 +249,8 @@ public class HTTPClient extends AbstractService {
   /**
    * Sends a blocking HTTP request.
    * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
    * @param request the {@link HTTPRequest} to send the server once connected.
-   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body.
-   * @param unit the time unit of the timeout argument 
-   * @param timeout the maximum time to wait
-   * @return an {@link HTTPResponseData} object containing the headers and content of the response.
+   * @return A {@link HTTPResponseData} object containing the headers and content of the response.
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final ClientHTTPRequest request) throws HTTPParsingException {
@@ -272,7 +275,7 @@ public class HTTPClient extends AbstractService {
    * Sends an asynchronous HTTP request.
    * 
    * @param url the {@link URL} to send the request too.
-   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * @return A {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url) {
@@ -285,7 +288,7 @@ public class HTTPClient extends AbstractService {
    * @param url the {@link URL} to send the request too.
    * @param rm the {@link HTTPRequestMethod} to use on the request.
    * @param bb the data to put in the body for this request.
-   * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
+   * @return A {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final URL url, final HTTPRequestMethod rm, 
@@ -302,11 +305,7 @@ public class HTTPClient extends AbstractService {
   /**
    * Sends an asynchronous HTTP request.
    * 
-   * @param ha the {@link HTTPAddress} to connect to, any hostname in the actual HTTPRequest will just be sent in the protocol. 
    * @param request the {@link HTTPRequest} to send the server once connected.
-   * @param body the body to send with this request.  You must have set the {@link HTTPRequest} correctly for this body.
-   * @param unit the time unit of the timeout argument 
-   * @param timeout the maximum time to wait
    * @return an {@link ListenableFuture} containing a {@link HTTPResponseData} object that will be completed when the request is finished, 
    * successfully or with errors.
    */
@@ -509,7 +508,8 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
-   * 
+   * Wrapper for the request that will handle the incoming response data (as well as notifying 
+   * back to the client once the response is complete).
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
     private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);

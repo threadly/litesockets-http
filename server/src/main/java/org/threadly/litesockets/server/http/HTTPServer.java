@@ -157,9 +157,7 @@ public class HTTPServer extends AbstractService {
   }
   
   /**
-   * 
-   * @author lwahlmeier
-   *
+   * Listener for handling the incoming client request data and state.
    */
   private class HTTPRequestListener implements HTTPRequestCallback {
     final TCPClient client;
@@ -203,7 +201,6 @@ public class HTTPServer extends AbstractService {
       bodyFuture.completed(hr, responseWriter);
       bodyFuture = new BodyFuture();
       responseWriter = new ResponseWriter(this.client);
-      
     }
 
     @Override
@@ -216,7 +213,6 @@ public class HTTPServer extends AbstractService {
    * This class is used to write responses to HTTPRequests that are made against the HTTPServer.
    * 
    * @author lwahlmeier
-   *
    */
   public static class ResponseWriter {
     private final Client client;
@@ -305,7 +301,14 @@ public class HTTPServer extends AbstractService {
         throw new IllegalStateException("Cant write body, Response is already finished!");
       }
     }
-    
+
+    /**
+     * Write body data to the client.  This can only be done after {@link #sendHTTPResponse(HTTPResponse)} has been called. 
+     * You must have already setup what is being sent (Content-Length, chunked, etc) in the HTTPResponse call.
+     * 
+     * @param mbb the data to write as the body for this client.
+     * @return a {@link ListenableFuture} that will be complete once this data is written to the socket.
+     */
     public ListenableFuture<?> writeBody(MergedByteBuffers mbb) {
       if(responseSent && !done) {
         return client.write(mbb);
@@ -382,7 +385,6 @@ public class HTTPServer extends AbstractService {
    *  The servers handler interface.  This must be set to handle clients sending request to the server. 
    * 
    * @author lwahlmeier
-   *
    */
   public interface HTTPServerHandler {
     /**
@@ -399,7 +401,6 @@ public class HTTPServer extends AbstractService {
    * A simple callback interface used to receive body data from an HTTP client.
    * 
    * @author lwahlmeier
-   *
    */
   public interface BodyListener {
     /**
@@ -411,7 +412,8 @@ public class HTTPServer extends AbstractService {
      */
     public void onBody(HTTPRequest httpRequest, ByteBuffer bb, ResponseWriter responseWriter);
     
-    public void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, ResponseWriter responseWriter);
+    public void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, 
+                                 ResponseWriter responseWriter);
     
     /**
      * This is called when the body has completed.
@@ -422,5 +424,4 @@ public class HTTPServer extends AbstractService {
      */
     public void bodyComplete(HTTPRequest httpRequest, ResponseWriter responseWriter);
   }
-
 }

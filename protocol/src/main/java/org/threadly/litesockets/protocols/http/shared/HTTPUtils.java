@@ -1,8 +1,10 @@
 package org.threadly.litesockets.protocols.http.shared;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.threadly.litesockets.buffers.MergedByteBuffers;
@@ -51,32 +53,40 @@ public class HTTPUtils {
     return newBB;
   }
   
-  public static String queryToString(Map<String,String> map) {
+  public static String queryToString(Map<String, List<String>> map) {
     if(map.isEmpty()) {
       return "";
     }
     
     StringBuilder sb = new StringBuilder();
     sb.append('?');
-    for(String k: map.keySet()) {
-      if(sb.length() > 1) {
-        sb.append('&');  
-      }
-      sb.append(k);
-      String v = map.get(k);
-      if(! StringUtils.isNullOrEmpty(v)) {
-        sb.append('=');
-        sb.append(v);
+    for(Map.Entry<String, List<String>> e : map.entrySet()) {
+      if (e.getValue() == null || e.getValue().isEmpty()) {
+        if(sb.length() > 1) {
+          sb.append('&');  
+        }
+        sb.append(e.getKey());
+      } else {
+        for (String v : e.getValue()) {
+          if(sb.length() > 1) {
+            sb.append('&');  
+          }
+          sb.append(e.getKey());
+          if(! StringUtils.isNullOrEmpty(v)) {
+            sb.append('=');
+            sb.append(v);
+          }
+        }
       }
     }
     return sb.toString();
   }
   
-  public static Map<String, String> queryToMap(String query) {
+  public static Map<String, List<String>> queryToMap(String query) {
     if (StringUtils.isNullOrEmpty(query)) {
       return Collections.emptyMap();
     }
-    Map<String, String> map = new HashMap<>();
+    Map<String, List<String>> map = new HashMap<>();
     if(query.startsWith("?")) {
       query = query.substring(1);
     } else if (query.contains("?")){
@@ -90,10 +100,11 @@ public class HTTPUtils {
         // case where either no `=` or empty key string
         continue;
       }
+      List<String> paramValues = map.computeIfAbsent(tmpkv[0], (ignored) -> new ArrayList<>(1));
       if(tmpkv.length == 1) {
-        map.put(tmpkv[0].trim(), "");
+        paramValues.add("");
       } else {
-        map.put(tmpkv[0].trim(), tmpkv[1].trim());
+        paramValues.add(tmpkv[1].trim());
       }
     }
     return Collections.unmodifiableMap(map);
