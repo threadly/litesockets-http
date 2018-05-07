@@ -89,8 +89,9 @@ public class HTTPUtils {
     Map<String, List<String>> map = new HashMap<>();
     if(query.startsWith("?")) {
       query = query.substring(1);
-    } else if (query.contains("?")){
-      int qpos = query.indexOf("?");
+    }
+    int qpos = query.indexOf("?");
+    if (qpos >= 0){
       query = query.substring(qpos+1);
     }
     String[] tmpQ = query.trim().split("&");
@@ -100,7 +101,7 @@ public class HTTPUtils {
         // case where either no `=` or empty key string
         continue;
       }
-      List<String> paramValues = map.computeIfAbsent(tmpkv[0], (ignored) -> new ArrayList<>(1));
+      List<String> paramValues = map.computeIfAbsent(tmpkv[0], (ignored) -> new ArrayList<>(2));
       if(tmpkv.length == 1) {
         paramValues.add("");
       } else {
