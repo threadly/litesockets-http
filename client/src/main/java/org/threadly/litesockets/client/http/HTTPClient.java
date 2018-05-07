@@ -333,8 +333,6 @@ public class HTTPClient extends AbstractService {
   private void process(HTTPRequestWrapper hrw) {
     if(hrw != null) {
       try {
-        sei.watchFuture(hrw.slf, hrw.timeTillExpired()+1);
-        
         hrw.updateReadTime();
         hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
         inProcess.put(hrw.client, hrw);
@@ -520,12 +518,14 @@ public class HTTPClient extends AbstractService {
     private TCPClient client;
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
-    public HTTPRequestWrapper(ClientHTTPRequest chr) {
+    private HTTPRequestWrapper(ClientHTTPRequest chr) {
       hrp = new HTTPResponseProcessor(chr.getHTTPRequest()
                                          .getHTTPRequestHeader()
                                          .getRequestMethod().equals("HEAD"));
       hrp.addHTTPResponseCallback(this);
       this.chr = chr;
+      
+      sei.watchFuture(slf, chr.getTimeoutMS());
     }
 
     public void updateReadTime() {
