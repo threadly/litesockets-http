@@ -562,7 +562,9 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void hasError(Throwable t) {
-      slf.setFailure(t);
+      if (hrp.isProcessing()) {
+        slf.setFailure(t);
+      } // if not processing we likely got a close that can work after a retry
       client.close();
     }
 
