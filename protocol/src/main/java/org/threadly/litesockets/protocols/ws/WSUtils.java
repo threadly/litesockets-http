@@ -3,12 +3,10 @@ package org.threadly.litesockets.protocols.ws;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.ParseException;
 import java.util.Base64;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.threadly.litesockets.buffers.MergedByteBuffers;
-import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 

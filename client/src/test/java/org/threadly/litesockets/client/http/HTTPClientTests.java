@@ -6,7 +6,6 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +24,6 @@ import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
-import org.threadly.litesockets.client.http.HTTPStreamClient.HTTPStreamReader;
 import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;

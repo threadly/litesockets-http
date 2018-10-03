@@ -110,6 +110,10 @@ public class HTTPServer extends AbstractService {
     }
   }
   
+  public void setExceptionHandler() {
+    
+  }
+  
   /**
    * 
    * @return the ip/hostname this server is bound to.
@@ -217,7 +221,7 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void hasError(Throwable t) {
-      ExceptionUtils.handleException(t);
+      bodyFuture.onError(hr, responseWriter, t);
       bodyFuture.completed(hr, responseWriter);
       bodyFuture = new BodyFuture();
       responseWriter = new ResponseWriter(this.client);
@@ -404,6 +408,10 @@ public class HTTPServer extends AbstractService {
       listener.call().bodyComplete(httpRequest, responseWriter);
     }
     
+    protected void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, Throwable t) {
+      listener.call().onError(httpRequest, responseWriter, t);
+    }
+    
     protected void onWebsocketFrame(HTTPRequest httpRequest, WSFrame wsf, ByteBuffer bb, ResponseWriter responseWriter) {
       listener.call().onWebsocketFrame(httpRequest, wsf, bb, responseWriter);
     }
@@ -473,5 +481,8 @@ public class HTTPServer extends AbstractService {
      * @param responseWriter the {@link ResponseWriter} for this client.
      */
     public void bodyComplete(HTTPRequest httpRequest, ResponseWriter responseWriter);
+    public default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, Throwable t) {
+      ExceptionUtils.handleException(t);
+    }
   }
 }
