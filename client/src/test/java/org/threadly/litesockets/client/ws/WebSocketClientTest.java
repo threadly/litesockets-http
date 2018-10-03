@@ -277,7 +277,7 @@ public class WebSocketClientTest {
           for(String s: request) {
             if(s.contains(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY)) {
               String[] tmp = s.split(":");
-              respKey = WSUtils.makeKeyResponse(tmp[1].trim());
+              respKey = WSUtils.makeKeyResponse(tmp[1]);
             }
           }
           HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.NotFound, HTTPConstants.HTTP_VERSION_1_1));

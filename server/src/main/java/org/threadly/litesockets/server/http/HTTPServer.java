@@ -110,10 +110,6 @@ public class HTTPServer extends AbstractService {
     }
   }
   
-  public void setExceptionHandler() {
-    
-  }
-  
   /**
    * 
    * @return the ip/hostname this server is bound to.
@@ -221,10 +217,10 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void hasError(Throwable t) {
-      bodyFuture.onError(hr, responseWriter, t);
-      bodyFuture.completed(hr, responseWriter);
-      bodyFuture = new BodyFuture();
-      responseWriter = new ResponseWriter(this.client);
+      if(handler != null) {
+        handler.onError(hr, responseWriter, bodyFuture, t);
+      }
+      client.close();
     }
 
     @Override
@@ -408,10 +404,6 @@ public class HTTPServer extends AbstractService {
       listener.call().bodyComplete(httpRequest, responseWriter);
     }
     
-    protected void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, Throwable t) {
-      listener.call().onError(httpRequest, responseWriter, t);
-    }
-    
     protected void onWebsocketFrame(HTTPRequest httpRequest, WSFrame wsf, ByteBuffer bb, ResponseWriter responseWriter) {
       listener.call().onWebsocketFrame(httpRequest, wsf, bb, responseWriter);
     }
@@ -431,6 +423,10 @@ public class HTTPServer extends AbstractService {
      * @param bodyListener the {@link BodyFuture} that will be used to call back on as body data is read from the client.
      */
     void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener);
+    
+    default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener, Throwable t) {
+      ExceptionUtils.handleException(t);
+    }
     
     /**
      * Allow handling of client connection before any HTTPData comes in or is parsed.
@@ -481,8 +477,5 @@ public class HTTPServer extends AbstractService {
      * @param responseWriter the {@link ResponseWriter} for this client.
      */
     public void bodyComplete(HTTPRequest httpRequest, ResponseWriter responseWriter);
-    public default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, Throwable t) {
-      ExceptionUtils.handleException(t);
-    }
   }
 }

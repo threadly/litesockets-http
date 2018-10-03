@@ -32,10 +32,11 @@ public class WSUtils {
    * @return a base64 string to set as the Sec-WebSocket-Key response.
    */
   public static String makeKeyResponse(final String str) {
+    final String str2 = str.trim();
     final MessageDigest md;
     try {
       md = MessageDigest.getInstance(WSConstants.DEFAULT_SECRET_HASH_ALGO);
-      md.update(str.getBytes());
+      md.update(str2.getBytes());
       md.update(MAGIC_UUID_BA);
       return Base64.getEncoder().encodeToString(md.digest());
     } catch (NoSuchAlgorithmException e) {
