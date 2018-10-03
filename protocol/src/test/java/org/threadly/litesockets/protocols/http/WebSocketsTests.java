@@ -10,9 +10,9 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
+import org.threadly.litesockets.protocols.ws.WSFrame;
+import org.threadly.litesockets.protocols.ws.WSOPCode;
+import org.threadly.litesockets.protocols.ws.WSUtils;
 
 
 public class WebSocketsTests {
@@ -33,8 +33,8 @@ public class WebSocketsTests {
   }
 
   public void simpleSizeParsing(int size) throws ParseException {
-    WebSocketFrame wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCode.Text.getValue(), true);
-    WebSocketFrame wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
+    WSFrame wsf = WSFrame.makeWSFrame(size, WSOPCode.Text.getValue(), true);
+    WSFrame wsf2 = WSFrame.parseWSFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
     assertEquals(wsf.getPayloadDataLength(), wsf2.getPayloadDataLength());
     assertEquals(wsf.getOpCode(), wsf2.getOpCode());
@@ -46,8 +46,8 @@ public class WebSocketsTests {
     assertTrue(Arrays.equals(wsf.getMaskArray(), wsf2.getMaskArray()));
 
 
-    wsf = WebSocketFrameParser.makeWebSocketFrame(size, WebSocketOpCode.Text.getValue(), false);
-    wsf2 = WebSocketFrameParser.parseWebSocketFrame(wsf.getRawFrame());
+    wsf = WSFrame.makeWSFrame(size, WSOPCode.Text.getValue(), false);
+    wsf2 = WSFrame.parseWSFrame(wsf.getRawFrame());
     assertEquals(wsf.isFinished(), wsf2.isFinished());
     assertEquals(wsf.getPayloadDataLength(), wsf2.getPayloadDataLength());
     assertEquals(wsf.getOpCode(), wsf2.getOpCode());
@@ -69,9 +69,9 @@ public class WebSocketsTests {
       sb.append(test);
     }
     String testString = sb.toString();
-    ByteBuffer bb = WebSocketFrameParser.doDataMask(ByteBuffer.wrap(testString.getBytes()), mask);
+    ByteBuffer bb = WSUtils.maskData(ByteBuffer.wrap(testString.getBytes()), mask);
     assertFalse(testString.equals(new String(bb.array())));
-    ByteBuffer nbb = WebSocketFrameParser.doDataMask(bb, mask);
+    ByteBuffer nbb = WSUtils.maskData(bb, mask);
     assertEquals(testString, new String(nbb.array()));
   }
 }

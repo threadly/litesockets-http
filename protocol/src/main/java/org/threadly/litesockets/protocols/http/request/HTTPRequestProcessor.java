@@ -9,8 +9,8 @@ import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WSFrame;
+import org.threadly.litesockets.protocols.ws.WSUtils;
 
 /**
  * This processes byte data and turns it into HTTPrequests.  It does this through callbacks to a {@link HTTPRequestCallback} interface.  
@@ -33,7 +33,7 @@ public class HTTPRequestProcessor {
   private ByteBuffer chunkedBB;
   private boolean isChunked = false;
   private boolean isWebsocket = false;
-  private WebSocketFrame lastFrame = null;
+  private WSFrame lastFrame = null;
 
   /**
    * Constructs an httpRequestProcessor.
@@ -176,7 +176,7 @@ public class HTTPRequestProcessor {
   private boolean parseWebsocketData() {
     if(lastFrame == null) {
       try {
-        lastFrame = WebSocketFrameParser.parseWebSocketFrame(pendingBuffers);
+        lastFrame = WSFrame.parseWSFrame(pendingBuffers);
       } catch(ParseException e) {
         return false;
       }
@@ -184,7 +184,7 @@ public class HTTPRequestProcessor {
     if(lastFrame.getPayloadDataLength() <= pendingBuffers.remaining()) {
       ByteBuffer bb = pendingBuffers.pullBuffer((int)lastFrame.getPayloadDataLength());
       if(lastFrame.hasMask()) {
-        bb = WebSocketFrameParser.doDataMask(bb, lastFrame.getMaskValue());
+        bb = WSUtils.maskData(bb, lastFrame.getMaskValue());
       }
       for(HTTPRequestCallback hrc: listeners.getSubscribedListeners()) {
         hrc.websocketData(lastFrame, bb.duplicate());
@@ -340,10 +340,10 @@ public class HTTPRequestProcessor {
     /**
      * If the last headersFinished was a websocket request this will be called back on each frame we get from processed data.
      * 
-     * @param wsf The {@link WebSocketFrame} that was wrapping the data.
+     * @param wsf The {@link WSFrame} that was wrapping the data.
      * @param bb the payload of the frame, it will be unmasked already if its needed.
      */
-    public void websocketData(WebSocketFrame wsf, ByteBuffer bb);
+    public void websocketData(WSFrame wsf, ByteBuffer bb);
 
     /**
      * This is called when the http request finishes.  This can also be called if the connection is set to closed, or reset manually.

@@ -20,7 +20,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WSFrame;
 import org.threadly.litesockets.utils.SSLUtils;
 
 /**
@@ -293,7 +293,7 @@ public class HTTPStreamClient implements StreamingClient {
     }
 
     @Override
-    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+    public void websocketData(WSFrame wsf, ByteBuffer bb) {
       if(httpReader != null) {
         httpReader.handle(bb);
       }

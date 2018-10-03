@@ -38,7 +38,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.ws.WSFrame;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
 import org.threadly.util.AbstractService;
@@ -569,7 +569,7 @@ public class HTTPClient extends AbstractService {
     }
 
     @Override
-    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+    public void websocketData(WSFrame wsf, ByteBuffer bb) {
       slf.setFailure(new Exception("HTTPClient does not currently support websockets!"));
       client.close();
     }
