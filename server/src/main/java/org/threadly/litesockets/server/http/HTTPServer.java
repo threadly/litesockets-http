@@ -26,8 +26,8 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WSFrame;
-import org.threadly.litesockets.protocols.ws.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
 import org.threadly.util.AbstractService;
 import org.threadly.util.ExceptionUtils;
 

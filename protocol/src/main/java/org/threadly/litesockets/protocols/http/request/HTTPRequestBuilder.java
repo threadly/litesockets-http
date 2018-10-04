@@ -178,14 +178,30 @@ public class HTTPRequestBuilder {
    * Sets the {@link HTTPAddress} for this builder.  This will add a Host header into the headers of this builder
    * when this object it built.  This is also used with the {@link #buildHTTPAddress()} method.
    * 
+   * NOTE: This does not change the Host HTTP header
+   * 
    * @param ha the {@link HTTPAddress} to be set.
    * @return the current {@link HTTPRequestBuilder} object.
    */
   public HTTPRequestBuilder setHTTPAddress(final HTTPAddress ha) {
-    setHost(ha.getHost());
+    host = ha.getHost();
     this.port = ha.getPort();
     doSSL = ha.getdoSSL();
     return this;
+  }
+  
+  /**
+   * Sets the Host: header in the client.  This is also used with the {@link #buildHTTPAddress()} method.
+   * Setting to null will remove this header.
+   * 
+   * NOTE: this will override the HTTP Host header.
+   * 
+   * 
+   * @param host the host name or ip to set.
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setHost(final String host) {
+    return setHost(host, true);
   }
 
   /**
@@ -194,12 +210,16 @@ public class HTTPRequestBuilder {
    * 
    * 
    * @param host the host name or ip to set.
+   * @param setHeader lets you choose if you want to set the host header as well.  Set to false if you want to have a different 
+   * HTTPAddress host then whats in the http host header.
    * @return the current {@link HTTPRequestBuilder} object.
    */
-  public HTTPRequestBuilder setHost(final String host) {
+  public HTTPRequestBuilder setHost(final String host, boolean setHeader) {
     this.host = host;
     if(host != null) {
-      setHeader(HTTPConstants.HTTP_KEY_HOST, host);
+      if(setHeader) {
+        setHeader(HTTPConstants.HTTP_KEY_HOST, host);
+      }
     } else {
       this.removeHeader(HTTPConstants.HTTP_KEY_HOST);
     }
@@ -329,7 +349,11 @@ public class HTTPRequestBuilder {
    * @return a new {@link HTTPAddress} object with host/port/ssl arguments set. 
    */
   public HTTPAddress buildHTTPAddress() {
-    ArgumentVerifier.assertNotNull(this.headers.get(HTTPConstants.HTTP_KEY_HOST), "Must set Host Header!");
+    String lhost = host;
+    if(lhost == null) {
+      lhost = headers.get(HTTPConstants.HTTP_KEY_HOST);
+    }
+    ArgumentVerifier.assertNotNull(lhost, "Host must be set to create HTTPAddress!!!");
     return new HTTPAddress(this.headers.get(HTTPConstants.HTTP_KEY_HOST), port, doSSL);
   }
 

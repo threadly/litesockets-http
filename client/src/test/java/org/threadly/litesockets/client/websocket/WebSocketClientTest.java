@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.ws;
+package org.threadly.litesockets.client.websocket;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,14 +30,15 @@ import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
 import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
-import org.threadly.litesockets.client.ws.WSClient.WebSocketDataReader;
+import org.threadly.litesockets.client.websocket.WSClient;
+import org.threadly.litesockets.client.websocket.WSClient.WebSocketDataReader;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseHeader;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WSFrame;
-import org.threadly.litesockets.protocols.ws.WSOPCode;
-import org.threadly.litesockets.protocols.ws.WSUtils;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSUtils;
 import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.ExceptionUtils;

@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocols.ws;
+package org.threadly.litesockets.protocols.websocket;
 
 import java.nio.ByteBuffer;
 import java.text.ParseException;
@@ -8,12 +8,9 @@ import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 
 /**
- * WebSocketFrame object.  This is allows you to easily get information about the WebSocketFrame data.
+ * WSFrame object.  This is allows you to easily get information about a WebSocket Frame data.
  * This object is immutable.
  * 
- * 
- * @author lwahlmeier
- *
  */
 public class WSFrame {
   private final ByteBuffer bb;
@@ -27,34 +24,74 @@ public class WSFrame {
     this.bb = bb;
   }
   
+  /**
+   * ByteBuffer for the raw frame.  This is just the frame, not the payload thats associated with it.
+   * 
+   * @return ByteBuffer of this frame.
+   */
   public ByteBuffer getRawFrame() {
     return bb.duplicate();
   }
 
+  /**
+   * Is the finished bit set in the frame.
+   * 
+   * @return true if the frame is marked as finished, false if not.
+   */
   public boolean isFinished() {
     return ((bb.get(0)&WSConstants.UNSIGN_BYTE_MASK) >> WSConstants.STATIC_SEVEN) == 1;
   }
 
+  /**
+   * Is the RSV1 bit set.
+   * 
+   * @return true if its set false if its not.
+   */
   public boolean hasRSV1() {
     return ((bb.get(0) >> WSConstants.STATIC_SIX) &0x1) == 1;
   }
 
+  /**
+   * Is the RSV2 bit set.
+   * 
+   * @return true if its set false if its not.
+   */
   public boolean hasRSV2() {
     return ((bb.get(0) >> WSConstants.STATIC_FIVE) &0x1) == 1;
   }
 
+  /**
+   * Is the RSV3 bit set.
+   * 
+   * @return true if its set false if its not.
+   */
   public boolean hasRSV3() {
     return ((bb.get(0) >> WSConstants.STATIC_FOUR) &0x1) == 1;
   }
 
+  /**
+   * The opCode for this websocket frame.
+   * 
+   * @return The opCode for this websocket frame.
+   */
   public int getOpCode() {
     return bb.get(0) & WSConstants.OPCODE_MASK;
   }
 
+  /**
+   * Is the mask bit set for this WSFrames payload.
+   * 
+   * @return true if the payload is masked, false if it is not.
+   */
   public boolean hasMask() {
     return (bb.get(1) & WSConstants.UNSIGN_BYTE_MASK) >> WSConstants.STATIC_SEVEN == 1;
   }
 
+  /**
+   * Returns the size of the websocket frames payload
+   * 
+   * @return size of the payload.
+   */
   public long getPayloadDataLength() {
     byte sl = WSUtils.getSmallLen(bb);
     if(sl < WSConstants.WS_SHORT_SIZE) {
@@ -66,6 +103,11 @@ public class WSFrame {
     }
   }
 
+  /**
+   * Gets the int used to mask this payload.
+   * 
+   * @return the int used to mask the payload.
+   */
   public int getMaskValue() {
     if(hasMask()) {
       return bb.getInt(WSUtils.getFrameLength(bb)-WSConstants.MASK_SIZE);
@@ -73,6 +115,11 @@ public class WSFrame {
     return 0;
   }
 
+  /**
+   * Gets the mask as a byte array.
+   * 
+   * @return the make bytes as an array.
+   */
   public byte[] getMaskArray() {
     byte[] ba = new byte[WSConstants.MASK_SIZE];
     if(hasMask()) {
@@ -85,6 +132,12 @@ public class WSFrame {
     return ba;
   }
 
+  /**
+   * Takes a ByteBuffer if this WSFrames payload and unmasks it.
+   * 
+   * @param nbb the ByteBuffer payload of this WSFrame.
+   * @return a ByteBuffer of the data unmasked.
+   */
   public ByteBuffer unmaskPayload(final ByteBuffer nbb) {
     if(!hasMask()) {
       return nbb;
@@ -138,6 +191,14 @@ public class WSFrame {
     return makeWSFrame(size, true, opCode, mask);
   }
   
+  /**
+   * Creates a {@link WSFrame} object with the provided parameters.
+   * 
+   * @param size the size of the payload in the WSFrame.
+   * @param opCode The {@link WSOPCode} to use in this WSFrame.
+   * @param mask true if a mask should be added to this frame, false if not.
+   * @return a {@link WSFrame} object created with the provided params.
+   */
   public static WSFrame makeWSFrame(final int size, WSOPCode opCode, final boolean mask) {
     return makeWSFrame(size, true, opCode.getValue(), mask);
   }
@@ -145,8 +206,8 @@ public class WSFrame {
   /**
    * Creates a {@link WSFrame} object with the provided parameters.
    * 
-   * @param size the size of the payload in the WebSocket Frame.
-   * @param isFinished true if we should mark this WebSocket Frame as finished false if not.
+   * @param size the size of the payload in the WSFrame.
+   * @param isFinished true if we should mark this WSFrame as finished false if not.
    * @param opCode The opCode to put in this WebSocket.
    * @param mask true if a mask should be added to this frame, false if not.
    * @return a {@link WSFrame} object created with the provided params.

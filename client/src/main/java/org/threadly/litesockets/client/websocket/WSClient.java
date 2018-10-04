@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.ws;
+package org.threadly.litesockets.client.websocket;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,17 +25,15 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WSFrame;
-import org.threadly.litesockets.protocols.ws.WSOPCode;
-import org.threadly.litesockets.protocols.ws.WSUtils;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSUtils;
 import org.threadly.litesockets.utils.IOUtils;
 
 
 /**
  * This is a Wrapper around {@link HTTPStreamClient} that simplifies it for use with WebSockets.
  * 
- * @author lwahlmeier
- *
  */
 public class WSClient implements StreamingClient {
   public static final HTTPResponse DEFAULT_WS_RESPONSE = new HTTPResponseBuilder()
@@ -172,7 +170,7 @@ public class WSClient implements StreamingClient {
   
   /**
    * This sets whether or not the WebSocketClient will auto replay to websocket pings.  
-   * If this is set to false the {@link WebSocketDataReader onData(WebSocketFrame, ByteBuffer)} 
+   * If this is set to false the {@link WebSocketDataReader onData(WSFrame, ByteBuffer)} 
    * call will get the pings and they must be handled manually.
    * 
    * 
@@ -192,21 +190,21 @@ public class WSClient implements StreamingClient {
   }
   
   /**
-   * Sets the default {@link WebSocketOpCode} to use when calling {@link #write(ByteBuffer)}.
+   * Sets the default {@link WSOPCode} to use when calling {@link #write(ByteBuffer)}.
    * 
    * Only standard WebSocket OpCodes can be used as a "default" to use anything other then the 
-   * standard OpCodes use the {@link #write(ByteBuffer, WebSocketOpCode, boolean)} method.
+   * standard OpCodes use the {@link #write(ByteBuffer, WSOPCode, boolean)} method.
    * 
-   * @param wsoc the default {@link WebSocketOpCode} to use on this connection.
+   * @param wsoc the default {@link WSOPCode} to use on this connection.
    */
   public void setDefaultOpCode(WSOPCode wsoc) {
     this.wsoc = wsoc;
   }
   
   /**
-   * Returns the current default {@link WebSocketOpCode} in use by this connection.
+   * Returns the current default {@link WSOPCode} in use by this connection.
    * 
-   * @return the {@link WebSocketOpCode} currently used by default. 
+   * @return the {@link WSOPCode} currently used by default. 
    */
   public WSOPCode getDefaultOpCode() {
     return this.wsoc;
@@ -375,7 +373,6 @@ public class WSClient implements StreamingClient {
 
   /**
    * 
-   * @author lwahlmeier
    *
    */
   private class LocalStreamReader implements HTTPStreamReader {
@@ -416,14 +413,13 @@ public class WSClient implements StreamingClient {
   /**
    * This is the Read callback used for {@link WSClient}.
    * 
-   * @author lwahlmeier
    *
    */
   public interface WebSocketDataReader {
     /**
      * This is called when a data frame is read off the {@link WSClient}.
      * 
-     * @param wsf the {@link WebSocketFrame} that was read off the socket.
+     * @param wsf the {@link WSFrame} that was read off the socket.
      * @param bb the payload of the frame, might be empty, but never null.
      */
     public void onData(WSFrame wsf, ByteBuffer bb);

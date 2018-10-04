@@ -20,7 +20,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTPRequestCallback;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
-import org.threadly.litesockets.protocols.ws.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
 
 public class TestHTTPServer {

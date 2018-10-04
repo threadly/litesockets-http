@@ -1,4 +1,4 @@
-package org.threadly.litesockets.protocols.ws;
+package org.threadly.litesockets.protocols.websocket;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -15,10 +15,21 @@ public class WSUtils {
   //Keep private so it wont be modified.
   private static final byte[] MAGIC_UUID_BA = WSConstants.MAGIC_UUID.getBytes();
 
+  /**
+   * Makes a Sec-WebSocket-Key that is 20 Bytes long.
+   * 
+   * @return a Random 20 bytes Base64 encoded.  
+   */
   public static String makeSecretKey() {
     return makeSecretKey(WSConstants.DEFAULT_SECRET_KEY_SIZE);
   }
-  
+
+  /**
+   * Makes a Sec-WebSocket-Key that is however long you make it.
+   * 
+   * @param size the size in bytes of the random key.
+   * @return a Random amount of bytes Base64 encoded.  
+   */
   public static String makeSecretKey(final int size) {
     byte[] ba = new byte[size];
     ThreadLocalRandom.current().nextBytes(ba);
@@ -44,12 +55,28 @@ public class WSUtils {
     }
   }
   
+  /**
+   * Validates the Sec-WebSocket-Accept header response for a websocket request.
+   * 
+   * @param origKey the original key used. 
+   * @param headers the HTTPHeader object 
+   * @return true if the key is correct, false if its not.
+   */
   public static boolean validateKeyResponse(final String origKey, final HTTPHeaders headers) {
-    String key = headers.getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT);
-    return validateKeyResponse(origKey, key);
+    return validateKeyResponse(origKey, headers.getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT));
   }
-  
+
+  /**
+   * Validates the Sec-WebSocket-Accept header response for a websocket request.
+   * 
+   * @param origKey the original key used. 
+   * @param response the String value of the response. 
+   * @return true if the key is correct, false if its not.
+   */
   public static boolean validateKeyResponse(final String orig, final String response) {
+    if(response == null) {
+      return false;
+    }
     String correctResponse =  makeKeyResponse(orig);
     return response.equals(correctResponse);
   }
@@ -110,6 +137,13 @@ public class WSUtils {
     return size;
   }
   
+  /**
+   * Returns the small Length in the websocket frame.  This can be used to get
+   * either the length of the websocket frame or if a size larger then 125 is used.
+   * 
+   * @param bb The WSFrames ByteBuffer
+   * @return the size in the first length field.
+   */
   static byte getSmallLen(final ByteBuffer bb) {
     return (byte)(bb.get(1) & WSConstants.WS_SMALL_LENGTH_MASK);            
   }

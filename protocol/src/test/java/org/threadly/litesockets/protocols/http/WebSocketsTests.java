@@ -10,9 +10,9 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.junit.Test;
-import org.threadly.litesockets.protocols.ws.WSFrame;
-import org.threadly.litesockets.protocols.ws.WSOPCode;
-import org.threadly.litesockets.protocols.ws.WSUtils;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSUtils;
 
 
 public class WebSocketsTests {
