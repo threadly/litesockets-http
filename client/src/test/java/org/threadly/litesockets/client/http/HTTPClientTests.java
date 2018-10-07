@@ -84,7 +84,7 @@ public class HTTPClientTests {
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
-    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
     final AtomicInteger count = new AtomicInteger(0);
     httpClient.start(); 
@@ -141,7 +141,7 @@ public class HTTPClientTests {
     TSE.start();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     httpClient.start();
     final AtomicInteger count = new AtomicInteger(0);
@@ -200,7 +200,7 @@ public class HTTPClientTests {
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
     final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
@@ -258,7 +258,7 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     assertEquals("TEST123", httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
@@ -269,7 +269,7 @@ public class HTTPClientTests {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, "", false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
-    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false));
+    hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());

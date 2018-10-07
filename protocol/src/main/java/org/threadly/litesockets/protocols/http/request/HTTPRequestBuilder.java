@@ -178,13 +178,12 @@ public class HTTPRequestBuilder {
    * Sets the {@link HTTPAddress} for this builder.  This will add a Host header into the headers of this builder
    * when this object it built.  This is also used with the {@link #buildHTTPAddress()} method.
    * 
-   * NOTE: This does not change the Host HTTP header
-   * 
    * @param ha the {@link HTTPAddress} to be set.
+   * @param setHostHeader true if you want to chage the Host header to the host in the HTTPAddress, false if you do not.
    * @return the current {@link HTTPRequestBuilder} object.
    */
-  public HTTPRequestBuilder setHTTPAddress(final HTTPAddress ha) {
-    host = ha.getHost();
+  public HTTPRequestBuilder setHTTPAddress(final HTTPAddress ha, boolean setHostHeader) {
+    setHost(ha.getHost(), setHostHeader);
     this.port = ha.getPort();
     doSSL = ha.getdoSSL();
     return this;

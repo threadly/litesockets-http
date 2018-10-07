@@ -39,7 +39,7 @@ public class ClientHTTPRequest {
 
   public HTTPRequestBuilder makeBuilder() {
     HTTPRequestBuilder hrb = request.makeBuilder();
-    hrb.setHTTPAddress(ha);
+    hrb.setHTTPAddress(ha, false);
         
     return hrb;
   }
