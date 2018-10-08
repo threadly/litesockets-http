@@ -196,7 +196,6 @@ subprojects {
   }
 }
 
-
 project(':protocol') {
   archivesBaseName = 'litesockets-http-protocol'
 
