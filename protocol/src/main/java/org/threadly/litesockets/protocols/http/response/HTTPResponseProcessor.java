@@ -12,7 +12,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
 
 
 /**
@@ -314,10 +314,10 @@ public class HTTPResponseProcessor {
     /**
      * If the last headersFinished was a websocket request this will be called back on each frame we get from processed data.
      * 
-     * @param wsf The {@link WebSocketFrame} that was wrapping the data.
+     * @param wsf The {@link WSFrame} that was wrapping the data.
      * @param bb the payload of the frame, it will be unmasked already if its needed.
      */
-    public void websocketData(WebSocketFrame wsf, ByteBuffer bb);
+    public void websocketData(WSFrame wsf, ByteBuffer bb);
     
     /**
      * This is called when the http request finishes.  This can also be called if the connection is set to closed, or reset manually.

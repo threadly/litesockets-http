@@ -18,7 +18,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
 
 public class ResponseTests {
   
@@ -79,7 +79,7 @@ public class ResponseTests {
       }
 
       @Override
-      public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+      public void websocketData(WSFrame wsf, ByteBuffer bb) {
         // TODO Auto-generated method stub
         
       }});

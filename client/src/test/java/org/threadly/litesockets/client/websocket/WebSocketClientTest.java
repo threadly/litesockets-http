@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.ws;
+package org.threadly.litesockets.client.websocket;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -28,16 +28,17 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
-import org.threadly.litesockets.client.ws.WebSocketClient.WebSocketDataReader;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.client.websocket.WSClient;
+import org.threadly.litesockets.client.websocket.WSClient.WebSocketDataReader;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseHeader;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
-import org.threadly.litesockets.buffers.MergedByteBuffers;
-import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSUtils;
 import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.TestCondition;
 import org.threadly.util.ExceptionUtils;
@@ -70,10 +71,10 @@ public class WebSocketClientTest {
   public void simpleConnectTest() throws IOException, URISyntaxException {
     httpServer.setClientAcceptor(new WSEchoHandler());
     final AtomicReference<String> response = new AtomicReference<String>(null);
-    final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port+"/?test=2"));
+    final WSClient wsc = new WSClient(TSE, new URI("ws://localhost:"+port+"/?test=2"));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
+      public void onData(WSFrame wsf, ByteBuffer bb) {
         ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
@@ -81,7 +82,7 @@ public class WebSocketClientTest {
     wsc.connect().addCallback(new FutureCallback<Boolean>(){
       @Override
       public void handleResult(Boolean result) {
-        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, false);
+        wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WSOPCode.Text, false);
       }
 
       @Override
@@ -99,7 +100,7 @@ public class WebSocketClientTest {
     assertEquals("ECHO", response.get());
     assertTrue(wsc.isConnected());
     response.set(null);
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, true);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WSOPCode.Text, true);
     new TestCondition(){
       @Override
       public boolean get() {
@@ -124,21 +125,21 @@ public class WebSocketClientTest {
       slf.setResult(c.getRead());
     });
     WSclient.connect().get(10, TimeUnit.SECONDS);
-    WSclient.write(WebSocketClient.DEFAULT_WS_REQUEST.getByteBuffer());
+    WSclient.write(WSClient.DEFAULT_WS_REQUEST.getByteBuffer());
     slf.get(10, TimeUnit.SECONDS);
     
-    final WebSocketClient wsc = new WebSocketClient(WSclient);
+    final WSClient wsc = new WSClient(WSclient);
     
-    wsc.setRequestResponseHeaders(WebSocketClient.DEFAULT_WS_REQUEST, WebSocketClient.DEFAULT_WS_RESPONSE, false);
+    wsc.setRequestResponseHeaders(WSClient.DEFAULT_WS_REQUEST, WSClient.DEFAULT_WS_RESPONSE, false);
     
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
+      public void onData(WSFrame wsf, ByteBuffer bb) {
         ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
       }});
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, false);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WSOPCode.Text, false);
 
 
     new TestCondition(){
@@ -150,7 +151,7 @@ public class WebSocketClientTest {
     assertEquals("ECHO", response.get());
     assertTrue(wsc.isConnected());
     response.set(null);
-    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WebSocketOpCode.Text, true);
+    wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WSOPCode.Text, true);
     new TestCondition(){
       @Override
       public boolean get() {
@@ -168,10 +169,10 @@ public class WebSocketClientTest {
     httpServer.setClientAcceptor(new BadKeyResponseHandler());
     final AtomicBoolean gotFailure = new AtomicBoolean(false);
     final AtomicBoolean gotClose = new AtomicBoolean(false);
-    final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port));
+    final WSClient wsc = new WSClient(TSE, new URI("ws://localhost:"+port));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
+      public void onData(WSFrame wsf, ByteBuffer bb) {
 
       }});
     wsc.addCloseListener(new Runnable() {
@@ -212,10 +213,10 @@ public class WebSocketClientTest {
     httpServer.setClientAcceptor(new BadResponseHeaderHandler());
     final AtomicBoolean gotFailure = new AtomicBoolean(false);
     final AtomicBoolean gotClose = new AtomicBoolean(false);
-    final WebSocketClient wsc = new WebSocketClient(TSE, new URI("ws://localhost:"+port));
+    final WSClient wsc = new WSClient(TSE, new URI("ws://localhost:"+port));
     wsc.setWebSocketDataReader(new WebSocketDataReader() {
       @Override
-      public void onData(WebSocketFrame wsf, ByteBuffer bb) {
+      public void onData(WSFrame wsf, ByteBuffer bb) {
 
       }});
     wsc.addCloseListener(new Runnable() {
@@ -277,7 +278,7 @@ public class WebSocketClientTest {
           for(String s: request) {
             if(s.contains(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY)) {
               String[] tmp = s.split(":");
-              respKey = WebSocketFrameParser.makeKeyResponse(tmp[1].trim());
+              respKey = WSUtils.makeKeyResponse(tmp[1]);
             }
           }
           HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.NotFound, HTTPConstants.HTTP_VERSION_1_1));
@@ -345,7 +346,7 @@ public class WebSocketClientTest {
           for(String s: request) {
             if(s.contains(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY)) {
               String[] tmp = s.split(":");
-              respKey = WebSocketFrameParser.makeKeyResponse(tmp[1].trim());
+              respKey = WSUtils.makeKeyResponse(tmp[1].trim());
             }
           }
           HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.SwitchingProtocols, HTTPConstants.HTTP_VERSION_1_1));

@@ -1,4 +1,4 @@
-package org.threadly.litesockets.client.ws;
+package org.threadly.litesockets.client.websocket;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,19 +25,17 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
+import org.threadly.litesockets.protocols.websocket.WSUtils;
 import org.threadly.litesockets.utils.IOUtils;
 
 
 /**
  * This is a Wrapper around {@link HTTPStreamClient} that simplifies it for use with WebSockets.
  * 
- * @author lwahlmeier
- *
  */
-public class WebSocketClient implements StreamingClient {
+public class WSClient implements StreamingClient {
   public static final HTTPResponse DEFAULT_WS_RESPONSE = new HTTPResponseBuilder()
       .setResponseCode(HTTPResponseCode.SwitchingProtocols)
       .setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
@@ -63,7 +61,7 @@ public class WebSocketClient implements StreamingClient {
   private final HTTPStreamClient hsc;
   
   private volatile WebSocketDataReader onData;
-  private volatile WebSocketOpCode wsoc = WebSocketOpCode.Binary;
+  private volatile WSOPCode wsoc = WSOPCode.Binary;
   private volatile boolean defaultMask = false;
   private volatile boolean autoReplyPings = true;
 
@@ -72,7 +70,7 @@ public class WebSocketClient implements StreamingClient {
    * 
    * @param client the TCPClient to use for this connection.
    */
-  public WebSocketClient(final TCPClient client) {
+  public WSClient(final TCPClient client) {
     if(client.isClosed()) {
       throw new IllegalStateException("TCPClient is closed! Can only use an Open TCPClient");
     }
@@ -88,7 +86,7 @@ public class WebSocketClient implements StreamingClient {
    * @param uri the {@link URI} to use for setting up this connection.
    * @throws IOException this is thrown if there are any problems creating the TCP socket for this connection.
    */
-  public WebSocketClient(final SocketExecuter se, final URI uri) throws IOException {
+  public WSClient(final SocketExecuter se, final URI uri) throws IOException {
     int port = 0; 
     if(uri.getPort() > 0) {
       port = uri.getPort();
@@ -118,7 +116,7 @@ public class WebSocketClient implements StreamingClient {
    * @param port the port on the host to connect too.
    * @throws IOException this is thrown if there are any problems creating the tcp socket for this connection. 
    */
-  public WebSocketClient(final SocketExecuter se, final String host, final int port) throws IOException {
+  public WSClient(final SocketExecuter se, final String host, final int port) throws IOException {
     hsc = new HTTPStreamClient(se, host, port);
     makeDefaultBuilder();
   }
@@ -127,7 +125,7 @@ public class WebSocketClient implements StreamingClient {
     hrb.setHeader(HTTPConstants.HTTP_KEY_UPGRADE, "websocket")
     .setHeader(HTTPConstants.HTTP_KEY_CONNECTION, HTTPConstants.HTTP_KEY_UPGRADE)
     .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_VERSION, "13")
-    .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, WebSocketFrameParser.makeSecretKey())
+    .setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY, WSUtils.makeSecretKey())
     .setHost(hsc.getHost());
   }
   
@@ -172,7 +170,7 @@ public class WebSocketClient implements StreamingClient {
   
   /**
    * This sets whether or not the WebSocketClient will auto replay to websocket pings.  
-   * If this is set to false the {@link WebSocketDataReader onData(WebSocketFrame, ByteBuffer)} 
+   * If this is set to false the {@link WebSocketDataReader onData(WSFrame, ByteBuffer)} 
    * call will get the pings and they must be handled manually.
    * 
    * 
@@ -192,23 +190,23 @@ public class WebSocketClient implements StreamingClient {
   }
   
   /**
-   * Sets the default {@link WebSocketOpCode} to use when calling {@link #write(ByteBuffer)}.
+   * Sets the default {@link WSOPCode} to use when calling {@link #write(ByteBuffer)}.
    * 
    * Only standard WebSocket OpCodes can be used as a "default" to use anything other then the 
-   * standard OpCodes use the {@link #write(ByteBuffer, WebSocketOpCode, boolean)} method.
+   * standard OpCodes use the {@link #write(ByteBuffer, WSOPCode, boolean)} method.
    * 
-   * @param wsoc the default {@link WebSocketOpCode} to use on this connection.
+   * @param wsoc the default {@link WSOPCode} to use on this connection.
    */
-  public void setDefaultOpCode(WebSocketOpCode wsoc) {
+  public void setDefaultOpCode(WSOPCode wsoc) {
     this.wsoc = wsoc;
   }
   
   /**
-   * Returns the current default {@link WebSocketOpCode} in use by this connection.
+   * Returns the current default {@link WSOPCode} in use by this connection.
    * 
-   * @return the {@link WebSocketOpCode} currently used by default. 
+   * @return the {@link WSOPCode} currently used by default. 
    */
-  public WebSocketOpCode getDefaultOpCode() {
+  public WSOPCode getDefaultOpCode() {
     return this.wsoc;
   }
 
@@ -305,9 +303,9 @@ public class WebSocketClient implements StreamingClient {
    * @param mask sets whether or not to mask the websocket data. true to mask, false to not.
    * @return a {@link ListenableFuture} that will be completed once the frame has been fully written to the socket.
    */
-  public ListenableFuture<?> write(final ByteBuffer bb, final WebSocketOpCode opCode, final boolean mask) {
+  public ListenableFuture<?> write(final ByteBuffer bb, final WSOPCode opCode, final boolean mask) {
     if(connectFuture.isDone()) {
-      WebSocketFrame wsFrame = WebSocketFrameParser.makeWebSocketFrame(bb.remaining(), opCode, mask);
+      WSFrame wsFrame = WSFrame.makeWSFrame(bb.remaining(), opCode, mask);
       ByteBuffer data = bb;
       if(mask) {
         data = wsFrame.unmaskPayload(bb);
@@ -335,12 +333,12 @@ public class WebSocketClient implements StreamingClient {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {
             String orig = hrb.buildHTTPRequest().getHTTPHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_KEY);
             String resp = result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT);
-              if(WebSocketFrameParser.validateKeyResponse(orig, resp)) {
+              if(WSUtils.validateKeyResponse(orig, resp)) {
                 connectFuture.setResult(true);
               } else {
                 connectFuture.setFailure(
                     new IllegalStateException("Bad WebSocket Key Response!: "+ resp 
-                        +": Should be:"+WebSocketFrameParser.makeKeyResponse(orig)));
+                        +": Should be:"+WSUtils.makeKeyResponse(orig)));
                 hsc.close();
               }
           } else {
@@ -375,12 +373,11 @@ public class WebSocketClient implements StreamingClient {
 
   /**
    * 
-   * @author lwahlmeier
    *
    */
   private class LocalStreamReader implements HTTPStreamReader {
     private final ReuseableMergedByteBuffers mbb = new ReuseableMergedByteBuffers();
-    private WebSocketFrame lastFrame;
+    private WSFrame lastFrame;
 
     @Override
     public void handle(final ByteBuffer bb) {
@@ -388,7 +385,7 @@ public class WebSocketClient implements StreamingClient {
       while(mbb.remaining() > 0) {
         try {
           if(lastFrame == null) {
-            lastFrame = WebSocketFrameParser.parseWebSocketFrame(mbb);
+            lastFrame = WSFrame.parseWSFrame(mbb);
           }
           if(lastFrame != null) {
             if(mbb.remaining() >= lastFrame.getPayloadDataLength()) {
@@ -396,8 +393,8 @@ public class WebSocketClient implements StreamingClient {
               if(lastFrame.hasMask()) {
                 data = lastFrame.unmaskPayload(data);
               }
-              if(autoReplyPings && lastFrame.getOpCode() == WebSocketOpCode.Ping.getValue()) {
-                write(IOUtils.EMPTY_BYTEBUFFER, WebSocketOpCode.Pong, false);
+              if(autoReplyPings && lastFrame.getOpCode() == WSOPCode.Ping.getValue()) {
+                write(IOUtils.EMPTY_BYTEBUFFER, WSOPCode.Pong, false);
               } else {
                 onData.onData(lastFrame, data);
               }
@@ -414,19 +411,18 @@ public class WebSocketClient implements StreamingClient {
   }
 
   /**
-   * This is the Read callback used for {@link WebSocketClient}.
+   * This is the Read callback used for {@link WSClient}.
    * 
-   * @author lwahlmeier
    *
    */
   public interface WebSocketDataReader {
     /**
-     * This is called when a data frame is read off the {@link WebSocketClient}.
+     * This is called when a data frame is read off the {@link WSClient}.
      * 
-     * @param wsf the {@link WebSocketFrame} that was read off the socket.
+     * @param wsf the {@link WSFrame} that was read off the socket.
      * @param bb the payload of the frame, might be empty, but never null.
      */
-    public void onData(WebSocketFrame wsf, ByteBuffer bb);
+    public void onData(WSFrame wsf, ByteBuffer bb);
   }
 
 

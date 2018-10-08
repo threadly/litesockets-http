@@ -4,13 +4,17 @@ import java.nio.ByteBuffer;
 
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 
+/**
+ * This contains a full HTTPRequest, including the HTTPRequest, the HTTPAddress the body and the timeout.
+ * This is immutable, though an HTTPRequestBuilder can be made from it.
+ */
 public class ClientHTTPRequest {
   private final HTTPRequest request;
   private final HTTPAddress ha;
   private final ByteBuffer bodyBytes;
   private final int timeoutMS; 
   
-  public ClientHTTPRequest(HTTPRequest request, HTTPAddress ha, int timeoutMS, ByteBuffer bodyBytes) {
+  protected ClientHTTPRequest(HTTPRequest request, HTTPAddress ha, int timeoutMS, ByteBuffer bodyBytes) {
     this.request = request;
     this.ha = ha;
     this.bodyBytes = bodyBytes;
@@ -35,7 +39,7 @@ public class ClientHTTPRequest {
 
   public HTTPRequestBuilder makeBuilder() {
     HTTPRequestBuilder hrb = request.makeBuilder();
-    hrb.setHTTPAddress(ha);
+    hrb.setHTTPAddress(ha, false);
         
     return hrb;
   }
@@ -52,29 +56,33 @@ public class ClientHTTPRequest {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
-    if (getClass() != obj.getClass())
-      return false;
+    }
     ClientHTTPRequest other = (ClientHTTPRequest) obj;
-    if (bodyBytes == null) {
-      if (other.bodyBytes != null)
+    if (bodyBytes == null ) {
+      if (other.bodyBytes != null) {
         return false;
+      }
     } else if (!bodyBytes.equals(other.bodyBytes))
       return false;
     if (ha == null) {
-      if (other.ha != null)
+      if (other.ha != null) {
         return false;
+      }
     } else if (!ha.equals(other.ha))
       return false;
     if (request == null) {
-      if (other.request != null)
+      if (other.request != null) {
         return false;
-    } else if (!request.equals(other.request))
+      }
+    } else if (!request.equals(other.request)) {
       return false;
-    return true;
+    }
+    return false;
   }
   
 }

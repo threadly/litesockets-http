@@ -1,9 +1,9 @@
 package org.threadly.litesockets.server.http;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 
@@ -26,9 +26,8 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser;
-import org.threadly.litesockets.protocols.ws.WebSocketFrameParser.WebSocketFrame;
-import org.threadly.litesockets.protocols.ws.WebSocketOpCode;
+import org.threadly.litesockets.protocols.websocket.WSFrame;
+import org.threadly.litesockets.protocols.websocket.WSOPCode;
 import org.threadly.util.AbstractService;
 import org.threadly.util.ExceptionUtils;
 
@@ -40,16 +39,15 @@ import org.threadly.util.ExceptionUtils;
  */
 public class HTTPServer extends AbstractService {
   public static final HTTPResponse NOT_FOUND_RESPONSE = new HTTPResponseBuilder().setResponseCode(HTTPResponseCode.NotFound).build();
-  private static final Logger LOG = Logger.getLogger(HTTPServer.class.getSimpleName());
   
   private final ConcurrentHashMap<TCPClient, HTTPRequestProcessor> clients = new ConcurrentHashMap<>();
   private final ClientListener clientListener = new ClientListener();
-  private final SSLContext sslc;
   private final SocketExecuter se;
   private final TCPServer server;
   private final String hostname;
   private final int port;
-  
+
+  private volatile SSLContext sslc;
   private volatile HTTPServerHandler handler;
   
   /**
@@ -96,6 +94,23 @@ public class HTTPServer extends AbstractService {
   }
   
   /**
+   * Allows you to set/reset the ssl context on the server.  Good for dynamically reloading certs.
+   * 
+   * @param sslc The sslContext to use.
+   */
+  public void setSSLContext(final SSLContext sslc) {
+    this.sslc = sslc;
+    if(this.sslc != null) {
+      server.setSSLContext(this.sslc);
+      server.setSSLHostName(hostname);
+      server.setDoHandshake(true);
+    } else {
+      server.setDoHandshake(false);
+      server.setSSLContext(null);
+    }
+  }
+  
+  /**
    * 
    * @return the ip/hostname this server is bound to.
    */
@@ -129,21 +144,23 @@ public class HTTPServer extends AbstractService {
    *
    */
   private class ClientListener implements ClientAcceptor, Reader, ClientCloseListener {
-
     @Override
     public void accept(Client client) {
-      LOG.info("New client connection:"+client);
       TCPClient tclient = (TCPClient)client;
-      HTTPRequestProcessor hrp = new HTTPRequestProcessor();
-      hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
-      clients.put(tclient, hrp);
-      client.setReader(this);
-      client.addCloseListener(this);
+      if(handler.onConnection(tclient.getRemoteSocketAddress())) {
+        HTTPRequestProcessor hrp = new HTTPRequestProcessor();
+        hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
+        clients.put(tclient, hrp);
+        client.setReader(this);
+        client.addCloseListener(this);
+      } else {
+        tclient.close();
+      }
     }
 
     @Override
     public void onClose(Client client) {
-      LOG.info("Client connection closed:"+client);
+      handler.onDisconnect((InetSocketAddress)client.getRemoteSocketAddress(), client.getStats().getTotalRead(), client.getStats().getTotalWrite());
       HTTPRequestProcessor hrp = clients.remove(client);
       if(hrp != null) {
         hrp.connectionClosed();
@@ -152,7 +169,10 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void onRead(Client client) {
-      clients.get(client).processData(client.getRead());
+      HTTPRequestProcessor hrp = clients.get(client);
+      if(hrp != null) {
+        hrp.processData(client.getRead());
+      }
     }
   }
   
@@ -197,14 +217,14 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void hasError(Throwable t) {
-      ExceptionUtils.handleException(t);
-      bodyFuture.completed(hr, responseWriter);
-      bodyFuture = new BodyFuture();
-      responseWriter = new ResponseWriter(this.client);
+      if(handler != null) {
+        handler.onError(hr, responseWriter, bodyFuture, t);
+      }
+      client.close();
     }
 
     @Override
-    public void websocketData(WebSocketFrame wsf, ByteBuffer bb) {
+    public void websocketData(WSFrame wsf, ByteBuffer bb) {
       bodyFuture.onWebsocketFrame(hr, wsf, bb, responseWriter);
     }
   }
@@ -319,9 +339,9 @@ public class HTTPServer extends AbstractService {
       }
     }
     
-    public ListenableFuture<?> writeWebsocketFrame(WebSocketOpCode wsoc, MergedByteBuffers mbb, boolean mask) {
+    public ListenableFuture<?> writeWebsocketFrame(WSOPCode wsoc, MergedByteBuffers mbb, boolean mask) {
       ByteBuffer bb = mbb.pullBuffer(mbb.remaining());
-      return writeBody(new SimpleMergedByteBuffers(false, WebSocketFrameParser.makeWebSocketFrame(mbb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
+      return writeBody(new SimpleMergedByteBuffers(false, WSFrame.makeWSFrame(mbb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
     }
     
     /**
@@ -345,6 +365,14 @@ public class HTTPServer extends AbstractService {
     public void closeConnection() {
       done = true;
       client.close();
+    }
+    
+    public InetSocketAddress getRemoteSocketAddress() {
+      return (InetSocketAddress)client.getRemoteSocketAddress();
+    }
+    
+    public InetSocketAddress getLocalSocketAddress() {
+      return (InetSocketAddress)client.getLocalSocketAddress();
     }
   }
   
@@ -376,7 +404,7 @@ public class HTTPServer extends AbstractService {
       listener.call().bodyComplete(httpRequest, responseWriter);
     }
     
-    protected void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, ResponseWriter responseWriter) {
+    protected void onWebsocketFrame(HTTPRequest httpRequest, WSFrame wsf, ByteBuffer bb, ResponseWriter responseWriter) {
       listener.call().onWebsocketFrame(httpRequest, wsf, bb, responseWriter);
     }
   }
@@ -395,6 +423,33 @@ public class HTTPServer extends AbstractService {
      * @param bodyListener the {@link BodyFuture} that will be used to call back on as body data is read from the client.
      */
     void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener);
+    
+    default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener, Throwable t) {
+      ExceptionUtils.handleException(t);
+    }
+    
+    /**
+     * Allow handling of client connection before any HTTPData comes in or is parsed.
+     * 
+     * This allows you to block IPs or do logging if needed before parsing occurs.
+     * 
+     * @param isa the InetSocketAddress of the client connecting.
+     * @return true to allow the connection to continue, false to immediately close the connection. (Defaults to true).
+     */
+    default boolean onConnection(InetSocketAddress isa) {
+      return true;
+    }
+    
+    /**
+     * Allows you to know when a client disconnects.  Gives read/write stats for the clients raw socket.
+     * 
+     * @param isa the SocketAddress for the client
+     * @param bytesRead bytes read from the client while it was connected.
+     * @param bytesWritten bytes written to the client while it was connected.
+     */
+    default void onDisconnect(InetSocketAddress isa, long bytesRead, long bytesWritten) {
+
+    }
   }
   
   /**
@@ -412,8 +467,7 @@ public class HTTPServer extends AbstractService {
      */
     public void onBody(HTTPRequest httpRequest, ByteBuffer bb, ResponseWriter responseWriter);
     
-    public void onWebsocketFrame(HTTPRequest httpRequest, WebSocketFrame wsf, ByteBuffer bb, 
-                                 ResponseWriter responseWriter);
+    public void onWebsocketFrame(HTTPRequest httpRequest, WSFrame wsf, ByteBuffer bb, ResponseWriter responseWriter);
     
     /**
      * This is called when the body has completed.
