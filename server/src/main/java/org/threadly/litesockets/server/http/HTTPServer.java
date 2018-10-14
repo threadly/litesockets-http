@@ -341,7 +341,7 @@ public class HTTPServer extends AbstractService {
     
     public ListenableFuture<?> writeWebsocketFrame(WSOPCode wsoc, MergedByteBuffers mbb, boolean mask) {
       ByteBuffer bb = mbb.pullBuffer(mbb.remaining());
-      return writeBody(new SimpleMergedByteBuffers(false, WSFrame.makeWSFrame(mbb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
+      return writeBody(new SimpleMergedByteBuffers(false, WSFrame.makeWSFrame(bb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
     }
     
     /**
