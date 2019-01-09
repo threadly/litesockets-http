@@ -331,8 +331,12 @@ public class HTTPClient extends AbstractService {
   }
   
   private void process(HTTPRequestWrapper hrw) {
+    if (hrw.slf.isDone()) {
+      // don't process, request either timed out while queued or otherwise completed in error
+      return;
+    }
     try {
-      hrw.updateReadTime();
+      hrw.requestStarting();
       hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
       inProcess.put(hrw.client, hrw);
       SimpleMergedByteBuffers writeBuffer;
@@ -504,7 +508,7 @@ public class HTTPClient extends AbstractService {
     public void onRead(Client client) {
       HTTPRequestWrapper hrw = inProcess.get(client);
       if(hrw != null) {
-        hrw.hrp.processData(client.getRead());
+        hrw.processIncomingData(client.getRead());
       } else {
         client.close();
       }
@@ -512,13 +516,21 @@ public class HTTPClient extends AbstractService {
   }
 
   /**
+   * State the request is currently in, state should transition in order of enum.
+   */
+  private enum RequestState { Queued, SendingRequest, 
+                              ReadingResponseHeader, ReadingResponseBody, 
+                              Finished }
+  
+  /**
    * Wrapper for the request that will handle the incoming response data (as well as notifying 
    * back to the client once the response is complete).
    */
   private class HTTPRequestWrapper implements HTTPResponseCallback {
-    private final SettableListenableFuture<HTTPResponseData> slf = new SettableListenableFuture<>(false);
+    private final SettableListenableFuture<HTTPResponseData> slf = new TimeoutTrackingSettableListenableFuture<>();
     private final HTTPResponseProcessor hrp;
     private final ClientHTTPRequest chr;
+    private RequestState currentState = RequestState.Queued;
     private HTTPResponse response;
     private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
     private TCPClient client;
@@ -534,8 +546,17 @@ public class HTTPClient extends AbstractService {
       sei.watchFuture(slf, chr.getTimeoutMS());
     }
 
-    public void updateReadTime() {
+    public void requestStarting() {
+      currentState = RequestState.SendingRequest;
       lastRead = Clock.lastKnownForwardProgressingMillis();
+    }
+
+    public void processIncomingData(ReuseableMergedByteBuffers read) {
+      if (currentState == RequestState.SendingRequest) {
+        currentState = RequestState.ReadingResponseHeader;
+      }
+      lastRead = Clock.lastKnownForwardProgressingMillis();
+      hrp.processData(read);
     }
 
     public long timeTillExpired() {
@@ -544,6 +565,7 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void headersFinished(HTTPResponse hr) {
+      currentState = RequestState.ReadingResponseBody;
       response = hr;
     }
 
@@ -558,6 +580,7 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void finished() {
+      currentState = RequestState.Finished;
       slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, 
                                          responseMBB.duplicateAndClean()));
       hrp.removeHTTPResponseCallback(this);
@@ -578,6 +601,31 @@ public class HTTPClient extends AbstractService {
     public void websocketData(WSFrame wsf, ByteBuffer bb) {
       slf.setFailure(new Exception("HTTPClient does not currently support websockets!"));
       client.close();
+    }
+    
+    /**
+     * Implementation of {@link SettableListenableFuture} which records the RequestState at the time 
+     * of cancel / timeout so that it can later be reported for debugging.
+     *
+     * @param <T> The type of result returned by the future
+     */
+    protected class TimeoutTrackingSettableListenableFuture<T> extends SettableListenableFuture<T> {
+      private RequestState stateBeforeCancel = null;
+      
+      protected TimeoutTrackingSettableListenableFuture() {
+        super(false);
+      }
+      
+      @Override
+      protected void setCanceled() {
+        stateBeforeCancel = currentState;
+        super.setCanceled();
+      }
+
+      @Override
+      protected String getCancellationExceptionMessage() {
+        return "Request timed out at point: " + stateBeforeCancel.name();
+      }
     }
   }
 
