@@ -288,6 +288,8 @@ public class HTTPRequestBuilder {
     }
     hrb.setHost(host);
     hrb.setPort(port);
+    hrb.setSSL(doSSL);
+    hrb.setTimeout(timeoutMS, TimeUnit.MILLISECONDS);
     return hrb;
   }
 

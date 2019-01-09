@@ -28,6 +28,7 @@ import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPClient;
 import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequest;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
@@ -311,7 +312,6 @@ public class HTTPClient extends AbstractService {
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final ClientHTTPRequest request) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
-    final ListenableFuture<HTTPResponseData> lf = hrw.slf;
     queue.add(hrw);
     if(ntse != null) {
       ntse.wakeup();
@@ -319,7 +319,7 @@ public class HTTPClient extends AbstractService {
     } else {
       processQueue();
     }
-    return lf;
+    return hrw.slf;
   }
 
   private void processQueue() {
@@ -331,17 +331,23 @@ public class HTTPClient extends AbstractService {
   }
   
   private void process(HTTPRequestWrapper hrw) {
-    if(hrw != null) {
-      try {
-        hrw.updateReadTime();
-        hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
-        inProcess.put(hrw.client, hrw);
-        hrw.client.write(hrw.chr.getHTTPRequest().getByteBuffer());
-        hrw.client.write(hrw.chr.getBodyBuffer().duplicate());
-      } catch (Exception e) {
-        //Have to catch all here or we dont keep processing if NoThreadSE is in use
-        //hrw.slf.setFailure(e);
+    try {
+      hrw.updateReadTime();
+      hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
+      inProcess.put(hrw.client, hrw);
+      SimpleMergedByteBuffers writeBuffer;
+      if (hrw.chr.getBodyBuffer() == null) {
+        writeBuffer = new SimpleMergedByteBuffers(false, 
+                                                  hrw.chr.getHTTPRequest().getByteBuffer());
+      } else {
+        writeBuffer = new SimpleMergedByteBuffers(false, 
+                                                  hrw.chr.getHTTPRequest().getByteBuffer(), 
+                                                  hrw.chr.getBodyBuffer().duplicate());
       }
+      hrw.client.write(writeBuffer);
+    } catch (Throwable t) {
+      //Have to catch all here or we dont keep processing if NoThreadSE is in use
+      hrw.slf.setFailure(t);
     }
   }
 
