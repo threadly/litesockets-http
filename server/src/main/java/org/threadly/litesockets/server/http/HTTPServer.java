@@ -134,7 +134,7 @@ public class HTTPServer extends AbstractService {
    * 
    * @param handler the handler to use.
    */
-  public void addHandler(final HTTPServerHandler handler) {
+  public void setHandler(final HTTPServerHandler handler) {
     this.handler = handler;
   }
   
@@ -147,7 +147,7 @@ public class HTTPServer extends AbstractService {
     @Override
     public void accept(Client client) {
       TCPClient tclient = (TCPClient)client;
-      if(handler.onConnection(tclient.getRemoteSocketAddress())) {
+      if(handler == null || handler.onConnection(tclient.getRemoteSocketAddress())) {
         HTTPRequestProcessor hrp = new HTTPRequestProcessor();
         hrp.addHTTPRequestCallback(new HTTPRequestListener(tclient));
         clients.put(tclient, hrp);
@@ -160,7 +160,10 @@ public class HTTPServer extends AbstractService {
 
     @Override
     public void onClose(Client client) {
-      handler.onDisconnect((InetSocketAddress)client.getRemoteSocketAddress(), client.getStats().getTotalRead(), client.getStats().getTotalWrite());
+      if (handler != null) {
+        handler.onDisconnect((InetSocketAddress)client.getRemoteSocketAddress(), 
+                             client.getStats().getTotalRead(), client.getStats().getTotalWrite());
+      }
       HTTPRequestProcessor hrp = clients.remove(client);
       if(hrp != null) {
         hrp.connectionClosed();
