@@ -79,7 +79,7 @@ public class WebSocketClientTest {
         mbb.add(bb);
         response.compareAndSet(null, mbb.getAsString(mbb.remaining()));
       }});
-    wsc.connect().addCallback(new FutureCallback<Boolean>(){
+    wsc.connect().callback(new FutureCallback<Boolean>(){
       @Override
       public void handleResult(Boolean result) {
         wsc.write(ByteBuffer.wrap("ECHO".getBytes()), WSOPCode.Text, false);
@@ -176,20 +176,11 @@ public class WebSocketClientTest {
 
       }});
     wsc.addCloseListener(new Runnable() {
-
       @Override
       public void run() {
         gotClose.set(true);
       }});
-    wsc.connect().addCallback(new FutureCallback<Boolean>(){
-      @Override
-      public void handleResult(Boolean result) {
-      }
-
-      @Override
-      public void handleFailure(Throwable t) {
-        gotFailure.set(true);
-      }});
+    wsc.connect().failureCallback((t) -> gotFailure.set(true));
 
     new TestCondition(){
       @Override
@@ -225,15 +216,7 @@ public class WebSocketClientTest {
       public void run() {
         gotClose.set(true);
       }});
-    wsc.connect().addCallback(new FutureCallback<Boolean>(){
-      @Override
-      public void handleResult(Boolean result) {
-      }
-
-      @Override
-      public void handleFailure(Throwable t) {
-        gotFailure.set(true);
-      }});
+    wsc.connect().failureCallback((t) -> gotFailure.set(true));
 
     new TestCondition(){
       @Override

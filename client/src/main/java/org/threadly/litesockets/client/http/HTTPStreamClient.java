@@ -208,7 +208,7 @@ public class HTTPStreamClient implements StreamingClient {
 
   public ListenableFuture<Boolean> connect() {
     ListenableFuture<Boolean> lf = client.connect();
-    lf.addCallback(new FutureCallback<Boolean>(){
+    lf.callback(new FutureCallback<Boolean>(){
       @Override
       public void handleResult(Boolean result) {
         isConnected = true;

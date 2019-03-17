@@ -354,11 +354,7 @@ public class HTTPServer extends AbstractService {
     public void done() {
       done = true;
       if(closeOnDone && !client.isClosed()) {
-        client.lastWriteFuture().addListener(new Runnable(){
-          @Override
-          public void run() {
-            client.close();
-          }});
+        client.lastWriteFuture().listener(client::close);
       }
     }
     

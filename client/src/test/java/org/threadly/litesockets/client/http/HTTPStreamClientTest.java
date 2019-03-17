@@ -13,7 +13,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.threadly.concurrent.PriorityScheduler;
-import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.ThreadedSocketExecuter;
@@ -66,18 +65,7 @@ public class HTTPStreamClientTest {
     hsc.connect();
 
     final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.buildHTTPRequest());
-    lf.addCallback(new FutureCallback<HTTPResponse>() {
-
-      @Override
-      public void handleResult(HTTPResponse result) {
-        set.set(true);
-      }
-
-      @Override
-      public void handleFailure(Throwable t) {
-        // TODO Auto-generated method stub
-        
-      }});
+    lf.resultCallback((result) -> set.set(true));
     
     new TestCondition(){
       @Override
@@ -108,19 +96,10 @@ public class HTTPStreamClientTest {
     
     final ListenableFuture<HTTPResponse> lf = hsc.writeRequest(hrb.buildHTTPRequest());
     
-    lf.addCallback(new FutureCallback<HTTPResponse>() {
-
-      @Override
-      public void handleResult(HTTPResponse result) {
+    lf.resultCallback((result) -> {
         set.set(true);
-        count.addAndGet(Integer.parseInt(result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH)));
-      }
-
-      @Override
-      public void handleFailure(Throwable t) {
-        // TODO Auto-generated method stub
-        
-      }});
+        count.addAndGet(Integer.parseInt(result.getHeaders().getHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH)));        
+      });
     
     new TestCondition(){
       @Override

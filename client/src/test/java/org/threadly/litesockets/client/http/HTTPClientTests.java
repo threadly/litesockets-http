@@ -95,8 +95,8 @@ public class HTTPClientTests {
       public void run() {
         ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
-        lf.addCallback(new FutureCallback<HTTPResponseData>() {
+        final ListenableFuture<HTTPResponseData> lf = httpClient.requestAsync(chr);
+        lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
             //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
@@ -106,19 +106,11 @@ public class HTTPClientTests {
 
           @Override
           public void handleFailure(Throwable t) {
-            System.out.println("***********************ERR*******************");
-            try {
-              System.out.println(lf.get().getBodyAsString());
-            } catch (InterruptedException e) {
-              e.printStackTrace();
-            } catch (ExecutionException e) {
-              e.printStackTrace();
-            }
-            System.out.println("***********************ERR*******************");
+            System.err.println("***********************ERR*******************");
+            t.printStackTrace();
+            System.err.println("***********************ERR*******************");
             fail();
           }});
-
-
       }};
 
       for(int i=0; i<number; i++) {
@@ -153,7 +145,7 @@ public class HTTPClientTests {
         ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
         final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
-        lf.addCallback(new FutureCallback<HTTPResponseData>() {
+        lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
             //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
@@ -163,19 +155,11 @@ public class HTTPClientTests {
 
           @Override
           public void handleFailure(Throwable t) {
-            System.out.println("***********************ERR*******************");
-            try {
-              System.out.println(lf.get().getBodyAsString());
-            }  catch (InterruptedException e) {
-              e.printStackTrace();
-            } catch (ExecutionException e) {
-              e.printStackTrace();
-            }
-            System.out.println("***********************ERR*******************");
+            System.err.println("***********************ERR*******************");
+            t.printStackTrace();
+            System.err.println("***********************ERR*******************");
             fail();
           }});
-
-
       }};
 
       for(int i=0; i<number; i++) {
@@ -215,7 +199,7 @@ public class HTTPClientTests {
         //final long start = Clock.accurateForwardProgressingMillis();
 
         final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
-        lf.addCallback(new FutureCallback<HTTPResponseData>() {
+        lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
             //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
@@ -225,19 +209,11 @@ public class HTTPClientTests {
 
           @Override
           public void handleFailure(Throwable t) {
-            System.out.println("***********************ERR*******************");
-            try {
-              System.out.println(lf.get().getBodyAsString());
-            }  catch (InterruptedException e) {
-              e.printStackTrace();
-            } catch (ExecutionException e) {
-              e.printStackTrace();
-            }
-            System.out.println("***********************ERR*******************");
+            System.err.println("***********************ERR*******************");
+            t.printStackTrace();
+            System.err.println("***********************ERR*******************");
             fail();
           }});
-
-
       }};
 
       for(int i=0; i<number; i++) {

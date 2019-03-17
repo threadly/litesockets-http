@@ -327,7 +327,7 @@ public class WSClient implements StreamingClient {
   public ListenableFuture<Boolean> connect() {
     if(sentRequest.compareAndSet(false, true)) {
       hsc.connect();
-      hsc.writeRequest(hrb.buildHTTPRequest()).addCallback(new FutureCallback<HTTPResponse>() {
+      hsc.writeRequest(hrb.buildHTTPRequest()).callback(new FutureCallback<HTTPResponse>() {
         @Override
         public void handleResult(HTTPResponse result) {
           if(result.getResponseHeader().getResponseCode() == HTTPResponseCode.SwitchingProtocols) {

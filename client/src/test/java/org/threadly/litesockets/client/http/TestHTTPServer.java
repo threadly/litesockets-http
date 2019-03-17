@@ -92,7 +92,7 @@ public class TestHTTPServer {
         }
         sendBack.rollback();
         if(closeOnSend) {
-          lf.addListener(()->c.close());
+          lf.listener(c::close);
         }
         hrp.reset();
       }
