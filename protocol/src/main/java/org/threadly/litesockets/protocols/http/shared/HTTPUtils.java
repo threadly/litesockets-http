@@ -12,20 +12,30 @@ import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
 import org.threadly.util.StringUtils;
 
 /**
- * 
- * 
- * @author lwahlmeier
- *
+ * Utility functions for working with the HTTP protocol.
  */
 public class HTTPUtils {
+  /**
+   * Trim whitespace from the left side of the String only.
+   * 
+   * @param value String to trim from
+   * @return A left-trimmed string
+   */
   public static String leftTrim(String value) {
     int count = 0;
-    while(Character.isWhitespace(value.charAt(count))) {
+    while(value.length() > count && Character.isWhitespace(value.charAt(count))) {
       count++;
     }
     return value.substring(count);
   }
   
+  /**
+   * Used for parsing a chunk encoded request / response.  This will find the end of the chunk 
+   * and then parse out the size of the next chunk
+   * 
+   * @param bb Source {@link ByteBuffer} to read from
+   * @return The next chunk size or {@code -1} if could not be found or failed to parse
+   */
   public static int getNextChunkLength(final ByteBuffer bb) {
     MergedByteBuffers mbb = new ReuseableMergedByteBuffers();
     mbb.add(bb);
@@ -41,6 +51,12 @@ public class HTTPUtils {
     return -1;
   }
   
+  /**
+   * Wraps the given data in a chunk to be used for chunked encoding.
+   * 
+   * @param bb The data to wrap
+   * @return A new buffer which wraps the data in a chunk encoded segment
+   */
   public static ByteBuffer wrapInChunk(ByteBuffer bb) {
     byte[] size = Integer.toHexString(bb.remaining()).getBytes();
     ByteBuffer newBB = ByteBuffer.allocate(bb.remaining()+
@@ -53,6 +69,12 @@ public class HTTPUtils {
     return newBB;
   }
   
+  /**
+   * Converts query parameters stored in a map to a {@link String} that can be added to the URI.
+   * 
+   * @param map Map to source the values from
+   * @return HTTP standard query parameters, prefixed with {@code ?}
+   */
   public static String queryToString(Map<String, List<String>> map) {
     if(map.isEmpty()) {
       return "";
@@ -82,6 +104,12 @@ public class HTTPUtils {
     return sb.toString();
   }
   
+  /**
+   * Parses http standard query parameters from the URL into a {@link Map} representation.
+   * 
+   * @param query The String to parse
+   * @return The parsed our parameters into a {@link Map}
+   */
   public static Map<String, List<String>> queryToMap(String query) {
     if (StringUtils.isNullOrEmpty(query)) {
       return Collections.emptyMap();

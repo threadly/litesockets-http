@@ -183,6 +183,10 @@ public class HTTPStreamClient implements StreamingClient {
     }
   }
   
+  /**
+   * Get the {@link ListenableFuture} associated with the last write to the associated client.  
+   * This future will complete when the write has been written to the socket.
+   */
   public ListenableFuture<?> getLastWriteFuture() {
     return client.lastWriteFuture();
   }
@@ -229,19 +233,25 @@ public class HTTPStreamClient implements StreamingClient {
     }
   }
   
+  /**
+   * Check if the client is connected.
+   * 
+   * @return {@code true} if the client has not been closed yet
+   */
   public boolean isConnected() {
     return isConnected;
   }
 
+  /**
+   * Close the associated client.
+   */
   public void close() {
     isConnected = false;
     client.close();
   }  
 
   /**
-   * 
-   * @author lwahlmeier
-   *
+   * Implementation of {@link Reader} which will provide the data to the {@code httpProcessor}.
    */
   private class HTTPReader implements Reader {
     @Override
@@ -249,11 +259,10 @@ public class HTTPStreamClient implements StreamingClient {
       httpProcessor.processData(client.getRead());
     }
   }
-  
+
   /**
-   * 
-   * @author lwahlmeier
-   *
+   * Implementation of {@link ClientCloseListener} to communicate the closed status to this class 
+   * and attached listeners.
    */
   private class HTTPCloser implements ClientCloseListener {
     @Override

@@ -141,6 +141,7 @@ public class HTTPRequestHeader {
    * Gets the value to a given query parameter.  This will throw an exception if there is multiple 
    * values associated to the key.
    *  
+   * @param paramKey The key associated with the query parameter value
    * @return the request parameter value or {@code null} if none is associated
    */
   public String getRequestQueryValue(String paramKey) {

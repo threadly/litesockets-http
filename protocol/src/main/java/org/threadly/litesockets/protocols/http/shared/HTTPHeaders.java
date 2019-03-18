@@ -53,8 +53,13 @@ public class HTTPHeaders {
     rawHeaders = formatHeaderMap(lheaders);
     this.headers = Collections.unmodifiableMap(lheaders);
   }
-  
 
+  /**
+   * Converts a {@link Map} into the HTTP standard header format.
+   * 
+   * @param headerMap The map to use for input
+   * @return The string of HTTP encoded headers
+   */
   public static String formatHeaderMap(Map<String, String> headerMap) {
     StringBuilder sb = new StringBuilder();
     for(Entry<String, String> kv: headerMap.entrySet()) {
@@ -67,18 +72,41 @@ public class HTTPHeaders {
     return sb.toString();
   }
   
+  /**
+   * Get the header key / values as a {@link Map}.
+   * 
+   * @return The header key / values.
+   */
   public Map<String, String> getHeadersMap() {
     return headers;
   }
   
+  /**
+   * Check if the headers are defining this as a chunked request / response.  This is determined 
+   * by the presence of a header key {@link HTTPConstants#HTTP_KEY_TRANSFER_ENCODING}.
+   * 
+   * @return {@code true} if the encoding is set as chunked
+   */
   public boolean isChunked() {
     return headers.containsKey(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING);
   }
   
+  /**
+   * Get the value associated with a key in the headers.
+   * 
+   * @param header The key to use for the header value
+   * @return The header value or {@code null} if no header key match is found
+   */
   public String getHeader(String header) {
     return headers.get(header);
   }
 
+  /**
+   * Parse out the content length from the value of {@link HTTPConstants#HTTP_KEY_CONTENT_LENGTH} 
+   * header.
+   * 
+   * @return The length sent in the header or {@code -1} if none is provided (or failed to parse)
+   */
   public long getContentLength() {
     String scl = headers.get(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
     long cl = -1;

@@ -658,10 +658,21 @@ public class HTTPClient extends AbstractService {
       return hr;
     }
     
+    /**
+     * Get the response code sent with the response.
+     * 
+     * @return {@link HTTPResponseCode} sent with the response.
+     */
     public HTTPResponseCode getResponseCode() {
       return hr.getResponseHeader().getResponseCode();
     }
-        
+    
+    /**
+     * Get the length associated with the response based off the header value if available, or the 
+     * size of the body if not.
+     * 
+     * @return The size of the body in bytes
+     */
     public long getContentLength() {
       long result = hr.getHeaders().getContentLength();
       if (result >= 0) {
@@ -671,14 +682,31 @@ public class HTTPClient extends AbstractService {
       }
     }
 
+    /**
+     * Get a copy of the body as a {@link MergedByteBuffers}.
+     * 
+     * @return A copy of the body buffers.
+     */
     public MergedByteBuffers getBody() {
       return body.duplicate();
     }
 
+    /**
+     * Converts the entire body into a {@link String}.
+     *  
+     * @return The body as a {@link String}
+     */
     public String getBodyAsString() {
       return body.duplicate().getAsString(body.remaining());
     }
     
+    /**
+     * Returns the body as a {@link InputStream}.  Consuming this stream wont impact the retention 
+     * of the body (still allowing it to be retrieved from {@link #getBody()} and 
+     * {@link #getBodyAsString()}).
+     * 
+     * @return The response body as a stream
+     */
     public InputStream getBodyAsInputStream() {
       return body.duplicate().asInputStream();
     }

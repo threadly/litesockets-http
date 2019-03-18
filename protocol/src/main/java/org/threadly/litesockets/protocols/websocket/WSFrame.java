@@ -88,7 +88,7 @@ public class WSFrame {
   }
 
   /**
-   * Returns the size of the websocket frames payload
+   * Returns the size of the websocket frames payload.
    * 
    * @return size of the payload.
    */

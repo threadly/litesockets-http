@@ -10,6 +10,9 @@ import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 
+/**
+ * Utilities functions for WebSockets.
+ */
 public class WSUtils {
   
   //Keep private so it wont be modified.
@@ -69,7 +72,7 @@ public class WSUtils {
   /**
    * Validates the Sec-WebSocket-Accept header response for a websocket request.
    * 
-   * @param origKey the original key used. 
+   * @param orig the original key used. 
    * @param response the String value of the response. 
    * @return true if the key is correct, false if its not.
    */

@@ -342,6 +342,15 @@ public class HTTPServer extends AbstractService {
       }
     }
     
+    // TODO - complete javadocs
+    /**
+     * Write websocket frame to the client.
+     * 
+     * @param wsoc
+     * @param mbb
+     * @param mask
+     * @return a {@link ListenableFuture} that will be complete once this data is written to the socket.
+     */
     public ListenableFuture<?> writeWebsocketFrame(WSOPCode wsoc, MergedByteBuffers mbb, boolean mask) {
       ByteBuffer bb = mbb.pullBuffer(mbb.remaining());
       return writeBody(new SimpleMergedByteBuffers(false, WSFrame.makeWSFrame(bb.remaining(), wsoc.getValue(), mask).getRawFrame(), bb));
@@ -366,10 +375,20 @@ public class HTTPServer extends AbstractService {
       client.close();
     }
     
+    /**
+     * Returns the remote address for the client associated with the response.
+     * 
+     * @return See {@link Client#getRemoteSocketAddress()}
+     */
     public InetSocketAddress getRemoteSocketAddress() {
       return (InetSocketAddress)client.getRemoteSocketAddress();
     }
-    
+
+    /**
+     * Returns the local address for the client associated with the response.
+     * 
+     * @return See {@link Client#getLocalSocketAddress()}
+     */
     public InetSocketAddress getLocalSocketAddress() {
       return (InetSocketAddress)client.getLocalSocketAddress();
     }
@@ -423,7 +442,17 @@ public class HTTPServer extends AbstractService {
      */
     void handle(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener);
     
-    default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, BodyFuture bodyListener, Throwable t) {
+    /**
+     * Allow handling of errors for clients communicating with the server.  By default this will 
+     * just pass the {@link Throwable} to {@link ExceptionUtils#handleException(Throwable)}.
+     * 
+     * @param httpRequest the {@link HTTPRequest} the client sent.
+     * @param responseWriter the {@link ResponseWriter} that is used to send responses back on.
+     * @param bodyListener the {@link BodyFuture} that will be used to call back on as body data is read from the client.
+     * @param t The error that occurred
+     */
+    default void onError(HTTPRequest httpRequest, ResponseWriter responseWriter, 
+                         BodyFuture bodyListener, Throwable t) {
       ExceptionUtils.handleException(t);
     }
     

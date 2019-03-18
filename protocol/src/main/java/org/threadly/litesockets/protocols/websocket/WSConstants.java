@@ -1,5 +1,8 @@
 package org.threadly.litesockets.protocols.websocket;
 
+/**
+ * Constants used for websockets.
+ */
 public class WSConstants {
   public static final String MAGIC_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"; 
   public static final int DEFAULT_SECRET_KEY_SIZE = 20;

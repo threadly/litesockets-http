@@ -76,6 +76,10 @@ public enum HTTPResponseCode {
     this.text = text;
   }
   
+  /**
+   * Return the http standard numeric code / id associated to the response code.
+   * @return The id value
+   */
   public int getId() {
     return val;
   }
@@ -85,6 +89,13 @@ public enum HTTPResponseCode {
     return text;
   }
   
+  /**
+   * Attempt to convert a response code from a numeric id to an enum value.
+   * 
+   * @param val The value to check for match
+   * @return A matching response code enum
+   * @throws IllegalArgumentException thrown if no code is associated with the provided value
+   */
   public static HTTPResponseCode findResponseCode(int val) {
     for(HTTPResponseCode hrc: HTTPResponseCode.values()) { 
       if(hrc.getId() == val) {
