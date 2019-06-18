@@ -322,7 +322,7 @@ public class HTTPClient extends AbstractService {
     return hrw.slf;
   }
 
-  private void processQueue() {
+  protected void processQueue() {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
     HTTPRequestWrapper hrw;
     while(maxConcurrent > inProcess.size() && (hrw = queue.poll()) != null) {
@@ -337,8 +337,16 @@ public class HTTPClient extends AbstractService {
     }
     try {
       hrw.requestStarting();
-      hrw.client = getTCPClient(hrw.chr.getHTTPAddress());
-      inProcess.put(hrw.client, hrw);
+      TCPClient freshClient = getTCPClient(hrw.chr.getHTTPAddress());
+      hrw.client = freshClient;
+      inProcess.put(freshClient, hrw);
+      if (hrw.slf.isDone()) { // check if completed early, likely a timeout
+        // since timeout logic may have missed cleanup we must ensure cleanup is done now
+        // TODO - see if we can improve this by avoiding the extra check
+        inProcess.remove(freshClient, hrw);
+        addBackTCPClient(hrw.chr.getHTTPAddress(), freshClient); // if client is cleaned up this will ignore
+        return;
+      }
       SimpleMergedByteBuffers writeBuffer;
       if (hrw.chr.getBodyBuffer() == null) {
         writeBuffer = new SimpleMergedByteBuffers(false, 
@@ -487,20 +495,18 @@ public class HTTPClient extends AbstractService {
   private class MainClientProcessor implements Reader, ClientCloseListener {
     @Override
     public void onClose(Client client) {
-      HTTPRequestWrapper hrw = inProcess.get(client);
+      HTTPRequestWrapper hrw = inProcess.remove(client);
 
       client.close();
       if(hrw != null) {
         boolean wasProcessing = hrw.hrp.isProcessing();
         hrw.hrp.connectionClosed();
         if(! hrw.slf.isDone() && ! wasProcessing) {
-          hrw.client = null;
-          process(hrw);  
+          process(hrw);
         } else {
           hrw.slf.setFailure(new HTTPParsingException("Did not get complete body!"));
         }
       }
-      inProcess.remove(client);
       tcpClients.remove(client);
     }
 
@@ -544,6 +550,18 @@ public class HTTPClient extends AbstractService {
       this.chr = chr;
       
       sei.watchFuture(slf, chr.getTimeoutMS());
+      slf.failureCallback((t) -> {
+        if (queue.remove(this)) {
+          // was likely a timeout, avoid leaving the request suck in the queue
+        } else {
+          // since it was not in the queue, we need to release the client from being in-process
+          TCPClient client = this.client;
+          this.client = null;
+          if (client != null) { // may have already been cleaned up
+            client.close();
+          }
+        }
+      });
     }
 
     public void requestStarting() {
@@ -573,6 +591,7 @@ public class HTTPClient extends AbstractService {
     public void bodyData(ByteBuffer bb) {
       responseMBB.add(bb);
       if(responseMBB.remaining() > maxResponseSize) {
+        TCPClient client = this.client; // will be `null` after error
         slf.setFailure(new HTTPParsingException("Response Body to large!"));
         client.close();
       }
@@ -584,17 +603,26 @@ public class HTTPClient extends AbstractService {
       slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, 
                                          responseMBB.duplicateAndClean()));
       hrp.removeHTTPResponseCallback(this);
-      inProcess.remove(client);
-      addBackTCPClient(chr.getHTTPAddress(), client);
+      TCPClient client = this.client;
+      this.client = null;
+      if (client != null && inProcess.remove(client, this)) {
+        addBackTCPClient(chr.getHTTPAddress(), client);
+      }
       processQueue();
     }
 
     @Override
     public void hasError(Throwable t) {
-      if (hrp.isProcessing()) {
-        slf.setFailure(t);
-      } // if not processing we likely got a close that can work after a retry
-      client.close();
+      // since it was not in the queue, we need to release the client from being in-process
+      TCPClient client = this.client;
+      if (client != null) { // may have already been cleaned up
+        this.client = null;
+        
+        if (hrp.isProcessing()) {
+          slf.setFailure(t);
+        } // if not processing we likely got a close that can work after a retry
+        client.close();
+      }
     }
 
     @Override

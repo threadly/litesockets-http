@@ -165,8 +165,6 @@ public class HTTPClientTests {
       for(int i=0; i<number; i++) {
         CLIENT_PS.execute(run);
       }
-      Thread.sleep(1000);
-      System.out.println(count.get());
       new TestCondition(){
         @Override
         public boolean get() {
@@ -261,7 +259,7 @@ public class HTTPClientTests {
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
-    System.out.println(hrs.getResponse());
+    //System.out.println(hrs.getResponse());
     assertEquals("TEST123", hrs.getBodyAsString());
   }
 
@@ -275,7 +273,7 @@ public class HTTPClientTests {
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
-    System.out.println(hrs.getResponse());
+    //System.out.println(hrs.getResponse());
     assertEquals(CONTENT.length(), hrs.getContentLength());
     assertEquals("", hrs.getBodyAsString());
   }
@@ -305,7 +303,7 @@ public class HTTPClientTests {
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
-    hrb.setTimeout(500, TimeUnit.MILLISECONDS);
+    hrb.setTimeout(200, TimeUnit.MILLISECONDS);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     try{
@@ -313,6 +311,35 @@ public class HTTPClientTests {
       fail();
     } catch(HTTPParsingException e) {
       assertEquals("HTTP Timeout!", e.getMessage());
+      // below conditions may be slightly async due to future getting a result before listeners are invoked
+      new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
+      new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
+    }
+  }
+  
+  @Test
+  public void timeoutQueuedRequest() throws IOException, HTTPParsingException {
+    int port = PortUtils.findTCPPort();
+    TCPServer server = SEI.createTCPServer("localhost", port);
+    server.start();
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
+    hrb.setTimeout(200, TimeUnit.MILLISECONDS);
+    final HTTPClient httpClient = new HTTPClient() {
+      @Override
+      protected void processQueue() {
+        // queue is never processed
+      }
+    };
+    httpClient.start();
+    try{
+      httpClient.request(hrb.buildClientHTTPRequest());
+      fail();
+    } catch(HTTPParsingException e) {
+      assertEquals("HTTP Timeout!", e.getMessage());
+      // below conditions may be slightly async due to future getting a result before listeners are invoked
+      new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
+      new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
     }
   }
 
@@ -412,7 +439,7 @@ public class HTTPClientTests {
     server.setClientAcceptor(new ClientAcceptor() {
       @Override
       public void accept(Client c) {
-        System.out.println("new Client!");
+        //System.out.println("new Client!");
       }});
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
@@ -427,7 +454,6 @@ public class HTTPClientTests {
     try{
       httpClient.request(chr);
     } catch(Exception e) {
-      System.out.println(System.currentTimeMillis() - start);
       assertTrue(System.currentTimeMillis() - start < 700);
       return;
     }
