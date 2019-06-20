@@ -6,10 +6,14 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
@@ -18,6 +22,7 @@ import javax.net.ssl.SSLEngine;
 import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.SubmitterScheduler;
+import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
@@ -60,7 +65,7 @@ public class HTTPClient extends AbstractService {
   private final int maxResponseSize;
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
-  private final ConcurrentLinkedQueue<HTTPRequestWrapper> queue = new ConcurrentLinkedQueue<>();
+  private final Queue<HTTPRequestWrapper> queue;
   private final ConcurrentHashMap<TCPClient, HTTPRequestWrapper> inProcess = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<HTTPAddress, ArrayDeque<Pair<Long,TCPClient>>> sockets = new ConcurrentHashMap<>();
   private final CopyOnWriteArraySet<TCPClient> tcpClients = new CopyOnWriteArraySet<>();
@@ -93,12 +98,34 @@ public class HTTPClient extends AbstractService {
    * @param maxResponseSize the maximum responseSize clients are allowed to send.
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize) {
+    this(maxConcurrent, maxResponseSize, -1);
+  }
+
+  /**
+   * <p>This constructor will let you set the max Concurrent Requests and max Response Size but will still 
+   * create its own {@link SingleThreadScheduler} to use as a threadpool.</p>
+   *  
+   * <p>The maximum queue length parameter can help improved conditions where you want to fail fast 
+   * if the downstream service is fully consumed.  Since all requests will start in the queue we 
+   * recommend to either provide a {@code 0} to leave the queue unbounded, or to set to at least 
+   * the {@code maxConcurrent} value.</p>
+   * 
+   * @param maxConcurrent maximum number of requests to run simultaneously. 
+   * @param maxResponseSize the maximum responseSize clients are allowed to send.
+   * @param maxQueueSize Maximum queue size, {@code <= 0} to leave unbounded.  Recommended to be >= {@code maxConcurrent}
+   */
+  public HTTPClient(int maxConcurrent, int maxResponseSize, int maxQueueSize) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
     sts = new SingleThreadScheduler();
     this.ssi = sts;
     ntse = new NoThreadSocketExecuter();
     sei = ntse;
+    if (maxQueueSize < 1 || maxQueueSize == Integer.MAX_VALUE) {
+      queue = new ConcurrentLinkedQueue<>();
+    } else {
+      queue = new ArrayBlockingQueue<>(maxQueueSize);
+    }
     runSocketTask = new RunSocket(ssi);
   }
 
@@ -111,10 +138,33 @@ public class HTTPClient extends AbstractService {
    * @param sei the SocketExecuter to use with these HTTPClients.
    */
   public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei) {
+    this(maxConcurrent, maxResponseSize, sei, -1);
+  }
+
+  /**
+   * <p>This constructor will let you set the max Concurrent Requests and max Response Size
+   * as well as your own {@link SocketExecuter} as the thread pool to use.</p>
+   * 
+   * <p>The maximum queue length parameter can help improved conditions where you want to fail fast 
+   * if the downstream service is fully consumed.  Since all requests will start in the queue we 
+   * recommend to either provide a {@code 0} to leave the queue unbounded, or to set to at least 
+   * the {@code maxConcurrent} value.</p>
+   * 
+   * @param maxConcurrent maximum number of requests to run simultaneously. 
+   * @param maxResponseSize the maximum responseSize clients are allowed to send.
+   * @param sei the SocketExecuter to use with these HTTPClients.
+   * @param maxQueueSize Maximum queue size, {@code <= 0} to be unbounded.  Recommended to be {@code >= maxConcurrent}
+   */
+  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei, int maxQueueSize) {
     this.maxConcurrent = maxConcurrent;
     this.maxResponseSize = maxResponseSize;
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
+    if (maxQueueSize < 1 || maxQueueSize == Integer.MAX_VALUE) {
+      queue = new ConcurrentLinkedQueue<>();
+    } else {
+      queue = new ArrayBlockingQueue<>(maxQueueSize);
+    }
     runSocketTask = new RunSocket(ssi);
   }
  
@@ -232,19 +282,7 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final URL url, final HTTPRequestMethod rm, final ByteBuffer bb) throws HTTPParsingException {
-    HTTPResponseData hr = null;
-    try {
-      hr = requestAsync(url, rm, bb).get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    } catch (Exception e) {
-      if(e.getCause() instanceof HTTPParsingException) {
-        throw (HTTPParsingException)e.getCause();
-      } else {
-        throw new HTTPParsingException(e);
-      }
-    }
-    return hr;
+    return extractAsyncResponse(requestAsync(url, rm, bb));
   }
 
   /**
@@ -255,21 +293,27 @@ public class HTTPClient extends AbstractService {
    * @throws HTTPParsingException is thrown if the server sends back protocol or a response that is larger then allowed.
    */
   public HTTPResponseData request(final ClientHTTPRequest request) throws HTTPParsingException {
-    HTTPResponseData hr = null;
+    return extractAsyncResponse(requestAsync(request));
+  }
+  
+  protected HTTPResponseData extractAsyncResponse(ListenableFuture<HTTPResponseData> lf) throws HTTPParsingException {
     try {
-      hr = requestAsync(request).get();
+      return lf.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } catch (Exception e) {
-      if(e.getCause() instanceof HTTPParsingException) {
+      lf.cancel(true);
+      throw new RuntimeException("Request interrupted", e);
+    } catch (CancellationException e) {
+      throw e;
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof HTTPParsingException) {
         throw (HTTPParsingException)e.getCause();
-      } else if(e instanceof CancellationException) {
-        throw new HTTPParsingException("HTTP Timeout!", e);
+      } else if (e.getCause() instanceof RejectedExecutionException) {
+        throw (RejectedExecutionException)e.getCause();
       } else {
         throw new HTTPParsingException(e);
       }
     }
-    return hr;
   }
 
   /**
@@ -312,7 +356,9 @@ public class HTTPClient extends AbstractService {
    */
   public ListenableFuture<HTTPResponseData> requestAsync(final ClientHTTPRequest request) {
     HTTPRequestWrapper hrw = new HTTPRequestWrapper(request);
-    queue.add(hrw);
+    if (! queue.offer(hrw)) {
+      return FutureUtils.immediateFailureFuture(new RejectedExecutionException("Request queue full"));
+    }
     if(ntse != null) {
       ntse.wakeup();
       runSocketTask.signalToRun();

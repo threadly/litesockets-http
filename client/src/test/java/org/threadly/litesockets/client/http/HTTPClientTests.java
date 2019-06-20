@@ -7,7 +7,9 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -309,8 +311,8 @@ public class HTTPClientTests {
     try{
       httpClient.request(hrb.buildClientHTTPRequest());
       fail();
-    } catch(HTTPParsingException e) {
-      assertEquals("HTTP Timeout!", e.getMessage());
+    } catch(CancellationException e) {
+      assertEquals("Request timed out at point: SendingRequest", e.getMessage());
       // below conditions may be slightly async due to future getting a result before listeners are invoked
       new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
       new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
@@ -335,11 +337,35 @@ public class HTTPClientTests {
     try{
       httpClient.request(hrb.buildClientHTTPRequest());
       fail();
-    } catch(HTTPParsingException e) {
-      assertEquals("HTTP Timeout!", e.getMessage());
+    } catch(CancellationException e) {
+      assertEquals("Request timed out at point: Queued", e.getMessage());
       // below conditions may be slightly async due to future getting a result before listeners are invoked
       new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
       new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
+    }
+  }
+  
+  @Test
+  public void queueLimitTest() throws IOException, HTTPParsingException {
+    int port = PortUtils.findTCPPort();
+    TCPServer server = SEI.createTCPServer("localhost", port);
+    server.start();
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
+    hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
+    final HTTPClient httpClient = new HTTPClient(1, 1048576, 1) {
+      @Override
+      protected void processQueue() {
+        // queue is never processed so we know it's queued
+      }
+    };
+    httpClient.start();
+    httpClient.requestAsync(hrb.buildClientHTTPRequest()); // first request should queue fine
+    try{
+      httpClient.request(hrb.buildClientHTTPRequest());
+      fail();
+    } catch(RejectedExecutionException e) {
+      assertEquals(1, httpClient.getRequestQueueSize());
+      assertEquals("Request queue full", e.getMessage());
     }
   }
 
@@ -356,8 +382,8 @@ public class HTTPClientTests {
     try {
       httpClient.request(hrb.buildClientHTTPRequest());
       fail();
-    } catch(HTTPParsingException hp) {
-
+    } catch(CancellationException e) {
+      assertEquals("Request timed out at point: ReadingResponseBody", e.getMessage());
     }
     assertTrue((Clock.accurateForwardProgressingMillis() - start) > 30);
   }
