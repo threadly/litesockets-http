@@ -1,6 +1,16 @@
 # JavaHttpClient
 JavaHttpClient
 
+Include the litesockets http library into your project from maven central: 
+
+```script
+<dependency>
+	<groupId>org.threadly</groupId>
+	<artifactId>litesockets-http</artifactId>
+	<version>0.24</version>
+</dependency>
+```
+
 #HTTPClient Example
 Here are some simple examples of using the HTTPClient call.
 
