@@ -1,34 +1,39 @@
 # JavaHttpClient
 JavaHttpClient
 
-Include the litesockets http library into your project from maven central: 
+Include the litesockets http client into your project from maven central: 
 
-```script
+```
 <dependency>
 	<groupId>org.threadly</groupId>
-	<artifactId>litesockets-http</artifactId>
+	<artifactId>litesockets-http-client</artifactId>
 	<version>0.24</version>
 </dependency>
 ```
 
-#HTTPClient Example
+Include the litesockets http server into your project from maven central: 
+
+```
+<dependency>
+	<groupId>org.threadly</groupId>
+	<artifactId>litesockets-http-server</artifactId>
+	<version>0.24</version>
+</dependency>
+```
+
+# HTTPClient Example
 Here are some simple examples of using the HTTPClient call.
 
-##Simple Blocking Request
+## Simple Blocking Request
 ```java
     HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    try {
-      HTTPResponseData response = httpClient.request(new URL("http://www.google.com"));
-      System.out.println(response.getResponse());
-      System.out.println(response.getBodyAsString());
-    } catch(HTTPParsingException e) {
-      e.printStackTrace();
-    }
+    HTTPResponseData response = httpClient.request(new URL("http://www.google.com"));
+    System.out.println(response.getResponse());
+    System.out.println(response.getBodyAsString());
 ```
 
-
-##Simple Async Request
+## Simple Async Request
 ```java
     HTTPClient httpClient = new HTTPClient();
     httpClient.start();
@@ -52,13 +57,12 @@ Here are some simple examples of using the HTTPClient call.
     lfr2.addCallback(fc);
     lfr3.addCallback(fc);
     //fyi, all this is async
-      
 ```
 
-#HTTPStreamClient Examples
+# HTTPStreamClient Examples
 Here are some examples using the HTTPStreamClient
 
-##Simple Incoming Data Request
+## Simple Incoming Data Request
 ```java
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
     TSE.start();
@@ -91,7 +95,7 @@ Here are some examples using the HTTPStreamClient
     //fyi, all this is async
 ```
 
-##Chunked Outgoing Data
+## Chunked Outgoing Data
 ```java
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
     TSE.start();
@@ -146,7 +150,7 @@ Here are some examples using the HTTPStreamClient
     lfr.get();
 ```
 
-##WebSocket Client Example
+## WebSocket Client Example
 ```java
     final SettableListenableFuture<Boolean> slf = new SettableListenableFuture<Boolean>(); //Used to block till response since everything is async.
     ThreadedSocketExecuter TSE = new ThreadedSocketExecuter();
@@ -162,7 +166,6 @@ Here are some examples using the HTTPStreamClient
         slf.setResult(true);
       }});
     wsc.connect().addCallback(new FutureCallback<Boolean>() {
-
       @Override
       public void handleResult(Boolean result) {
         //we have to be fully connected before we can write
