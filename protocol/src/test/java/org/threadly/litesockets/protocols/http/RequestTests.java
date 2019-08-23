@@ -149,7 +149,7 @@ public class RequestTests {
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
-    hrp.processData(DATA_BA);
+    hrp.processData(ByteBuffer.wrap(DATA_BA));
     assertTrue(cb.finished);
     assertEquals(1, cb.bbs.size());
     assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));
@@ -216,7 +216,7 @@ public class RequestTests {
     hrp.addHTTPRequestCallback(cb);
     HTTPRequest hr = hrb.buildHTTPRequest();
     hrp.processData(hr.getMergedByteBuffers());
-    hrp.processData("TRE\r\n".getBytes());
+    hrp.processData(ByteBuffer.wrap("TRE\r\n".getBytes()));
     assertTrue(cb.error != null);
     assertTrue(cb.error instanceof HTTPParsingException);
   }
@@ -233,7 +233,7 @@ public class RequestTests {
     for(int i = 0; i<ba.length; i++) {
       byte[] nba = new byte[1];
       nba[0] = ba[i];
-      hrp.processData(nba);
+      hrp.processData(ByteBuffer.wrap(nba));
     }
     hrp.processData(HTTPUtils.wrapInChunk(ByteBuffer.allocate(0)));
     assertTrue(cb.finished);
@@ -255,10 +255,10 @@ public class RequestTests {
     assertEquals("/test12334", cb.request.getHTTPRequestHeader().getRequestPath());
     assertEquals(HTTPRequestMethod.GET.toString(), cb.request.getHTTPRequestHeader().getRequestMethod());
     assertEquals("1", cb.request.getHTTPRequestHeader().getRequestQueryValue("query"));
-    hrp.processData(wrapInChunk(DATA_BA));
+    hrp.processData(ByteBuffer.wrap(wrapInChunk(DATA_BA)));
     assertEquals(1, cb.bbs.size());
     assertEquals(DATA, bbToString(cb.bbs.get(0).duplicate()));
-    hrp.processData(wrapInChunk(DATA_BA));
+    hrp.processData(ByteBuffer.wrap(wrapInChunk(DATA_BA)));
     assertFalse(cb.finished);
     assertEquals(2, cb.bbs.size());
     assertEquals(DATA, bbToString(cb.bbs.get(1).duplicate()));
