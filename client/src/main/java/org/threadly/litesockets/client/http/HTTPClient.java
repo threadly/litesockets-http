@@ -15,7 +15,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -83,7 +82,7 @@ public class HTTPClient extends AbstractService {
 
   /**
    * <p>This is the default constructor it will create its own {@link SingleThreadScheduler} to use as a threadpool, as
-   * well as using the default {@value DEFAULT_CONCURRENT} and {@value MAX_HTTP_RESPONSE}.  This means we will do at most
+   * well as using the default {@value DEFAULT_CONCURRENT} and no queue limit.  This means we will do at most
    * 2 HTTPRequests at the same time, and those responses can be up to 1mb in size.</p>
    * 
    */

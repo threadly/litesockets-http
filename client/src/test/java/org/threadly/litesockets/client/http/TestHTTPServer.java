@@ -22,6 +22,7 @@ import org.threadly.litesockets.protocols.http.request.HTTPRequestProcessor.HTTP
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.websocket.WSFrame;
 import org.threadly.litesockets.utils.SSLUtils.FullTrustManager;
+import org.threadly.util.ExceptionUtils;
 
 public class TestHTTPServer {
   private final TrustManager[] myTMs = new TrustManager [] {new FullTrustManager() };
@@ -35,9 +36,15 @@ public class TestHTTPServer {
   private TCPServer server;
   private TransactionalByteBuffers sendBack = new TransactionalByteBuffers();
   private boolean closeOnSend;
+  private boolean delayResponse;
   private HTTPResponse hr;
 
   public TestHTTPServer(int port, HTTPResponse hr, String sendBack, boolean doSSL, boolean closeOnSend) throws IOException {
+    this(port, hr, sendBack, doSSL, closeOnSend, false);
+  }
+
+  public TestHTTPServer(int port, HTTPResponse hr, String sendBack, boolean doSSL, 
+                        boolean closeOnSend, boolean delayResponse) throws IOException {
     if(doSSL) {
       doSSLCrap();
     } 
@@ -53,6 +60,7 @@ public class TestHTTPServer {
     server.start();
     this.sendBack.add(ByteBuffer.wrap(sendBack.getBytes()));
     this.closeOnSend = closeOnSend;
+    this.delayResponse = delayResponse;
   }
 
   private void doSSLCrap() {
@@ -81,9 +89,7 @@ public class TestHTTPServer {
   private void onClient(final Client c) {
     final HTTPRequestProcessor hrp = new HTTPRequestProcessor();
     hrp.addHTTPRequestCallback(new HTTPRequestCallback() {
-
-      @Override
-      public void headersFinished(HTTPRequest hreq) {
+      private void sendResponse() {
         ListenableFuture<?> lf = c.write(hr.getMergedByteBuffers());
         sendBack.begin();
         
@@ -94,31 +100,35 @@ public class TestHTTPServer {
         if(closeOnSend) {
           lf.listener(c::close);
         }
-        hrp.reset();
+      }
+
+      @Override
+      public void headersFinished(HTTPRequest hreq) {
+        if (! delayResponse) {
+          sendResponse();
+        }
       }
 
       @Override
       public void bodyData(ByteBuffer bb) {
-        // TODO Auto-generated method stub
-        
+        // ignored
       }
 
       @Override
       public void websocketData(WSFrame wsf, ByteBuffer bb) {
-        // TODO Auto-generated method stub
-        
+        // ignored
       }
 
       @Override
       public void finished() {
-        // TODO Auto-generated method stub
-        
+        if (delayResponse) {
+          sendResponse();
+        }
       }
 
       @Override
       public void hasError(Throwable t) {
-        // TODO Auto-generated method stub
-        
+        ExceptionUtils.handleException(t);
       }});
     clients.putIfAbsent(c, hrp);
     c.setReader((lc)->hrp.processData(lc.getRead()));

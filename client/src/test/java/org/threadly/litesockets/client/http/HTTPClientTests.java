@@ -45,10 +45,8 @@ import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.PortUtils;
 import org.threadly.test.concurrent.AsyncVerifier;
 import org.threadly.test.concurrent.TestCondition;
-import org.threadly.test.concurrent.TestUtils;
 import org.threadly.util.ArrayIterator;
 import org.threadly.util.Clock;
-import org.threadly.util.debug.Profiler;
 
 public class HTTPClientTests {
   static String CONTENT = "TEST123";
@@ -107,13 +105,13 @@ public class HTTPClientTests {
       @Override
       public void run() {
         ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
-        final long start = Clock.accurateForwardProgressingMillis();
+        //final long start = Clock.accurateForwardProgressingMillis();
 
         final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
-            System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
+            //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
             av.assertEquals(CONTENT, result.getBodyAsString());
             av.signalComplete();
           }
@@ -127,13 +125,6 @@ public class HTTPClientTests {
       for(int i=0; i<number; i++) {
         CLIENT_PS.execute(run);
       }
-
-      Profiler p = new Profiler();
-      TestUtils.sleep(2_000);
-      p.start();
-      TestUtils.sleep(2_000);
-      p.stop();
-      System.out.println(p.dump());
       
       av.waitForTest(10_000, number);
       
@@ -234,7 +225,7 @@ public class HTTPClientTests {
   @Test
   public void blockingRequest() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
@@ -257,7 +248,7 @@ public class HTTPClientTests {
   @Test
   public void noContentLengthWithBody() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, CONTENT, false, true);
+    fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, CONTENT, false, true, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     
     final HTTPClient httpClient = new HTTPClient();
@@ -267,10 +258,10 @@ public class HTTPClientTests {
     assertEquals(CONTENT, hrs.getBodyAsString());
   }
 
-  //@Test
+  @Test
   public void streamedBodyRequest() throws IOException, HTTPParsingException, InterruptedException, ExecutionException {
     int port = PortUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true, true);
     ByteBuffer write1 = ByteBuffer.allocate(100);
     ByteBuffer write2 = ByteBuffer.allocate(100);
     SettableListenableFuture<ByteBuffer> write1SLF = new SettableListenableFuture<>();
@@ -298,7 +289,7 @@ public class HTTPClientTests {
   @Test
   public void streamedBodyResponse() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false);
+    fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false, false);
     AtomicInteger readContentSize = new AtomicInteger(0);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port))
         .setBodyConsumer(new BodyConsumer() {
@@ -349,8 +340,7 @@ public class HTTPClientTests {
       httpClient.request(hrb.buildClientHTTPRequest());
       fail();
     } catch(HTTPParsingException e) {
-      e.printStackTrace();
-      assertEquals("Did not get complete body!", e.getMessage());
+      assertTrue(e.getMessage().startsWith("Body not complete"));
     }
   }
   
@@ -546,7 +536,7 @@ public class HTTPClientTests {
   @Test
   public void urlRequest() throws HTTPParsingException, IOException {
     int port = PortUtils.findTCPPort();
-    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false, true);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
     HTTPResponseData hrd = httpClient.request(new URL("http://localhost:"+port));

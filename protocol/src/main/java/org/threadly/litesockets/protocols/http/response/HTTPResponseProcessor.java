@@ -138,8 +138,9 @@ public class HTTPResponseProcessor {
           reset(new HTTPParsingException("Did not complete chunked encoding!"));
         }
       } else {
-        if(response.getHeaders().getContentLength() > 0 && response.getHeaders().getContentLength() != this.currentBodySize) {
-          reset(new HTTPParsingException("Did not get complete body!"));
+        long contentLength = response.getHeaders().getContentLength();
+        if(contentLength > 0 && contentLength != this.currentBodySize) {
+          reset(new HTTPParsingException("Body not completed! (" + currentBodySize + "/" + contentLength + ")"));
         } else {
           reset(null);
         }
