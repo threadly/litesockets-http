@@ -5,31 +5,34 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
+import org.threadly.concurrent.future.FutureUtils;
+import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.util.ArgumentVerifier;
+import org.threadly.util.ArrayIterator;
 
 /**
  * A builder object for {@link HTTPRequest}.  This helps construct different types of httpRequests.
  */
 public class HTTPRequestBuilder {
-
-
   private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
   private HTTPRequestHeader request = HTTPConstants.DEFAULT_REQUEST_HEADER;
   private String host = "localhost";
   private int port = HTTPConstants.DEFAULT_HTTP_PORT;
   private boolean doSSL = false;
-  private ByteBuffer bodyBytes = null;
+  private Supplier<ListenableFuture<ByteBuffer>> bodySupplier = null;
   private int timeoutMS = HTTPRequest.DEFAULT_TIMEOUT_MS;
 
   /**
@@ -252,13 +255,33 @@ public class HTTPRequestBuilder {
   }
 
   public HTTPRequestBuilder setBody(final ByteBuffer bb) {
-    if(bb != null) {
-      this.bodyBytes = bb.slice();
-      this.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(bodyBytes.remaining()));
+    if(bb != null && bb.hasRemaining()) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Iterator<ListenableFuture<ByteBuffer>> it = 
+          ArrayIterator.makeIterator(new ListenableFuture[] { 
+            FutureUtils.immediateResultFuture(bb.slice()), FutureUtils.immediateResultFuture(null) } );
+      this.bodySupplier = it::next;
+      this.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(bb.remaining()));
     } else {
-      this.bodyBytes = null;
+      this.bodySupplier = null;
       this.removeHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
     }
+    removeHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING);
+    return this;
+  }
+
+  public HTTPRequestBuilder setStreamedBody(final int bodySize, 
+                                            final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
+    this.bodySupplier = bodySupplier;
+    this.removeHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING);
+    this.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(bodySize));
+    return this;
+  }
+
+  public HTTPRequestBuilder setChunkedBody(final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
+    this.bodySupplier = bodySupplier;
+    this.removeHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
+    this.setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked");
     return this;
   }
 
@@ -357,7 +380,7 @@ public class HTTPRequestBuilder {
   }
 
   public ClientHTTPRequest buildClientHTTPRequest() {
-    return new ClientHTTPRequest(buildHTTPRequest(), buildHTTPAddress(), this.timeoutMS, this.bodyBytes);
+    return new ClientHTTPRequest(buildHTTPRequest(), buildHTTPAddress(), this.timeoutMS, this.bodySupplier);
   }
 
   /**

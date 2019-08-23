@@ -1,7 +1,10 @@
 package org.threadly.litesockets.protocols.http.request;
 
 import java.nio.ByteBuffer;
+import java.util.function.Supplier;
 
+import org.threadly.concurrent.future.FutureUtils;
+import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 
 // TODO - do we want to move this into the `client`?  I see the `HTTPRequestBuilder` references it, 
@@ -11,15 +14,19 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
  * This is immutable, though an HTTPRequestBuilder can be made from it.
  */
 public class ClientHTTPRequest {
+  private static final Supplier<ListenableFuture<ByteBuffer>> EMPTY_BODY_SUPPLIER = 
+      () -> FutureUtils.immediateResultFuture(null);
+  
   private final HTTPRequest request;
   private final HTTPAddress ha;
-  private final ByteBuffer bodyBytes;
+  private final Supplier<ListenableFuture<ByteBuffer>> bodyProvider;
   private final int timeoutMS; 
   
-  protected ClientHTTPRequest(HTTPRequest request, HTTPAddress ha, int timeoutMS, ByteBuffer bodyBytes) {
+  protected ClientHTTPRequest(HTTPRequest request, HTTPAddress ha, int timeoutMS, 
+                              Supplier<ListenableFuture<ByteBuffer>> bodyProvider) {
     this.request = request;
     this.ha = ha;
-    this.bodyBytes = bodyBytes;
+    this.bodyProvider = bodyProvider == null ? EMPTY_BODY_SUPPLIER : bodyProvider;
     this.timeoutMS = timeoutMS;
   }
   
@@ -35,17 +42,18 @@ public class ClientHTTPRequest {
   public HTTPAddress getHTTPAddress() {
     return ha;
   }
-
-  // TODO - does this make sense, it seems dangerous since the buffer could be consumed / read.
-  // We could return a slice / duplicate copy to avoid this, or we can change this to `hasBodyContent` 
-  // (which seems how this is being used)
+  
   /**
-   * Returns the body data the request was constructed with.
+   * Returns if there is a body associated to this request.
    * 
-   * @return The ByteBuffer representing the body
+   * @return {@code true} if there is a body to be consumed through {@link #getBodyProvider()}
    */
-  public ByteBuffer getBodyBuffer() {
-    return bodyBytes;
+  public boolean hasBody() {
+    return bodyProvider != EMPTY_BODY_SUPPLIER;
+  }
+  
+  public ListenableFuture<ByteBuffer> nextBodySection() {
+    return bodyProvider.get();
   }
   
   /**
@@ -69,7 +77,7 @@ public class ClientHTTPRequest {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((bodyBytes == null) ? 0 : bodyBytes.hashCode());
+    result = prime * result + ((bodyProvider == EMPTY_BODY_SUPPLIER) ? EMPTY_BODY_SUPPLIER.hashCode() : 0);
     result = prime * result + ((ha == null) ? 0 : ha.hashCode());
     result = prime * result + ((request == null) ? 0 : request.hashCode());
     return result;
@@ -79,31 +87,29 @@ public class ClientHTTPRequest {
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
-    }
-    if (obj == null || getClass() != obj.getClass()) {
+    } else if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     ClientHTTPRequest other = (ClientHTTPRequest) obj;
-    if (bodyBytes == null ) {
-      if (other.bodyBytes != null) {
+    if (bodyProvider == EMPTY_BODY_SUPPLIER ) {
+      if (other.bodyProvider != EMPTY_BODY_SUPPLIER) {
         return false;
       }
-    } else if (!bodyBytes.equals(other.bodyBytes))
+    } else if (other.bodyProvider == EMPTY_BODY_SUPPLIER) {
       return false;
-    if (ha == null) {
+    } else if (ha == null) {
       if (other.ha != null) {
         return false;
       }
-    } else if (!ha.equals(other.ha))
+    } else if (!ha.equals(other.ha)) {
       return false;
-    if (request == null) {
+    } else if (request == null) {
       if (other.request != null) {
         return false;
       }
     } else if (!request.equals(other.request)) {
       return false;
     }
-    return false;
+    return true;
   }
-  
 }

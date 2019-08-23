@@ -175,8 +175,7 @@ public class HTTPStreamClient implements StreamingClient {
   public ListenableFuture<?> write(ByteBuffer bb) {
     if(currentHttpRequest == null) {
       throw new IllegalStateException("Must have a pending HTTPRequest before you can write!");
-    }
-    if(currentHttpRequest != null && currentHttpRequest.getHTTPHeaders().isChunked()) {
+    } else if(currentHttpRequest.getHTTPHeaders().isChunked()) {
       return client.write(HTTPUtils.wrapInChunk(bb));
     } else {
       return client.write(bb);

@@ -15,6 +15,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -44,6 +45,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.websocket.WSFrame;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.SSLUtils;
@@ -395,15 +397,50 @@ public class HTTPClient extends AbstractService {
         addBackTCPClient(hrw.chr.getHTTPAddress(), freshClient); // if client is cleaned up this will ignore
         return;
       }
-      MergedByteBuffers writeBuffer;
-      if (hrw.chr.getBodyBuffer() == null) {
-        writeBuffer = hrw.chr.getHTTPRequest().getMergedByteBuffers();
+      if (hrw.chr.hasBody()) {
+        if (hrw.chr.getHTTPRequest().getHTTPHeaders().isChunked()) {
+          hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
+          
+          hrw.chr.nextBodySection().resultCallback(new Consumer<ByteBuffer>() {
+            @Override
+            public void accept(ByteBuffer bb) {
+              ListenableFuture<?> writeFuture = hrw.client.write(HTTPUtils.wrapInChunk(bb));
+              
+              if (bb != null && bb.hasRemaining()) {
+                writeFuture.resultCallback((ignored) -> 
+                    hrw.chr.nextBodySection().resultCallback(this));
+              }
+            }
+          });
+        } else {
+          hrw.chr.nextBodySection().resultCallback(new Consumer<ByteBuffer>() {
+            private boolean firstSection = true;
+            
+            @Override
+            public void accept(ByteBuffer bb) {
+              if (bb != null && bb.hasRemaining()) {
+                MergedByteBuffers writeBuffer;
+                if (firstSection) {
+                  firstSection = false;
+                  writeBuffer = new SimpleMergedByteBuffers(false, 
+                                                            hrw.chr.getHTTPRequest().getMergedByteBuffers(), 
+                                                            bb);
+                } else {
+                  writeBuffer = new SimpleMergedByteBuffers(false, bb);
+                }
+                
+                hrw.client.write(writeBuffer)
+                          .resultCallback((ignored) -> hrw.chr.nextBodySection().resultCallback(this));
+              } else if (firstSection) {
+                firstSection = false;
+                hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
+              }
+            }
+          });
+        }
       } else {
-        writeBuffer = new SimpleMergedByteBuffers(false, 
-                                                  hrw.chr.getHTTPRequest().getMergedByteBuffers(), 
-                                                  hrw.chr.getBodyBuffer().duplicate());
+        hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
       }
-      hrw.client.write(writeBuffer);
     } catch (Throwable t) {
       //Have to catch all here or we dont keep processing if NoThreadSE is in use
       hrw.slf.setFailure(t);

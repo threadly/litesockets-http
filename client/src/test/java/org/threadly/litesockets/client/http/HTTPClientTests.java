@@ -1,25 +1,29 @@
 package org.threadly.litesockets.client.http;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.threadly.concurrent.PriorityScheduler;
 import org.threadly.concurrent.future.FutureCallback;
+import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
+import org.threadly.concurrent.future.SettableListenableFuture;
 import org.threadly.litesockets.Client;
 import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
@@ -36,8 +40,12 @@ import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.utils.IOUtils;
 import org.threadly.litesockets.utils.PortUtils;
+import org.threadly.test.concurrent.AsyncVerifier;
 import org.threadly.test.concurrent.TestCondition;
+import org.threadly.test.concurrent.TestUtils;
+import org.threadly.util.ArrayIterator;
 import org.threadly.util.Clock;
+import org.threadly.util.debug.Profiler;
 
 public class HTTPClientTests {
   static String CONTENT = "TEST123";
@@ -81,54 +89,56 @@ public class HTTPClientTests {
   }
 
   @Test
-  public void manyRequestsConcurrent() throws IOException {
+  public void manyRequestsConcurrent() throws IOException, InterruptedException, TimeoutException {
     final int number = 500;
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder().setPort(port);
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
-    final AtomicInteger count = new AtomicInteger(0);
     httpClient.start(); 
 
+    AsyncVerifier av = new AsyncVerifier();
     PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
       public void run() {
         ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
-        //final long start = Clock.accurateForwardProgressingMillis();
-        final ListenableFuture<HTTPResponseData> lf = httpClient.requestAsync(chr);
+        final long start = Clock.accurateForwardProgressingMillis();
+
+        final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
-            //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
-            assertEquals("TEST123", result.getBodyAsString());
-            count.incrementAndGet();
+            System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
+            av.assertEquals(CONTENT, result.getBodyAsString());
+            av.signalComplete();
           }
 
           @Override
           public void handleFailure(Throwable t) {
-            System.err.println("***********************ERR*******************");
-            t.printStackTrace();
-            System.err.println("***********************ERR*******************");
-            fail();
+            av.fail(t);
           }});
       }};
 
       for(int i=0; i<number; i++) {
         CLIENT_PS.execute(run);
       }
-      new TestCondition(){
-        @Override
-        public boolean get() {
-          return count.get() == number;
-        }
-      }.blockTillTrue(10000);
+
+      Profiler p = new Profiler();
+      TestUtils.sleep(2_000);
+      p.start();
+      TestUtils.sleep(2_000);
+      p.stop();
+      System.out.println(p.dump());
+      
+      av.waitForTest(10_000, number);
+      
       httpClient.stop();
   }
   
   @Test
-  public void manyRequestsConcurrentJavaExecutor() throws IOException, InterruptedException {
+  public void manyRequestsConcurrentJavaExecutor() throws IOException, InterruptedException, TimeoutException {
     final int number = 500;
     final int port = PortUtils.findTCPPort();
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
@@ -138,48 +148,43 @@ public class HTTPClientTests {
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     httpClient.start();
-    final AtomicInteger count = new AtomicInteger(0);
 
-    PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
+    AsyncVerifier av = new AsyncVerifier();
+    PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
       public void run() {
         ClientHTTPRequest chr = hrb.buildClientHTTPRequest();
         //final long start = Clock.accurateForwardProgressingMillis();
+
         final ListenableFuture<HTTPResponseData>  lf = httpClient.requestAsync(chr);
         lf.callback(new FutureCallback<HTTPResponseData>() {
           @Override
           public void handleResult(HTTPResponseData result) {
             //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
-            assertEquals("TEST123", result.getBodyAsString());
-            count.incrementAndGet();
+            av.assertEquals(CONTENT, result.getBodyAsString());
+            av.signalComplete();
           }
 
           @Override
           public void handleFailure(Throwable t) {
-            System.err.println("***********************ERR*******************");
-            t.printStackTrace();
-            System.err.println("***********************ERR*******************");
-            fail();
+            av.fail(t);
           }});
       }};
 
       for(int i=0; i<number; i++) {
         CLIENT_PS.execute(run);
       }
-      new TestCondition(){
-        @Override
-        public boolean get() {
-          return count.get() == number;
-        }
-      }.blockTillTrue(10000);
+      
+      av.waitForTest(10_000, number);
+      
       httpClient.stop();
       TSE.stop();
   }
 
 
   @Test
-  public void manyRequestsConcurrentOnPool() throws IOException {
+  public void manyRequestsConcurrentOnPool() throws IOException, InterruptedException, TimeoutException {
     final int number = 500;
     final int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
@@ -189,9 +194,9 @@ public class HTTPClientTests {
     TSE.start();
     final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
     httpClient.start();
-    final AtomicInteger count = new AtomicInteger(0);
 
-    PriorityScheduler CLIENT_PS = new PriorityScheduler(200);
+    AsyncVerifier av = new AsyncVerifier();
+    PriorityScheduler CLIENT_PS = new PriorityScheduler(20);
     Runnable run = new Runnable() {
       @Override
       public void run() {
@@ -203,28 +208,22 @@ public class HTTPClientTests {
           @Override
           public void handleResult(HTTPResponseData result) {
             //System.out.println("DELAY:"+(Clock.accurateForwardProgressingMillis()-start));
-            assertEquals("TEST123", result.getBodyAsString());
-            count.incrementAndGet();
+            av.assertEquals(CONTENT, result.getBodyAsString());
+            av.signalComplete();
           }
 
           @Override
           public void handleFailure(Throwable t) {
-            System.err.println("***********************ERR*******************");
-            t.printStackTrace();
-            System.err.println("***********************ERR*******************");
-            fail();
+            av.fail(t);
           }});
       }};
 
       for(int i=0; i<number; i++) {
         CLIENT_PS.execute(run);
       }
-      new TestCondition(){
-        @Override
-        public boolean get() {
-          return count.get() == number;
-        }
-      }.blockTillTrue(10000);
+      
+      av.waitForTest(10_000, number);
+      
       httpClient.stop();
       TSE.stop();
   }
@@ -237,7 +236,7 @@ public class HTTPClientTests {
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    assertEquals("TEST123", httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
+    assertEquals(CONTENT, httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
   }
 
   @Test
@@ -262,12 +261,40 @@ public class HTTPClientTests {
     httpClient.start();
     HTTPResponseData hrs = httpClient.request(hrb.buildClientHTTPRequest());
     //System.out.println(hrs.getResponse());
-    assertEquals("TEST123", hrs.getBodyAsString());
+    assertEquals(CONTENT, hrs.getBodyAsString());
+  }
+
+  //@Test
+  public void streamedBodyRequest() throws IOException, HTTPParsingException, InterruptedException, ExecutionException {
+    int port = PortUtils.findTCPPort();
+    fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, true);
+    ByteBuffer write1 = ByteBuffer.allocate(100);
+    ByteBuffer write2 = ByteBuffer.allocate(100);
+    SettableListenableFuture<ByteBuffer> write1SLF = new SettableListenableFuture<>();
+    SettableListenableFuture<ByteBuffer> write2SLF = new SettableListenableFuture<>();
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Iterator<ListenableFuture<ByteBuffer>> writeIt = 
+        ArrayIterator.makeIterator(new ListenableFuture[] { 
+            write1SLF, write2SLF, FutureUtils.immediateResultFuture(null) });
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port))
+        .setStreamedBody(write1.remaining() + write2.remaining(), writeIt::next);
+    
+    final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
+    ListenableFuture<HTTPResponseData> lf = httpClient.requestAsync(hrb.buildClientHTTPRequest());
+    Thread.sleep(100);
+    assertFalse(lf.isDone());
+    write1SLF.setResult(write1);
+    Thread.sleep(100);
+    assertFalse(lf.isDone());
+    write2SLF.setResult(write2);
+    
+    assertEquals(CONTENT, lf.get().getBodyAsString());
   }
 
   @Test
   public void contentLengthOnHeadRequest() throws IOException, HTTPParsingException {
-    int port = PortUtils.findTCPPort(); // TODO
+    int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setRequestMethod("HEAD");
@@ -395,7 +422,7 @@ public class HTTPClientTests {
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("https://localhost:"+port));
     final HTTPClient httpClient = new HTTPClient();
     httpClient.start();
-    assertEquals("TEST123", httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
+    assertEquals(CONTENT, httpClient.request(hrb.buildClientHTTPRequest()).getBodyAsString());
   }
 
   @Test
