@@ -23,6 +23,7 @@ import javax.net.ssl.SSLEngine;
 import org.threadly.concurrent.ReschedulingOperation;
 import org.threadly.concurrent.SingleThreadScheduler;
 import org.threadly.concurrent.SubmitterScheduler;
+import org.threadly.concurrent.future.FutureCallback;
 import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.concurrent.future.SettableListenableFuture;
@@ -401,23 +402,28 @@ public class HTTPClient extends AbstractService {
         if (hrw.chr.getHTTPRequest().getHTTPHeaders().isChunked()) {
           hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
           
-          hrw.chr.nextBodySection().resultCallback(new Consumer<ByteBuffer>() {
+          hrw.chr.nextBodySection().callback(new FutureCallback<ByteBuffer>() {
             @Override
-            public void accept(ByteBuffer bb) {
+            public void handleResult(ByteBuffer bb) {
               ListenableFuture<?> writeFuture = hrw.client.write(HTTPUtils.wrapInChunk(bb));
               
               if (bb != null && bb.hasRemaining()) {
-                writeFuture.resultCallback((ignored) -> 
-                    hrw.chr.nextBodySection().resultCallback(this));
+                ListenableFuture<ByteBuffer> nextWrite = hrw.chr.nextBodySection();
+                writeFuture.resultCallback((ignored) -> nextWrite.callback(this));
               }
+            }
+
+            @Override
+            public void handleFailure(Throwable t) {
+              hrw.slf.handleFailure(t);
             }
           });
         } else {
-          hrw.chr.nextBodySection().resultCallback(new Consumer<ByteBuffer>() {
+          hrw.chr.nextBodySection().callback(new FutureCallback<ByteBuffer>() {
             private boolean firstSection = true;
             
             @Override
-            public void accept(ByteBuffer bb) {
+            public void handleResult(ByteBuffer bb) {
               if (bb != null && bb.hasRemaining()) {
                 MergedByteBuffers writeBuffer;
                 if (firstSection) {
@@ -429,12 +435,18 @@ public class HTTPClient extends AbstractService {
                   writeBuffer = new SimpleMergedByteBuffers(false, bb);
                 }
                 
+                ListenableFuture<ByteBuffer> nextWrite = hrw.chr.nextBodySection();
                 hrw.client.write(writeBuffer)
-                          .resultCallback((ignored) -> hrw.chr.nextBodySection().resultCallback(this));
+                          .resultCallback((ignored) -> nextWrite.callback(this));
               } else if (firstSection) {
                 firstSection = false;
                 hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
               }
+            }
+
+            @Override
+            public void handleFailure(Throwable t) {
+              hrw.slf.handleFailure(t);
             }
           });
         }
