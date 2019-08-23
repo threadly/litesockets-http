@@ -1,5 +1,6 @@
 package org.threadly.litesockets.protocols.http.request;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -121,7 +123,6 @@ public class HTTPRequestBuilder {
     return this;
   }
 
-
   /**
    * This sets the request path for the {@link HTTPRequestBuilder}.  If a query is on this path it will replace the current query
    * in this builder. 
@@ -177,7 +178,6 @@ public class HTTPRequestBuilder {
     this.request = new HTTPRequestHeader(request.getRequestMethod(), request.getRequestPath(), map, request.getHttpVersion());
     return this;
   }
-
 
   /**
    * Sets the {@link HTTPAddress} for this builder.  This will add a Host header into the headers of this builder
@@ -256,6 +256,12 @@ public class HTTPRequestBuilder {
     return this;
   }
 
+  /**
+   * Set a single part body to send in the request.
+   * 
+   * @param bb The buffer to be provided or {@code null} to unset the body
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
   public HTTPRequestBuilder setBody(final ByteBuffer bb) {
     if(bb != null && bb.hasRemaining()) {
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -272,11 +278,56 @@ public class HTTPRequestBuilder {
     return this;
   }
 
-  public HTTPRequestBuilder setStreamedBody(final SubmitterExecutor executor, final int bodySize, 
-                                            final InputStream bodyStream) {
-    return setStreamedBody(bodySize, bodyProducer(executor, bodyStream));
+  /**
+   * Set a single part body to send in the request.
+   * 
+   * @param str The body contents represented as a string
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setBody(final String str) {
+    return setBody(ByteBuffer.wrap(str.getBytes()));
   }
 
+  /**
+   * Set a single part body to send in the request.
+   * 
+   * @param str The body contents represented as a string
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setBody(final String str, Charset cs) {
+    return setBody(ByteBuffer.wrap(str.getBytes(cs)));
+  }
+
+  /**
+   * Set a body to be consumed from an {@link InputStream}.
+   * 
+   * @param executor Executor to do blocking read from InputStream on
+   * @param bodySize The total size to be consumed from the InputStream
+   * @param bodyStream The stream to consume from
+   * @param bufferSize The size per-read from the stream, up to twice of this may be allocated at a time
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setStreamedBody(final SubmitterExecutor executor, final int bodySize, 
+                                            final InputStream bodyStream, 
+                                            final int bufferSize) {
+    return setStreamedBody(bodySize, bodyProducer(executor, bodyStream, bufferSize));
+  }
+
+  /**
+   * Set a body from a supplier of {@link ListenableFuture}'s.  Each future should provide the next 
+   * part of the body.  Once a future returns a {@code null} or otherwise empty {@link ByteBuffer}, 
+   * it is assumed the body is complete and will not be invoked for more content.
+   * <p>
+   * The Supplier will NOT be invoked concurrently, however the returned buffer of the last invoke 
+   * CAN'T be reused.  The next write buffer will be requested before the last one has finished 
+   * sending in order to facilitate smooth performance when reading content to send has a delay.  
+   * There will never be more than 2 unsent writes requested, so buffer reuse can happen for every 
+   * other request.
+   * 
+   * @param bodySize The total size to be consumed from the InputStream
+   * @param bodySupplier The supplier of writes, till {@code null} ends the body stream
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
   public HTTPRequestBuilder setStreamedBody(final int bodySize, 
                                             final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
     this.bodySupplier = bodySupplier;
@@ -285,24 +336,36 @@ public class HTTPRequestBuilder {
     return this;
   }
 
+  /**
+   * Set a chunked body to be consumed from an {@link InputStream}.  Each read will be turned into 
+   * an HTTP chunk.
+   * 
+   * @param executor Executor to do blocking read from InputStream on
+   * @param bodyStream The stream to consume from
+   * @param bufferSize The size per-read from the stream, up to twice of this may be allocated at a time
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
   public HTTPRequestBuilder setChunkedBody(final SubmitterExecutor executor, 
-                                           final InputStream bodyStream) {
-    return setChunkedBody(bodyProducer(executor, bodyStream));
+                                           final InputStream bodyStream, 
+                                           final int bufferSize) {
+    return setChunkedBody(bodyProducer(executor, bodyStream, bufferSize));
   }
 
-  private Supplier<ListenableFuture<ByteBuffer>> bodyProducer(final SubmitterExecutor executor, 
-                                                              final InputStream bodyStream) {
-    return () -> executor.submit(() -> {
-      byte[] buffer = new byte[8192];
-      int c = bodyStream.read(buffer);
-      if (c > 0) {
-        return ByteBuffer.wrap(buffer, 0, c);
-      } else {
-        return null;
-      }
-    });
-  }
-
+  /**
+   * Set a chunked body from a supplier of {@link ListenableFuture}'s.  Each future should provide 
+   * the next chunk for the body.  Once a future returns a {@code null} or otherwise empty 
+   * {@link ByteBuffer}, it is assumed the body is complete and will not be invoked for more 
+   * content.
+   * <p>
+   * The Supplier will NOT be invoked concurrently, however the returned buffer of the last invoke 
+   * CAN'T be reused.  The next write buffer will be requested before the last one has finished 
+   * sending in order to facilitate smooth performance when reading content to send has a delay.  
+   * There will never be more than 2 unsent writes requested, so buffer reuse can happen for every 
+   * other request.
+   * 
+   * @param bodySupplier The supplier of writes, till {@code null} ends the body stream
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
   public HTTPRequestBuilder setChunkedBody(final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
     this.bodySupplier = bodySupplier;
     this.removeHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH);
@@ -310,12 +373,43 @@ public class HTTPRequestBuilder {
     return this;
   }
 
-  public HTTPRequestBuilder setBody(final String str) {
-    return setBody(ByteBuffer.wrap(str.getBytes()));
-  }
-
-  public HTTPRequestBuilder setBody(final String str, Charset cs) {
-    return setBody(ByteBuffer.wrap(str.getBytes(cs)));
+  private Supplier<ListenableFuture<ByteBuffer>> bodyProducer(final SubmitterExecutor executor, 
+                                                              final InputStream bodyStream, 
+                                                              final int bufferSize) {
+    Callable<ByteBuffer> streamReader = new Callable<ByteBuffer>() {
+      private boolean use0 = true;
+      private ByteBuffer buffer0 = ByteBuffer.allocate(bufferSize);
+      private ByteBuffer buffer1 = null;  // lazily set
+      
+      @Override
+      public ByteBuffer call() throws Exception {
+        if (use0) {
+          use0 = false;
+          
+          return read(buffer0);
+        } else {
+          use0 = true;
+          
+          if (buffer1 == null) {
+            buffer1 = ByteBuffer.allocate(bufferSize);
+          }
+          
+          return read(buffer1);
+        }
+      }
+      
+      private ByteBuffer read(ByteBuffer buffer) throws IOException {
+        int c = bodyStream.read(buffer.array());
+        if (c > 0) {
+          buffer.position(0);
+          buffer.limit(c);
+          return buffer;
+        } else {
+          return null;
+        }
+      }
+    };
+    return () -> executor.submit(streamReader);
   }
 
   public HTTPRequestBuilder setTimeout(long size, TimeUnit unit) {
