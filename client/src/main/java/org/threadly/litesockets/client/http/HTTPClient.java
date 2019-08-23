@@ -370,9 +370,11 @@ public class HTTPClient extends AbstractService {
 
   protected void processQueue() {
     //This should be done after we do a .select on the ntse to check for more jobs before it exits.
-    HTTPRequestWrapper hrw;
-    while(maxConcurrent > inProcess.size() && (hrw = queue.poll()) != null) {
-      process(hrw);
+    synchronized (inProcess) {
+      HTTPRequestWrapper hrw;
+      while(maxConcurrent > inProcess.size() && (hrw = queue.poll()) != null) {
+        process(hrw);
+      }
     }
   }
   
