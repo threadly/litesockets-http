@@ -2,6 +2,7 @@ package org.threadly.litesockets.protocols.http.request;
 
 import java.nio.ByteBuffer;
 
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
@@ -17,7 +18,6 @@ public class HTTPRequest {
   
   private final HTTPRequestHeader request;
   private final HTTPHeaders headers;
-  private transient volatile ByteBuffer cachedBuffer;
 
   protected HTTPRequest(HTTPRequestHeader request, HTTPHeaders headers) {
     this.request = request;
@@ -45,22 +45,35 @@ public class HTTPRequest {
   /**
    * Returns a {@link ByteBuffer} for this header.  The buffer is read-only.
    * 
+   * @deprecated Please use {@link #getMergedByteBuffers()} to avoid copying the data
+   * 
    * @return a {@link ByteBuffer} for this header
    */
+  @Deprecated
   public ByteBuffer getByteBuffer() {
-    if(cachedBuffer == null) {
-      ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + request.length() + 
-          HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
-          HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
+    ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + request.length() + 
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
+        HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
 
-      combined.put(request.getByteBuffer());
-      combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
-      combined.put(headers.toString().getBytes());
-      combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
-      combined.flip();
-      cachedBuffer = combined.asReadOnlyBuffer();
-    }
-    return cachedBuffer.duplicate();
+    combined.put(request.getByteBuffer());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.put(headers.toString().getBytes());
+    combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    combined.flip();
+    return combined.asReadOnlyBuffer();
+  }
+
+  /**
+   * Returns a {@link ByteBuffer} for this header.  The buffer is read-only.
+   * 
+   * @return a {@link ByteBuffer} for this header
+   */
+  public SimpleMergedByteBuffers getMergedByteBuffers() {
+    return new SimpleMergedByteBuffers(true, 
+                                       request.getByteBuffer(), 
+                                       HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate(), 
+                                       ByteBuffer.wrap(headers.toString().getBytes()), 
+                                       HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate());
   }
 
   @Override

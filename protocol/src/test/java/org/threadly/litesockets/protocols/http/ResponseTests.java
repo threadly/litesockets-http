@@ -84,7 +84,7 @@ public class ResponseTests {
         
       }});
     HTTPResponse hr = new HTTPResponseBuilder().build();
-    hrp.processData(hr.getByteBuffer());
+    hrp.processData(hr.getMergedByteBuffers());
     assertEquals(hr, header.get(5,TimeUnit.SECONDS));
     assertTrue(finished.get(5,TimeUnit.SECONDS));
   }

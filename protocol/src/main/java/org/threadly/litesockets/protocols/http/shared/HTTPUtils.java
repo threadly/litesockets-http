@@ -9,12 +9,27 @@ import java.util.Map;
 
 import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.util.StringUtils;
 
 /**
  * Utility functions for working with the HTTP protocol.
  */
 public class HTTPUtils {
+  private static final ByteBuffer EMPTY_CHUNK_BUFFER;
+  
+  static {
+    byte[] size = chunkSizeBytes(0);
+    ByteBuffer newBB = 
+        ByteBuffer.allocate(size.length + HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
+                              HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
+    newBB.put(size);
+    newBB.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    newBB.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
+    newBB.flip();
+    EMPTY_CHUNK_BUFFER = newBB.asReadOnlyBuffer();
+  }
+  
   /**
    * Trim whitespace from the left side of the String only.
    * 
@@ -57,16 +72,20 @@ public class HTTPUtils {
    * @param bb The data to wrap
    * @return A new buffer which wraps the data in a chunk encoded segment
    */
-  public static ByteBuffer wrapInChunk(ByteBuffer bb) {
-    byte[] size = Integer.toHexString(bb.remaining()).getBytes();
-    ByteBuffer newBB = ByteBuffer.allocate(bb.remaining()+
-        size.length+HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length()+HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length());
-    newBB.put(size);
-    newBB.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
-    newBB.put(bb);
-    newBB.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
-    newBB.flip();
-    return newBB;
+  public static MergedByteBuffers wrapInChunk(ByteBuffer bb) {
+    if (bb != null && bb.hasRemaining()) {
+      return new SimpleMergedByteBuffers(true, 
+                                         ByteBuffer.wrap(chunkSizeBytes(bb.remaining())), 
+                                         HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate(), 
+                                         bb, 
+                                         HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate());
+    } else {
+      return new SimpleMergedByteBuffers(true, EMPTY_CHUNK_BUFFER.duplicate());
+    }
+  }
+  
+  private static byte[] chunkSizeBytes(int size) {
+    return Integer.toHexString(size).getBytes();
   }
   
   /**

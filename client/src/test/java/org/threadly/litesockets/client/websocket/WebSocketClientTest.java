@@ -125,7 +125,7 @@ public class WebSocketClientTest {
       slf.setResult(c.getRead());
     });
     WSclient.connect().get(10, TimeUnit.SECONDS);
-    WSclient.write(WSClient.DEFAULT_WS_REQUEST.getByteBuffer());
+    WSclient.write(WSClient.DEFAULT_WS_REQUEST.getMergedByteBuffers());
     slf.get(10, TimeUnit.SECONDS);
     
     final WSClient wsc = new WSClient(WSclient);
@@ -267,7 +267,7 @@ public class WebSocketClientTest {
           HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.NotFound, HTTPConstants.HTTP_VERSION_1_1));
           hrb.setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT, respKey);
           hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, null);
-          client.write(hrb.build().getByteBuffer());
+          client.write(hrb.build().getMergedByteBuffers());
           if(mbb.remaining() > 0) {
             client.write(mbb.pullBuffer(mbb.remaining()));
           }
@@ -299,7 +299,7 @@ public class WebSocketClientTest {
       HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.SwitchingProtocols, HTTPConstants.HTTP_VERSION_1_1));
       hrb.setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT, "BADKEY");
       hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, null);
-      client.write(hrb.build().getByteBuffer());
+      client.write(hrb.build().getMergedByteBuffers());
     }
   }
 
@@ -335,7 +335,7 @@ public class WebSocketClientTest {
           HTTPResponseBuilder hrb = new HTTPResponseBuilder().setResponseHeader(new HTTPResponseHeader(HTTPResponseCode.SwitchingProtocols, HTTPConstants.HTTP_VERSION_1_1));
           hrb.setHeader(HTTPConstants.HTTP_KEY_WEBSOCKET_ACCEPT, respKey);
           hrb.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, null);
-          client.write(hrb.build().getByteBuffer());
+          client.write(hrb.build().getMergedByteBuffers());
           if(mbb.remaining() > 0) {
             client.write(mbb.pullBuffer(mbb.remaining()));
           }

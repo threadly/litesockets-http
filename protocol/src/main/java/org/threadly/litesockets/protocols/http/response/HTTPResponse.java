@@ -4,11 +4,11 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 
+import org.threadly.litesockets.buffers.SimpleMergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
-
 
 /**
  *  An Immutable HTTPResponse object.  This contains all information from an HTTP Response.
@@ -71,8 +71,11 @@ public class HTTPResponse {
   /**
    * Gets this {@link HTTPResponse} as a {@link ByteBuffer}.
    * 
+   * @deprecated Please use {@link #getMergedByteBuffers()} to avoid copying the data
+   * 
    * @return a {@link ByteBuffer} of this {@link HTTPResponse}.
    */
+  @Deprecated
   public ByteBuffer getByteBuffer() {
     ByteBuffer combined = ByteBuffer.allocate(headers.toString().length() + rHeader.length() + 
         HTTPConstants.HTTP_NEWLINE_DELIMINATOR.length() + 
@@ -83,6 +86,19 @@ public class HTTPResponse {
     combined.put(HTTPConstants.HTTP_NEWLINE_DELIMINATOR.getBytes());
     combined.flip();
     return combined;
+  }
+  
+  /**
+   * Gets this {@link HTTPResponse} as a {@link ByteBuffer}.
+   * 
+   * @return a {@link ByteBuffer} of this {@link HTTPResponse}.
+   */
+  public SimpleMergedByteBuffers getMergedByteBuffers() {
+    return new SimpleMergedByteBuffers(true, 
+                                       rHeader.getByteBuffer(), 
+                                       HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate(), 
+                                       ByteBuffer.wrap(headers.toString().getBytes()), 
+                                       HTTPConstants.HTTP_NEWLINE_DELIMINATOR_BUFFER.duplicate());
   }
   
   @Override

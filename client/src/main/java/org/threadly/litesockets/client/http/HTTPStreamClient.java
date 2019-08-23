@@ -143,9 +143,9 @@ public class HTTPStreamClient implements StreamingClient {
   public void setRequestResponseHeaders(HTTPRequest httpRequest, HTTPResponse httpResponse, boolean writeResponse) {
     if(!slfResponse.isDone()) {
       currentHttpRequest = httpRequest;
-      httpProcessor.processData(httpResponse.getByteBuffer());
+      httpProcessor.processData(httpResponse.getMergedByteBuffers());
       if(writeResponse) {
-        client.write(httpResponse.getByteBuffer());
+        client.write(httpResponse.getMergedByteBuffers());
       }
     }
   }
@@ -167,7 +167,7 @@ public class HTTPStreamClient implements StreamingClient {
     }
     currentHttpRequest = request;
     slfResponse = new SettableListenableFuture<HTTPResponse>(false);
-    client.write(request.getByteBuffer());
+    client.write(request.getMergedByteBuffers());
     return slfResponse;
   }
   

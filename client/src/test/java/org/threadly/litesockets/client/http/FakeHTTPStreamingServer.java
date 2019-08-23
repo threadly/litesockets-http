@@ -87,7 +87,7 @@ public class FakeHTTPStreamingServer  {
 
       @Override
       public void headersFinished(HTTPRequest hreq) {
-        c.write(hr.getByteBuffer());
+        c.write(hr.getMergedByteBuffers());
         sendBack.begin();
         sendBack.begin();
         while(sendBack.remaining() > 0) {

@@ -229,6 +229,7 @@ public class HTTPRequestProcessor {
             reset();
             return false;
           } else {
+            // TODO - don't allocate a full chunk, chunks may be large
             chunkedBB = ByteBuffer.allocate((int)bodySize); // we can int cast safely due to int parse above
             return true;
           }
@@ -263,7 +264,6 @@ public class HTTPRequestProcessor {
       hrc.bodyData(bb.duplicate());
     }
   }
-
 
   /**
    * Forces a reset on the HTTPProcessor.  This will call finish on any set callbacks if a request has started.

@@ -1,5 +1,6 @@
 package org.threadly.litesockets.protocols.http.shared;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,8 @@ public class HTTPConstants {
   
   public static final String HTTP_DOUBLE_NEWLINE_DELIMINATOR = "\r\n\r\n";
   public static final String HTTP_NEWLINE_DELIMINATOR = "\r\n";
+  public static final ByteBuffer HTTP_NEWLINE_DELIMINATOR_BUFFER = 
+      ByteBuffer.wrap(HTTP_NEWLINE_DELIMINATOR.getBytes()).asReadOnlyBuffer();
   public static final String HTTP_HEADER_VALUE_DELIMINATOR = ":";
   public static final String SPACE = " ";
   

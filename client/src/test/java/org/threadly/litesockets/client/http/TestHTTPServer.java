@@ -84,7 +84,7 @@ public class TestHTTPServer {
 
       @Override
       public void headersFinished(HTTPRequest hreq) {
-        ListenableFuture<?> lf = c.write(hr.getByteBuffer());
+        ListenableFuture<?> lf = c.write(hr.getMergedByteBuffers());
         sendBack.begin();
         
         while(sendBack.remaining() > 0) {

@@ -316,7 +316,6 @@ public class HTTPRequestBuilder {
     return this;
   }
 
-
   /**
    * Replaces all the {@link HTTPHeaders} for this HTTPRequestBuilder with the ones provided.
    * 
@@ -330,7 +329,6 @@ public class HTTPRequestBuilder {
     }
     return this;
   }
-
 
   /**
    * Sets the {@link HTTPRequestMethod} for this request.  This uses the standard http request methods enum.

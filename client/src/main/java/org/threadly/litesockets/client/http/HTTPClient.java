@@ -393,13 +393,12 @@ public class HTTPClient extends AbstractService {
         addBackTCPClient(hrw.chr.getHTTPAddress(), freshClient); // if client is cleaned up this will ignore
         return;
       }
-      SimpleMergedByteBuffers writeBuffer;
+      MergedByteBuffers writeBuffer;
       if (hrw.chr.getBodyBuffer() == null) {
-        writeBuffer = new SimpleMergedByteBuffers(false, 
-                                                  hrw.chr.getHTTPRequest().getByteBuffer());
+        writeBuffer = hrw.chr.getHTTPRequest().getMergedByteBuffers();
       } else {
         writeBuffer = new SimpleMergedByteBuffers(false, 
-                                                  hrw.chr.getHTTPRequest().getByteBuffer(), 
+                                                  hrw.chr.getHTTPRequest().getMergedByteBuffers(), 
                                                   hrw.chr.getBodyBuffer().duplicate());
       }
       hrw.client.write(writeBuffer);

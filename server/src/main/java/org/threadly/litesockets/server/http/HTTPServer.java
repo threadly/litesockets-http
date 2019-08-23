@@ -274,7 +274,7 @@ public class HTTPServer extends AbstractService {
           closeOnDone = true;
         }
         responseSent = true;
-        return client.write(hr.getByteBuffer());
+        return client.write(hr.getMergedByteBuffers());
       } else if (responseSent) {
         throw new IllegalStateException("HTTPResponse already sent!");
       } else {
