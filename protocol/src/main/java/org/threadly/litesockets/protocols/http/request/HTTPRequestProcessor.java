@@ -11,6 +11,7 @@ import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
 import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.websocket.WSFrame;
 import org.threadly.litesockets.protocols.websocket.WSUtils;
+import org.threadly.util.ArgumentVerifier;
 
 /**
  * This processes byte data and turns it into HTTPrequests.  It does this through callbacks to a {@link HTTPRequestCallback} interface.  
@@ -26,7 +27,6 @@ public class HTTPRequestProcessor {
   private final ReuseableMergedByteBuffers pendingBuffers = new ReuseableMergedByteBuffers();
   private final ListenerHelper<HTTPRequestCallback> listeners = new ListenerHelper<>(HTTPRequestCallback.class);
   private int maxHeaderLength = MAX_HEADER_LENGTH;
-  private int maxRowLength = MAX_HEADER_ROW_LENGTH;
   private HTTPRequest request;
   private int currentBodySize = 0;
   private long bodySize = 0;
@@ -39,6 +39,17 @@ public class HTTPRequestProcessor {
    * Constructs an httpRequestProcessor.
    */
   public HTTPRequestProcessor() {}
+  
+  /**
+   * Set the maximum sized headers this processor is willing to accept.
+   * 
+   * @param maxHeaderLength The size in bytes that the header in total can not exceed
+   */
+  public void setMaxHeaderLength(int maxHeaderLength) {
+    ArgumentVerifier.assertGreaterThanZero(maxHeaderLength, "maxHeaderLength");
+    
+    this.maxHeaderLength = maxHeaderLength;
+  }
 
   /**
    * Adds an {@link HTTPRequestCallback} to the processor.  More the one can be added.
@@ -103,10 +114,8 @@ public class HTTPRequestProcessor {
     }
   }
   
-
   /**
    * Resets the processor and any pending buffers left in it.
-   * 
    */
   public void clearBuffer() {
     reset();
@@ -122,17 +131,16 @@ public class HTTPRequestProcessor {
           return;
         }
         if(pos > -1) {
-          MergedByteBuffers tmp = new ReuseableMergedByteBuffers();
-          tmp.add(pendingBuffers.pullBuffer(pos+2));
-          pendingBuffers.discard(2);
           try{
-            String reqh = tmp.getAsString(tmp.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR));
-            if(reqh.length() > this.maxRowLength) {
+            int reqDelim = pendingBuffers.indexOf(HTTPConstants.HTTP_NEWLINE_DELIMINATOR);
+            if(reqDelim >= MAX_HEADER_ROW_LENGTH) {
               reset(new HTTPParsingException("Request Header is to big!"));
               return;    
             }
+            String reqh = pendingBuffers.getAsString(reqDelim);
             HTTPRequestHeader hrh = new HTTPRequestHeader(reqh);
-            HTTPHeaders hh = new HTTPHeaders(tmp.getAsString(tmp.remaining()));
+            HTTPHeaders hh = new HTTPHeaders(pendingBuffers.getAsString((pos + 2) - reqh.length()));
+            pendingBuffers.discard(2);  // discard final newline
             request = new HTTPRequest(hrh, hh);
             listeners.call().headersFinished(request);
             bodySize = hh.getContentLength();
@@ -243,7 +251,7 @@ public class HTTPRequestProcessor {
     } else {
       if(currentBodySize == bodySize && pendingBuffers.remaining() >=2) {
         chunkedBB.flip();
-        sendDuplicateBBtoListeners(chunkedBB.duplicate());
+        sendDuplicateBBtoListeners(chunkedBB);
         chunkedBB = null;
         pendingBuffers.discard(2);
         bodySize = -1;
