@@ -1,5 +1,6 @@
 package org.threadly.litesockets.protocols.http.request;
 
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -13,6 +14,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.threadly.concurrent.SubmitterExecutor;
 import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
@@ -270,12 +272,35 @@ public class HTTPRequestBuilder {
     return this;
   }
 
+  public HTTPRequestBuilder setStreamedBody(final SubmitterExecutor executor, final int bodySize, 
+                                            final InputStream bodyStream) {
+    return setStreamedBody(bodySize, bodyProducer(executor, bodyStream));
+  }
+
   public HTTPRequestBuilder setStreamedBody(final int bodySize, 
                                             final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
     this.bodySupplier = bodySupplier;
     this.removeHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING);
     this.setHeader(HTTPConstants.HTTP_KEY_CONTENT_LENGTH, Integer.toString(bodySize));
     return this;
+  }
+
+  public HTTPRequestBuilder setChunkedBody(final SubmitterExecutor executor, 
+                                           final InputStream bodyStream) {
+    return setChunkedBody(bodyProducer(executor, bodyStream));
+  }
+
+  private Supplier<ListenableFuture<ByteBuffer>> bodyProducer(final SubmitterExecutor executor, 
+                                                              final InputStream bodyStream) {
+    return () -> executor.submit(() -> {
+      byte[] buffer = new byte[8192];
+      int c = bodyStream.read(buffer);
+      if (c > 0) {
+        return ByteBuffer.wrap(buffer, 0, c);
+      } else {
+        return null;
+      }
+    });
   }
 
   public HTTPRequestBuilder setChunkedBody(final Supplier<ListenableFuture<ByteBuffer>> bodySupplier) {
