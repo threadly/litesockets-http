@@ -60,12 +60,10 @@ import org.threadly.util.Pair;
  * is kept in memory and are not handled as streams.  See {@link HTTPStreamClient} for use with large HTTP data sets.</p>
  */
 public class HTTPClient extends AbstractService {
-  public static final int DEFAULT_CONCURRENT = 2;
+  public static final int DEFAULT_CONCURRENT = 8;
   public static final int DEFAULT_TIMEOUT = 15000;
   public static final int DEFAULT_MAX_IDLE = 45000;
-  public static final int MAX_HTTP_RESPONSE = 1048576;  //1MB
 
-  private final int maxResponseSize;
   private final SubmitterScheduler ssi;
   private final SocketExecuter sei;
   private final Queue<HTTPRequestWrapper> queue;
@@ -90,18 +88,17 @@ public class HTTPClient extends AbstractService {
    * 
    */
   public HTTPClient() {
-    this(DEFAULT_CONCURRENT, MAX_HTTP_RESPONSE);
+    this(DEFAULT_CONCURRENT, -1);
   }
 
   /**
    * <p>This constructor will let you set the max Concurrent Requests and max Response Size but will still 
    * create its own {@link SingleThreadScheduler} to use as a threadpool.</p>
-   *  
+   * 
    * @param maxConcurrent maximum number of requests to run simultaneously. 
-   * @param maxResponseSize the maximum responseSize clients are allowed to send.
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize) {
-    this(maxConcurrent, maxResponseSize, -1);
+  public HTTPClient(int maxConcurrent) {
+    this(maxConcurrent, -1);
   }
 
   /**
@@ -114,12 +111,10 @@ public class HTTPClient extends AbstractService {
    * the {@code maxConcurrent} value.</p>
    * 
    * @param maxConcurrent maximum number of requests to run simultaneously. 
-   * @param maxResponseSize the maximum responseSize clients are allowed to send.
    * @param maxQueueSize Maximum queue size, {@code <= 0} to leave unbounded.  Recommended to be >= {@code maxConcurrent}
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, int maxQueueSize) {
+  public HTTPClient(int maxConcurrent, int maxQueueSize) {
     this.maxConcurrent = maxConcurrent;
-    this.maxResponseSize = maxResponseSize;
     sts = new SingleThreadScheduler();
     this.ssi = sts;
     ntse = new NoThreadSocketExecuter();
@@ -137,11 +132,10 @@ public class HTTPClient extends AbstractService {
    * as well as your own {@link SocketExecuter} as the thread pool to use.</p> 
    * 
    * @param maxConcurrent maximum number of requests to run simultaneously. 
-   * @param maxResponseSize the maximum responseSize clients are allowed to send.
    * @param sei the SocketExecuter to use with these HTTPClients.
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei) {
-    this(maxConcurrent, maxResponseSize, sei, -1);
+  public HTTPClient(int maxConcurrent, SocketExecuter sei) {
+    this(maxConcurrent, -1, sei);
   }
 
   /**
@@ -153,14 +147,12 @@ public class HTTPClient extends AbstractService {
    * recommend to either provide a {@code 0} to leave the queue unbounded, or to set to at least 
    * the {@code maxConcurrent} value.</p>
    * 
-   * @param maxConcurrent maximum number of requests to run simultaneously. 
-   * @param maxResponseSize the maximum responseSize clients are allowed to send.
+   * @param maxConcurrent maximum number of requests to run simultaneously.
    * @param sei the SocketExecuter to use with these HTTPClients.
    * @param maxQueueSize Maximum queue size, {@code <= 0} to be unbounded.  Recommended to be {@code >= maxConcurrent}
    */
-  public HTTPClient(int maxConcurrent, int maxResponseSize, SocketExecuter sei, int maxQueueSize) {
+  public HTTPClient(int maxConcurrent, int maxQueueSize, SocketExecuter sei) {
     this.maxConcurrent = maxConcurrent;
-    this.maxResponseSize = maxResponseSize;
     this.ssi = sei.getThreadScheduler();
     this.sei = sei;
     if (maxQueueSize < 1 || maxQueueSize == Integer.MAX_VALUE) {
@@ -187,7 +179,7 @@ public class HTTPClient extends AbstractService {
    * 
    * @return number of request currently in progress.
    */
-  public int getInProgressSize() {
+  public int getInProgressCount() {
     return this.inProcess.size();
   }
 
@@ -196,7 +188,7 @@ public class HTTPClient extends AbstractService {
    * 
    * @return number of open connections.
    */
-  public int getOpenConnections() {
+  public int getOpenConnectionCount() {
     return tcpClients.size();
   }
   
@@ -634,7 +626,6 @@ public class HTTPClient extends AbstractService {
     private final ClientHTTPRequest chr;
     private RequestState currentState = RequestState.Queued;
     private HTTPResponse response;
-    private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
     private TCPClient client;
     private long lastRead = Clock.lastKnownForwardProgressingMillis();
 
@@ -685,10 +676,11 @@ public class HTTPClient extends AbstractService {
 
     @Override
     public void bodyData(ByteBuffer bb) {
-      responseMBB.add(bb);
-      if(responseMBB.remaining() > maxResponseSize) {
+      try {
+        chr.getBodyConsumer().accept(bb);
+      } catch (Exception e) {
         TCPClient client = this.client; // will be `null` after error
-        slf.setFailure(new HTTPParsingException("Response Body to large!"));
+        slf.setFailure(e);
         client.close();
       }
     }
@@ -697,7 +689,7 @@ public class HTTPClient extends AbstractService {
     public void finished() {
       currentState = RequestState.Finished;
       slf.setResult(new HTTPResponseData(HTTPClient.this, chr.getHTTPRequest(), response, 
-                                         responseMBB.duplicateAndClean()));
+                                         chr.getBodyConsumer().finishBody()));
       hrp.removeHTTPResponseCallback(this);
       TCPClient client = this.client;
       this.client = null;
@@ -766,7 +758,7 @@ public class HTTPClient extends AbstractService {
                             MergedByteBuffers bb) {
       this.client = client;
       this.hr = hr;
-      this.body = bb;
+      this.body = bb == null ? new SimpleMergedByteBuffers(false) : bb;
       this.origRequest = origRequest;
     }
     

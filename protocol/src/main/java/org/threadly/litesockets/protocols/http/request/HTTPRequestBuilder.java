@@ -19,24 +19,33 @@ import java.util.function.Supplier;
 import org.threadly.concurrent.SubmitterExecutor;
 import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
+import org.threadly.litesockets.buffers.ReuseableMergedByteBuffers;
+import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest.BodyConsumer;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPHeaders;
+import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 import org.threadly.litesockets.protocols.http.shared.HTTPRequestMethod;
 import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.util.ArgumentVerifier;
 import org.threadly.util.ArrayIterator;
 
+// TODO - I think the fact that this builds multiple types of Requests can be confusing
+//        We should evaluate this API and the similar todo comment in ClientHTTPRequest
 /**
  * A builder object for {@link HTTPRequest}.  This helps construct different types of httpRequests.
  */
 public class HTTPRequestBuilder {
+  public static final int MAX_HTTP_BUFFERED_RESPONSE = 1048576;  //1MB
+  
   private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
   private HTTPRequestHeader request = HTTPConstants.DEFAULT_REQUEST_HEADER;
   private String host = "localhost";
   private int port = HTTPConstants.DEFAULT_HTTP_PORT;
   private boolean doSSL = false;
   private Supplier<ListenableFuture<ByteBuffer>> bodySupplier = null;
+  private BodyConsumer bodyConsumer = null;
   private int timeoutMS = HTTPRequest.DEFAULT_TIMEOUT_MS;
 
   /**
@@ -411,6 +420,30 @@ public class HTTPRequestBuilder {
     };
     return () -> executor.submit(streamReader);
   }
+  
+  /**
+   * This will set {@link #setBodyConsumer(BodyConsumer)} with a buffered consumer at a maximum 
+   * size provided.  If not set the default {@link #MAX_HTTP_BUFFERED_RESPONSE} will be used.
+   * 
+   * @param size Maximum response size to allow / buffer
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setMaximumBufferedResponseSize(int size) {
+    return setBodyConsumer(new BufferedBodyConsumer(size));
+  }
+  
+  /**
+   * Set the {@link BodyConsumer} to accept the response body for this request.  If not set a 
+   * {@link BufferedBodyConsumer} will be used with a maximum size of 
+   * {@link #MAX_HTTP_BUFFERED_RESPONSE}.
+   * 
+   * @param bodyConsumer Consumer to accept body content
+   * @return the current {@link HTTPRequestBuilder} object.
+   */
+  public HTTPRequestBuilder setBodyConsumer(BodyConsumer bodyConsumer) {
+    this.bodyConsumer = bodyConsumer;
+    return this;
+  }
 
   public HTTPRequestBuilder setTimeout(long size, TimeUnit unit) {
     this.timeoutMS = (int)Math.min(Math.max(unit.toMillis(size),HTTPRequest.MIN_TIMEOUT_MS), HTTPRequest.MAX_TIMEOUT_MS);
@@ -499,7 +532,12 @@ public class HTTPRequestBuilder {
   }
 
   public ClientHTTPRequest buildClientHTTPRequest() {
-    return new ClientHTTPRequest(buildHTTPRequest(), buildHTTPAddress(), this.timeoutMS, this.bodySupplier);
+    BodyConsumer bodyConsumer = this.bodyConsumer;
+    if (bodyConsumer == null) {
+      bodyConsumer = new BufferedBodyConsumer(MAX_HTTP_BUFFERED_RESPONSE);
+    }
+    return new ClientHTTPRequest(buildHTTPRequest(), buildHTTPAddress(), this.timeoutMS, 
+                                 this.bodySupplier, bodyConsumer);
   }
 
   /**
@@ -509,5 +547,36 @@ public class HTTPRequestBuilder {
    */
   public HTTPRequest buildHTTPRequest() {
     return new HTTPRequest(request, new HTTPHeaders(headers));
+  }
+  
+  /**
+   * Default {@link BodyConsumer} which will buffer the response in heap.  Once completed the entire 
+   * body will be returned in the final response object.
+   */
+  public static class BufferedBodyConsumer implements BodyConsumer {
+    private final int maxResponseSize;
+    private ReuseableMergedByteBuffers responseMBB = new ReuseableMergedByteBuffers();
+    
+    /**
+     * Construct a new {@link BufferedBodyConsumer} with the specified maximum response size.
+     * 
+     * @param maxResponseSize Maximum size to allow response to buffer
+     */
+    public BufferedBodyConsumer(int maxResponseSize) {
+      this.maxResponseSize = maxResponseSize;
+    }
+
+    @Override
+    public void accept(ByteBuffer bb) throws HTTPParsingException {
+      if(responseMBB.remaining() + bb.remaining() > maxResponseSize) {
+        throw new HTTPParsingException("Response Body to large!");
+      }
+      responseMBB.add(bb);
+    }
+
+    @Override
+    public MergedByteBuffers finishBody() {
+      return responseMBB.duplicateAndClean();
+    }
   }
 }

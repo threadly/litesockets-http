@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -29,8 +30,10 @@ import org.threadly.litesockets.Server.ClientAcceptor;
 import org.threadly.litesockets.SocketExecuter;
 import org.threadly.litesockets.TCPServer;
 import org.threadly.litesockets.ThreadedSocketExecuter;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.client.http.HTTPClient.HTTPResponseData;
 import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest;
+import org.threadly.litesockets.protocols.http.request.ClientHTTPRequest.BodyConsumer;
 import org.threadly.litesockets.protocols.http.request.HTTPRequestBuilder;
 import org.threadly.litesockets.protocols.http.response.HTTPResponse;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseBuilder;
@@ -58,7 +61,7 @@ public class HTTPClientTests {
   static HTTPResponse RESPONSE_HUGE_NOCL;
   static {
     StringBuilder sb = new StringBuilder();
-    while(sb.length() < (HTTPClient.MAX_HTTP_RESPONSE*2)) {
+    while(sb.length() < (HTTPRequestBuilder.MAX_HTTP_BUFFERED_RESPONSE*2)) {
       sb.append(CONTENT);
     }
     LARGE_CONTENT = sb.toString();
@@ -146,7 +149,7 @@ public class HTTPClientTests {
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
-    final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, HTTPClient.MAX_HTTP_RESPONSE, TSE);
+    final HTTPClient httpClient = new HTTPClient(HTTPClient.DEFAULT_CONCURRENT, TSE);
     httpClient.start();
 
     AsyncVerifier av = new AsyncVerifier();
@@ -192,7 +195,7 @@ public class HTTPClientTests {
     hrb.setHTTPAddress(new HTTPAddress("localhost", port, false), true);
     final ThreadedSocketExecuter TSE = new ThreadedSocketExecuter(PS);
     TSE.start();
-    final HTTPClient httpClient = new HTTPClient(200, HTTPClient.MAX_HTTP_RESPONSE, TSE);
+    final HTTPClient httpClient = new HTTPClient(200, TSE);
     httpClient.start();
 
     AsyncVerifier av = new AsyncVerifier();
@@ -293,6 +296,32 @@ public class HTTPClientTests {
   }
 
   @Test
+  public void streamedBodyResponse() throws IOException, HTTPParsingException {
+    int port = PortUtils.findTCPPort();
+    fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false);
+    AtomicInteger readContentSize = new AtomicInteger(0);
+    final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port))
+        .setBodyConsumer(new BodyConsumer() {
+          @Override
+          public void accept(ByteBuffer bb) throws HTTPParsingException {
+            readContentSize.addAndGet(bb.remaining());
+          }
+
+          @Override
+          public MergedByteBuffers finishBody() {
+            return null;
+          }
+        });
+    
+    final HTTPClient httpClient = new HTTPClient();
+    httpClient.start();
+    MergedByteBuffers emptyResponseBody = httpClient.request(hrb.buildClientHTTPRequest()).getBody();
+    
+    assertEquals(0, emptyResponseBody.remaining());
+    assertEquals(LARGE_CONTENT.length(), readContentSize.get());
+  }
+
+  @Test
   public void contentLengthOnHeadRequest() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_CL, "", false, true);
@@ -342,7 +371,7 @@ public class HTTPClientTests {
       assertEquals("Request timed out at point: SendingRequest", e.getMessage());
       // below conditions may be slightly async due to future getting a result before listeners are invoked
       new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
-      new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
+      new TestCondition(() -> httpClient.getInProgressCount() == 0).blockTillTrue(1_000);
     }
   }
   
@@ -368,7 +397,7 @@ public class HTTPClientTests {
       assertEquals("Request timed out at point: Queued", e.getMessage());
       // below conditions may be slightly async due to future getting a result before listeners are invoked
       new TestCondition(() -> httpClient.getRequestQueueSize() == 0).blockTillTrue(1_000);
-      new TestCondition(() -> httpClient.getInProgressSize() == 0).blockTillTrue(1_000);
+      new TestCondition(() -> httpClient.getInProgressCount() == 0).blockTillTrue(1_000);
     }
   }
   
@@ -379,7 +408,7 @@ public class HTTPClientTests {
     server.start();
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
     hrb.setBody(IOUtils.EMPTY_BYTEBUFFER);
-    final HTTPClient httpClient = new HTTPClient(1, 1048576, 1) {
+    final HTTPClient httpClient = new HTTPClient(1, 1) {
       @Override
       protected void processQueue() {
         // queue is never processed so we know it's queued
@@ -426,7 +455,7 @@ public class HTTPClientTests {
   }
 
   @Test
-  public void toLargeRequest() throws IOException, HTTPParsingException {
+  public void tooLargeRequest() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_HUGE, LARGE_CONTENT, false, false);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));
@@ -441,7 +470,7 @@ public class HTTPClientTests {
   }
 
   @Test
-  public void toLargeRequestNoContentLength() throws IOException, HTTPParsingException {
+  public void tooLargeRequestNoContentLength() throws IOException, HTTPParsingException {
     int port = PortUtils.findTCPPort();
     fakeServer = new TestHTTPServer(port, RESPONSE_NO_CL, LARGE_CONTENT, false, true);
     final HTTPRequestBuilder hrb = new HTTPRequestBuilder(new URL("http://localhost:"+port));

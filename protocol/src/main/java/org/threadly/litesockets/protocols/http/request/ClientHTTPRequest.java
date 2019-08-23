@@ -5,7 +5,9 @@ import java.util.function.Supplier;
 
 import org.threadly.concurrent.future.FutureUtils;
 import org.threadly.concurrent.future.ListenableFuture;
+import org.threadly.litesockets.buffers.MergedByteBuffers;
 import org.threadly.litesockets.protocols.http.shared.HTTPAddress;
+import org.threadly.litesockets.protocols.http.shared.HTTPParsingException;
 
 // TODO - do we want to move this into the `client`?  I see the `HTTPRequestBuilder` references it, 
 // but we could create an extending class `ClientHTTPRequestBuilder` which can build this
@@ -20,13 +22,16 @@ public class ClientHTTPRequest {
   private final HTTPRequest request;
   private final HTTPAddress ha;
   private final Supplier<ListenableFuture<ByteBuffer>> bodyProvider;
+  private final BodyConsumer bodyConsumer;
   private final int timeoutMS; 
   
   protected ClientHTTPRequest(HTTPRequest request, HTTPAddress ha, int timeoutMS, 
-                              Supplier<ListenableFuture<ByteBuffer>> bodyProvider) {
+                              Supplier<ListenableFuture<ByteBuffer>> bodyProvider, 
+                              BodyConsumer bodyConsumer) {
     this.request = request;
     this.ha = ha;
     this.bodyProvider = bodyProvider == null ? EMPTY_BODY_SUPPLIER : bodyProvider;
+    this.bodyConsumer = bodyConsumer;
     this.timeoutMS = timeoutMS;
   }
   
@@ -41,6 +46,10 @@ public class ClientHTTPRequest {
    */
   public HTTPAddress getHTTPAddress() {
     return ha;
+  }
+  
+  public BodyConsumer getBodyConsumer() {
+    return bodyConsumer;
   }
   
   /**
@@ -63,14 +72,6 @@ public class ClientHTTPRequest {
    */
   public int getTimeoutMS() {
     return this.timeoutMS;
-  }
-
-  // TODO - is this useful?  I am not seeing any cases of it being used
-  public HTTPRequestBuilder makeBuilder() {
-    HTTPRequestBuilder hrb = request.makeBuilder();
-    hrb.setHTTPAddress(ha, false);
-        
-    return hrb;
   }
   
   @Override
@@ -111,5 +112,27 @@ public class ClientHTTPRequest {
       return false;
     }
     return true;
+  }
+  
+  /**
+   * Consumer to accept the response body as it is read from the network.
+   */
+  public interface BodyConsumer {
+    /**
+     * Invoked to provide newly read body contents.
+     * 
+     * @param bb Buffer containing the body data
+     * @throws HTTPParsingException May be thrown if there is any errors in the body contents
+     */
+    public void accept(ByteBuffer bb) throws HTTPParsingException;
+    
+    /**
+     * Invoked once the body has been fully consumed.  This should finish and cleanup anything 
+     * necessary, providing a {@link MergedByteBuffers} to be represented in the final 
+     * {@link HTTPResponseData}.
+     * 
+     * @return Buffer containing the final form of the body (or empty if body wont be read from {@link HTTPResponseData})
+     */
+    public MergedByteBuffers finishBody();
   }
 }
