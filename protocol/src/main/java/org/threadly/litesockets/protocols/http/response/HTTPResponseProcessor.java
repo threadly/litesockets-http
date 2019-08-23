@@ -106,10 +106,9 @@ public class HTTPResponseProcessor {
         }
         response = new HTTPResponse(hrh, hh);
         listeners.call().headersFinished(response);
-        if(!response.getHeaders().isChunked() && 
-            response.getResponseCode() != HTTPResponseCode.SwitchingProtocols && 
+        if(response.getResponseCode() != HTTPResponseCode.SwitchingProtocols && 
             (headRequest || response.getResponseCode() == HTTPResponseCode.NoContent || 
-             response.getHeaders().getContentLength() == 0)) {
+                (!response.getHeaders().isChunked() && response.getHeaders().getContentLength() == 0))) {
           reset(null);
         }
       } catch(Exception e) {
