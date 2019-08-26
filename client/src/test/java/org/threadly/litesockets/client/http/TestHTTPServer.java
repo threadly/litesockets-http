@@ -39,11 +39,11 @@ public class TestHTTPServer {
   private boolean delayResponse;
   private HTTPResponse hr;
 
-  public TestHTTPServer(int port, HTTPResponse hr, String sendBack, boolean doSSL, boolean closeOnSend) throws IOException {
+  public TestHTTPServer(int port, HTTPResponse hr, byte[] sendBack, boolean doSSL, boolean closeOnSend) throws IOException {
     this(port, hr, sendBack, doSSL, closeOnSend, false);
   }
 
-  public TestHTTPServer(int port, HTTPResponse hr, String sendBack, boolean doSSL, 
+  public TestHTTPServer(int port, HTTPResponse hr, byte[] sendBack, boolean doSSL, 
                         boolean closeOnSend, boolean delayResponse) throws IOException {
     if(doSSL) {
       doSSLCrap();
@@ -58,7 +58,7 @@ public class TestHTTPServer {
     server.setDoHandshake(true);
     server.setClientAcceptor((lc)->onClient(lc));
     server.start();
-    this.sendBack.add(ByteBuffer.wrap(sendBack.getBytes()));
+    this.sendBack.add(ByteBuffer.wrap(sendBack));
     this.closeOnSend = closeOnSend;
     this.delayResponse = delayResponse;
   }
