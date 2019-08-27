@@ -219,8 +219,11 @@ public class HTTPClient extends AbstractService {
    * @param unit The unit the {@code timeout} value is represented in
    */
   public void setTimeout(long timeout, TimeUnit unit) {
-    this.defaultTimeoutMS = Math.min(Math.max(unit.toMillis(timeout),HTTPRequest.MIN_TIMEOUT_MS), 
-                                     HTTPRequest.MAX_TIMEOUT_MS);
+    if (timeout <= 0) {
+      this.defaultTimeoutMS = -1;
+    } else {
+      this.defaultTimeoutMS = Math.max(unit.toMillis(timeout), HTTPRequest.MIN_TIMEOUT_MS);
+    }
   }
   
   /**
@@ -635,7 +638,9 @@ public class HTTPClient extends AbstractService {
       hrp.addHTTPResponseCallback(this);
       this.chr = chr;
       
-      sei.watchFuture(slf, chr.getTimeoutMS());
+      if (chr.getTimeoutMS() > 0) {
+        sei.watchFuture(slf, chr.getTimeoutMS());
+      }
       slf.failureCallback((t) -> {
         if (queue.remove(this)) {
           // was likely a timeout, avoid leaving the request suck in the queue
@@ -661,10 +666,6 @@ public class HTTPClient extends AbstractService {
       }
       lastRead = Clock.lastKnownForwardProgressingMillis();
       hrp.processData(read);
-    }
-
-    public long timeTillExpired() {
-      return chr.getTimeoutMS() - (Clock.lastKnownForwardProgressingMillis() - lastRead);
     }
 
     @Override

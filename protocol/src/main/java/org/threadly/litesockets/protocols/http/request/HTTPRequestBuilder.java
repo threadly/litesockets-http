@@ -445,8 +445,12 @@ public class HTTPRequestBuilder {
     return this;
   }
 
-  public HTTPRequestBuilder setTimeout(long size, TimeUnit unit) {
-    this.timeoutMS = (int)Math.min(Math.max(unit.toMillis(size),HTTPRequest.MIN_TIMEOUT_MS), HTTPRequest.MAX_TIMEOUT_MS);
+  public HTTPRequestBuilder setTimeout(long value, TimeUnit unit) {
+    if (value <= 0) {
+      this.timeoutMS = -1;
+    } else {
+      this.timeoutMS = (int)Math.max(unit.toMillis(value), HTTPRequest.MIN_TIMEOUT_MS);
+    }
     return this;
   }
 
