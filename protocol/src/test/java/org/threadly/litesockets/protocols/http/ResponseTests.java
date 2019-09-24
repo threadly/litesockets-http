@@ -5,9 +5,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 import org.threadly.concurrent.future.SettableListenableFuture;
@@ -18,6 +16,7 @@ import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor;
 import org.threadly.litesockets.protocols.http.response.HTTPResponseProcessor.HTTPResponseCallback;
 import org.threadly.litesockets.protocols.http.shared.HTTPConstants;
 import org.threadly.litesockets.protocols.http.shared.HTTPResponseCode;
+import org.threadly.litesockets.protocols.http.shared.HTTPUtils;
 import org.threadly.litesockets.protocols.websocket.WSFrame;
 
 public class ResponseTests {
@@ -50,12 +49,11 @@ public class ResponseTests {
   }
   
   @Test
-  public void responseProcessorTest1() throws InterruptedException, ExecutionException, TimeoutException {
+  public void responseProcessorBasicTest() throws Exception {
     HTTPResponseProcessor hrp = new HTTPResponseProcessor(false);
-    final SettableListenableFuture<HTTPResponse> header = new SettableListenableFuture<>();
-    final SettableListenableFuture<Boolean> finished = new SettableListenableFuture<>();
+    final SettableListenableFuture<HTTPResponse> header = new SettableListenableFuture<>(false);
+    final SettableListenableFuture<Boolean> finished = new SettableListenableFuture<>(false);
     hrp.addHTTPResponseCallback(new HTTPResponseCallback() {
-
       @Override
       public void headersFinished(HTTPResponse hr) {
         header.setResult(hr);
@@ -63,8 +61,7 @@ public class ResponseTests {
 
       @Override
       public void bodyData(ByteBuffer bb) {
-        // TODO Auto-generated method stub
-        
+        // ignored
       }
 
       @Override
@@ -74,17 +71,60 @@ public class ResponseTests {
 
       @Override
       public void hasError(Throwable t) {
-        // TODO Auto-generated method stub
-        
+        finished.setFailure(t);
+        header.setFailure(t);
       }
 
       @Override
       public void websocketData(WSFrame wsf, ByteBuffer bb) {
-        // TODO Auto-generated method stub
-        
+        hasError(new Exception("Unexpected websocket data"));
       }});
     HTTPResponse hr = new HTTPResponseBuilder().build();
     hrp.processData(hr.getMergedByteBuffers());
+    assertEquals(hr, header.get(5,TimeUnit.SECONDS));
+    assertTrue(finished.get(5,TimeUnit.SECONDS));
+  }
+  
+  @Test
+  public void responseProcessorChunkedEncodingEarlyCloseTest() throws Exception {
+    HTTPResponseProcessor hrp = new HTTPResponseProcessor(false);
+    final SettableListenableFuture<HTTPResponse> header = new SettableListenableFuture<>(false);
+    final SettableListenableFuture<Boolean> finished = new SettableListenableFuture<>(false);
+    hrp.addHTTPResponseCallback(new HTTPResponseCallback() {
+      @Override
+      public void headersFinished(HTTPResponse hr) {
+        header.setResult(hr);
+      }
+
+      @Override
+      public void bodyData(ByteBuffer bb) {
+        // ignored
+      }
+
+      @Override
+      public void finished() {
+        finished.setResult(true);
+      }
+
+      @Override
+      public void hasError(Throwable t) {
+        finished.setFailure(t);
+        header.setFailure(t);
+      }
+
+      @Override
+      public void websocketData(WSFrame wsf, ByteBuffer bb) {
+        hasError(new Exception("Unexpected websocket data"));
+      }});
+    HTTPResponse hr = 
+        new HTTPResponseBuilder()
+            .setHeader(HTTPConstants.HTTP_KEY_TRANSFER_ENCODING, "chunked")
+            .build();
+    
+    hrp.processData(hr.getMergedByteBuffers());
+    hrp.processData(HTTPUtils.wrapInChunk(ByteBuffer.wrap(new byte[10])));
+    hrp.connectionClosed();
+    
     assertEquals(hr, header.get(5,TimeUnit.SECONDS));
     assertTrue(finished.get(5,TimeUnit.SECONDS));
   }
