@@ -69,8 +69,11 @@ public enum HTTPResponseCode {
   NetworkAuthenticationRequired(511, "Network Authentication Required") /*(RFC 6585)*/, 
   OptionNotSupported(551, "Option not supported") /*(RTSP)*/;
   
-  private int val;
-  private String text;
+  private static final HTTPResponseCode[] VALUES = HTTPResponseCode.values(); // avoid copies
+  
+  private final int val;
+  private final String text;
+  
   private HTTPResponseCode(int val, String text) {
     this.val = val;
     this.text = text;
@@ -97,7 +100,7 @@ public enum HTTPResponseCode {
    * @throws IllegalArgumentException thrown if no code is associated with the provided value
    */
   public static HTTPResponseCode findResponseCode(int val) {
-    for(HTTPResponseCode hrc: HTTPResponseCode.values()) { 
+    for(HTTPResponseCode hrc: VALUES) { 
       if(hrc.getId() == val) {
         return hrc;
       }

@@ -7,6 +7,8 @@ public enum WSOPCode {
   Continuation((byte)0), Text((byte)1), Binary((byte)2),
   Close((byte)8), Ping((byte)9), Pong((byte)10); 
   
+  private static final WSOPCode[] VALUES = WSOPCode.values(); // avoid copies
+  
   private final byte value;
   
   private WSOPCode(byte value) {
@@ -29,7 +31,7 @@ public enum WSOPCode {
    * @return Matching opcode or {@code null} if none was found
    */
   public static WSOPCode fromByte(byte b) {
-    for(WSOPCode oc: WSOPCode.values()) {
+    for(WSOPCode oc: VALUES) {
       if(oc.getValue() == b) {
         return oc;
       }
