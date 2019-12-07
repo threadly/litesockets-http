@@ -589,11 +589,8 @@ public class HTTPClient extends AbstractService {
 
       client.close();
       if(hrw != null) {
-        boolean wasProcessing = hrw.hrp.isProcessing();
         hrw.hrp.connectionClosed();
-        if(! hrw.slf.isDone() && ! wasProcessing) {
-          process(hrw);
-        } else {
+        if(! hrw.slf.isDone()) {
           hrw.slf.setFailure(new HTTPParsingException("Did not get complete body!"));
         }
       }
