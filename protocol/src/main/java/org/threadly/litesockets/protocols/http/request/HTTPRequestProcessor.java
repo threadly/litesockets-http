@@ -265,7 +265,10 @@ public class HTTPRequestProcessor {
         sendDuplicateBBtoListeners(chunkedBB);
         int remaining = Math.min(((int)bodySize) - currentBodySize, MAX_CHUNK_SIZE);
         if (remaining > 0) {
-          chunkedBB = ByteBuffer.allocate(remaining);
+          chunkedBB.clear();
+          if (remaining < chunkedBB.capacity()) {
+            chunkedBB.limit(remaining);
+          } // it should not be possible for remaining to be larger than the buffer size
         } else {
           chunkedBB = null;
         }
@@ -306,7 +309,10 @@ public class HTTPRequestProcessor {
     this.request = null;
     this.currentBodySize = 0;
     this.bodySize = 0;
-    this.isChunked = false;
+    if (isChunked) {
+      isChunked = false;
+      chunkedBB = null;
+    }
   }
 
   /**
