@@ -17,11 +17,12 @@ public class WSFrame {
   private final int frameLength;
 
   protected WSFrame(final ByteBuffer bb) {
-    frameLength = WSUtils.getFrameLength(bb);
+    ByteBuffer sbb = bb.slice();
+    frameLength = WSUtils.getFrameLength(sbb);
     if(frameLength < 0 || bb.remaining() < frameLength) {
       throw new IllegalStateException("Not enough data to make a WebSocketFrame");
     }
-    this.bb = bb;
+    this.bb = sbb;
   }
   
   /**

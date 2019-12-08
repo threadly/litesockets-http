@@ -148,7 +148,7 @@ public class WSUtils {
    * @return the size in the first length field.
    */
   static byte getSmallLen(final ByteBuffer bb) {
-    return (byte)(bb.get(1) & WSConstants.WS_SMALL_LENGTH_MASK);            
+    return (byte)(bb.get(bb.position()+1) & WSConstants.WS_SMALL_LENGTH_MASK);            
   }
 
   static int getLengthSize(final ByteBuffer bb) {
@@ -162,6 +162,6 @@ public class WSUtils {
   }
 
   private static boolean hasMask(final ByteBuffer bb) {
-    return (bb.get(1) & WSConstants.UNSIGN_BYTE_MASK) >> WSConstants.STATIC_SEVEN == 1;
+    return (bb.get(bb.position()+1) & WSConstants.UNSIGN_BYTE_MASK) >> WSConstants.STATIC_SEVEN == 1;
   }
 }
