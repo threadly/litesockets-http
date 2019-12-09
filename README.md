@@ -7,7 +7,7 @@ Include the litesockets http client into your project from maven central:
 <dependency>
 	<groupId>org.threadly</groupId>
 	<artifactId>litesockets-http-client</artifactId>
-	<version>0.25</version>
+	<version>0.27</version>
 </dependency>
 ```
 
@@ -17,7 +17,7 @@ Include the litesockets http server into your project from maven central:
 <dependency>
 	<groupId>org.threadly</groupId>
 	<artifactId>litesockets-http-server</artifactId>
-	<version>0.25</version>
+	<version>0.27</version>
 </dependency>
 ```
 
