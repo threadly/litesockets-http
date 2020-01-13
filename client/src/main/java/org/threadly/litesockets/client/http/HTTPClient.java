@@ -399,7 +399,16 @@ public class HTTPClient extends AbstractService {
           hrw.chr.nextBodySection().callback(new FutureCallback<ByteBuffer>() {
             @Override
             public void handleResult(ByteBuffer bb) {
-              ListenableFuture<?> writeFuture = hrw.client.write(HTTPUtils.wrapInChunk(bb));
+              TCPClient client = hrw.client;
+              if (client == null) {
+                // already completed (in error), the `client` will be null
+                return;
+              }
+              // NOT guaranteed to be on client thread
+              // but the only reason the client should be replaced is if an error occurred
+              // in that condition the client will be closed anyways
+              
+              ListenableFuture<?> writeFuture = client.write(HTTPUtils.wrapInChunk(bb));
               
               if (bb != null && bb.hasRemaining()) {
                 ListenableFuture<ByteBuffer> nextWrite = hrw.chr.nextBodySection();
@@ -418,6 +427,15 @@ public class HTTPClient extends AbstractService {
             
             @Override
             public void handleResult(ByteBuffer bb) {
+              TCPClient client = hrw.client;
+              if (client == null) {
+                // already completed (in error), the `client` will be null
+                return;
+              }
+              // NOT guaranteed to be on client thread
+              // but the only reason the client should be replaced is if an error occurred
+              // in that condition the client will be closed anyways
+              
               if (bb != null && bb.hasRemaining()) {
                 MergedByteBuffers writeBuffer;
                 if (firstSection) {
@@ -430,11 +448,11 @@ public class HTTPClient extends AbstractService {
                 }
                 
                 ListenableFuture<ByteBuffer> nextWrite = hrw.chr.nextBodySection();
-                hrw.client.write(writeBuffer)
-                          .resultCallback((ignored) -> nextWrite.callback(this));
+                client.write(writeBuffer)
+                      .resultCallback((ignored) -> nextWrite.callback(this));
               } else if (firstSection) {
                 firstSection = false;
-                hrw.client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
+                client.write(hrw.chr.getHTTPRequest().getMergedByteBuffers());
               }
             }
 
